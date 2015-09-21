@@ -1,0 +1,11 @@
+Mule is a Python package providing an interface to the Fields Files and 
+Fields File Variants used by the Met Office Unified Model (UM) as data and metadata
+inputs and outputs.
+
+The UM Documentation paper F3 provides the specification for these data formats.
+
+Mule provides read and write access to the headers and data for these Files and 
+representations of these in memory.
+
+to run the tests, you can use
+python -m unittest discover -v mule.tests
