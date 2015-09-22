@@ -36,8 +36,12 @@ class Test_empty(tests.IrisTest):
             header = FixedLengthHeader.empty()
         else:
             header = FixedLengthHeader.empty(word_size)
-        self.assertArrayEqual(header.raw, [-32768] * 256)
-        self.assertEqual(header.raw.dtype, dtype)
+        self.assertArrayEqual(header.raw, [None] + [-32768] * 256)
+
+        # Disabled because: The header is now of "object" dtype, making this
+        #                   test, and actually those below, a little bit less
+        #                   relevant
+        #self.assertEqual(header.raw.dtype, dtype)
 
     def test_default(self):
         self.check('>i8')
@@ -59,7 +63,7 @@ class Test_from_file(tests.IrisTest):
                     header = FixedLengthHeader.from_file(source)
                 else:
                     header = FixedLengthHeader.from_file(source, word_size)
-        self.assertArrayEqual(header.raw, np.arange(256) * 10)
+        self.assertArrayEqual(header.raw[1:], np.arange(256) * 10)
 
     def test_default(self):
         self.check('>i8')
@@ -140,26 +144,20 @@ class Test_integer_constants_start(tests.IrisTest):
 class Test_integer_constants_shape(tests.IrisTest):
     def test(self):
         header = make_header()
-        self.assertEqual(header.integer_constants_shape, (1010,))
+        self.assertEqual(header.integer_constants_length, 1010)
 
 
 class Test_row_dependent_constants_shape(tests.IrisTest):
     def test(self):
         header = make_header()
-        self.assertEqual(header.row_dependent_constants_shape, (1160, 1170))
-
+        self.assertEqual((header.row_dependent_constants_dim1,
+                          header.row_dependent_constants_dim2), (1160, 1170))
 
 class Test_data_shape(tests.IrisTest):
     def test(self):
         header = make_header()
-        self.assertEqual(header.data_shape, (1610,))
-
-
-class Test_max_length(tests.IrisTest):
-    def test(self):
-        header = make_header()
-        self.assertEqual(header.max_length, (1620,))
-
+        self.assertEqual((header.data_dim1,
+                          header.data_dim2), (1610,1620,))
 
 if __name__ == '__main__':
     tests.main()

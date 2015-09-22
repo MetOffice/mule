@@ -1,4 +1,9 @@
-# (C) Crown Copyright 2015, Met Office. All rights reserved.
+#!/usr/bin/env python
+# *****************************COPYRIGHT******************************
+# (C) Crown copyright Met Office. All rights reserved.
+# For further details please refer to the file LICENCE.txt
+# which you should have received as part of this distribution.
+# *****************************COPYRIGHT******************************
 #
 # This file is part of Mule.
 #
@@ -13,153 +18,267 @@
 #
 # You should have received a copy of the Modified BSD License
 # along with Mule.  If not, see <http://opensource.org/licenses/BSD-3-Clause>.
-"""
-Low level support for UM FieldsFile variants.
 
 """
+This module provides a series of classes to allow interaction with various
+file formats from the UM system
 
+"""
 from __future__ import (absolute_import, division, print_function)
-from six.moves import (filter, input, map, range, zip)  # noqa
 
-from contextlib import contextmanager
 import os
-import os.path
 import tempfile
-
 import numpy as np
+from contextlib import contextmanager
 
-# Borrow some definitions...
-from iris.fileformats.ff import _FF_HEADER_POINTERS, FF_HEADER as _FF_HEADER
-from iris.fileformats.pp import _header_defn
+# UM fixed length header names and positions
+_UM_FIXED_LENGTH_HEADER = [
+    ('data_set_format_version',          1   ),
+    ('sub_model',                        2   ),
+    ('vert_coord_type',                  3   ),
+    ('horiz_grid_type',                  4   ),
+    ('dataset_type',                     5   ),
+    ('run_identifier',                   6   ),
+    ('experiment_number',                7   ),
+    ('calendar',                         8   ),
+    ('grid_staggering',                  9   ),
+    ('time_type',                        10  ),
+    ('projection_number',                11  ),
+    ('model_version',                    12  ),
+    ('obs_file_type',                    14  ),
+    ('last_fieldop_type',                15  ),
+    ('integer_constants_start',          100 ),    
+    ('integer_constants_length',         101 ),
+    ('real_constants_start',             105 ),    
+    ('real_constants_length',            106 ),
+    ('level_dependent_constants_start',  110 ),
+    ('level_dependent_constants_dim1',   111 ),
+    ('level_dependent_constants_dim2',   112 ),
+    ('row_dependent_constants_start',    115 ),
+    ('row_dependent_constants_dim1',     116 ),
+    ('row_dependent_constants_dim2',     117 ),
+    ('column_dependent_constants_start', 120 ),
+    ('column_dependent_constants_dim1',  121 ),
+    ('column_dependent_constants_dim2',  122 ),    
+    ('fields_of_constants_start',        125 ),
+    ('fields_of_constants_dim1',         126 ),
+    ('fields_of_constants_dim2',         127 ),    
+    ('extra_constants_start',            130 ),
+    ('extra_constants_length',           131 ),    
+    ('temp_historyfile_start',           135 ),
+    ('temp_historyfile_length',          136 ),    
+    ('compressed_field_index1_start',    140 ),
+    ('compressed_field_index1_length',   141 ),    
+    ('compressed_field_index2_start',    142 ),
+    ('compressed_field_index2_length',   143 ),    
+    ('compressed_field_index3_start',    144 ),
+    ('compressed_field_index3_length',   145 ),    
+    ('lookup_start',                     150 ),
+    ('lookup_dim1',                      151 ),
+    ('lookup_dim2',                      152 ),    
+    ('total_prognostic_fields',          153 ),
+    ('data_start',                       160 ),
+    ('data_dim1',                        161 ), 
+    ('data_dim2',                        162 ),
+    ]
+    
 
-try:
-    import mo_pack
-except ImportError:
-    mo_pack = None
+# UM FieldsFile/PP LOOKUP header names and positions for header release vn.2
+_LOOKUP_HEADER_2 = [
+        ('lbyr',    1  ),
+        ('lbmon',   2  ),
+        ('lbdat',   3  ),
+        ('lbhr',    4  ),
+        ('lbmin',   5  ),
+        ('lbday',   6  ),
+        ('lbyrd',   7  ),
+        ('lbmond',  8  ),
+        ('lbdatd',  9  ),
+        ('lbhrd',   10 ),
+        ('lbmind',  11 ),
+        ('lbdayd',  12 ),
+        ('lbtim',   13 ),
+        ('lbft',    14 ),
+        ('lblrec',  15 ),
+        ('lbcode',  16 ),
+        ('lbhem',   17 ),
+        ('lbrow',   18 ),
+        ('lbnpt',   19 ),
+        ('lbext',   20 ),
+        ('lbpack',  21 ),
+        ('lbrel',   22 ),
+        ('lbfc',    23 ),
+        ('lbcfc',   24 ),
+        ('lbproc',  25 ),
+        ('lbvc',    26 ),
+        ('lbrvc',   27 ),
+        ('lbexp',   28 ),
+        ('lbegin',  29 ),
+        ('lbnrec',  30 ),
+        ('lbproj',  31 ),
+        ('lbtyp',   32 ),
+        ('lblev',   33 ),
+        ('lbrsvd1', 34 ),
+        ('lbrsvd2', 35 ),
+        ('lbrsvd3', 36 ),
+        ('lbrsvd4', 37 ),        
+        ('lbsrce',  38 ),
+        ('lbuser1', 39 ),
+        ('lbuser2', 40 ),
+        ('lbuser3', 41 ),
+        ('lbuser4', 42 ),
+        ('lbuser5', 43 ),
+        ('lbuser6', 44 ),
+        ('lbuser7', 45 ),                
+        ('brsvd1',  46 ),
+        ('brsvd2',  47 ),
+        ('brsvd3',  48 ),
+        ('brsvd4',  49 ),        
+        ('bdatum',  50 ),
+        ('bacc',    51 ),
+        ('blev',    52 ),
+        ('brlev',   53 ),
+        ('bhlev',   54 ),
+        ('bhrlev',  55 ),
+        ('bplat',   56 ),
+        ('bplon',   57 ),
+        ('bgor',    58 ),
+        ('bzy',     59 ),
+        ('bdy',     60 ),
+        ('bzx',     61 ),
+        ('bdx',     62 ),
+        ('bmdi',    63 ),
+        ('bmks',    64 ),
+    ]
 
-DEFAULT_WORD_SIZE = 8  # In bytes.
+# UM FieldsFile/PP LOOKUP header names and positions for header release vn.3
+# These are identical to header release vn.2 above apart from the 6th and 12th
+# elements, which had their meanings changed from "day of year" to "second"
+_LOOKUP_HEADER_3 = [(name, position) for name, position in _LOOKUP_HEADER_2]
+_LOOKUP_HEADER_3[5] = ('lbsec', 6 )
+_LOOKUP_HEADER_3[11] = ('lbsecd', 12 )
 
+# A mapping from header-release-number to header definition
+_LOOKUP_HEADERS = {2: _LOOKUP_HEADER_2, 3: _LOOKUP_HEADER_3}
 
-def _make_getter(attr_name, index):
-    if isinstance(index, slice):
-        def getter(self):
-            return tuple(getattr(self, attr_name)[index])
-    else:
-        def getter(self):
-            return getattr(self, attr_name)[index]
-    return getter
+# Global default word (record) size (in bytes)
+DEFAULT_WORD_SIZE = 8
 
-
-def _make_setter(attr_name, index):
-    def setter(self, value):
-        getattr(self, attr_name)[index] = value
-    return setter
-
-
+# Metaclass for header objects
 class _HeaderMetaclass(type):
     """
-    Adds convenience get/set properties to the target class
-    corresponding to single-valued entries in _FF_HEADER.
-        e.g. FixedLengthHeader.sub_model
+    This metaclass is used in the construction of several header-like classes
+    in this module; note that it is applied on *defining* the classes (i.e.
+    when this module is imported), *not* later when a specific instance of the
+    classes is initialised.
 
-    Also adds "<name>_start" and "<name>_shape" convenience properties
-    corresponding to the "pointer" entries in _FF_HEADER, with the
-    exception of the lookup and data components.
-        e.g. FixedLengthHeader.integer_constants_start
-             FixedLengthHeader.integer_constants_shape
-
+    The purpose of this class is to attach a set of named attributes to the
+    header object and associate these with specific indices of the underlying
+    array of header values.  The target class defines this "mapping" itself,
+    allowing this metaclass to be used for multiple header-like objects.
+    
     """
     def __new__(metacls, classname, bases, class_dict):
-        def add_property(name, index):
-            class_dict[name] = property(_make_getter('_integers', index),
-                                        _make_setter('_integers', index))
+        """
+        Called upon definition of the target class to add the named attributes.
+        The target class should define a HEADER_MAPPING attribute to specify
+        the mapping to be used for the attributes.
+        
+        """
+        # This method will return a new "getter"; which retrieves a set of
+        # indices from the named attribute containing the actual value array
+        # inside the target class
+        def make_getter(array_attribute, indices):
+            def getter(self):
+                return getattr(self, array_attribute)[indices]
+            return getter
 
-        for name, offsets in _FF_HEADER:
-            if len(offsets) == 1:
-                add_property(name, offsets[0])
-            elif name in _FF_HEADER_POINTERS:
-                if name == 'lookup_table':
-                    # Rename for consistency with UM documentation paper F3
-                    name = 'lookup'
-                elif name == 'data':
-                    # Bug fix - data is only 1-dimensional.
-                    offsets = offsets[:-1]
+        # ... and this one does the same thing but returns a "setter" to allow
+        # assignment of values to the array inside the target class
+        def make_setter(array_attribute, indices):
+            def setter(self, values):
+                getattr(self, array_attribute)[indices] = values
+            return setter
+        
+        # Retrieve the desired mapping defined by the target class
+        mapping = class_dict.get("HEADER_MAPPING")
+        if mapping is not None:
+            for name, indices in mapping:
+                # Add a new named attribute to the class under the name given
+                # in the mapping, and use the two functions above to provide
+                # the methods to get + set the attribute appropriately
+                class_dict[name] = property(make_getter("_values", indices),
+                                            make_setter("_values", indices))
 
-                add_property(name + '_start', offsets[0])
-                first_offset = offsets[1]
-                last_offset = offsets[-1] + 1
-                add_property(name + '_shape', slice(first_offset, last_offset))
-            else:
-                # The remaining multi-value items are 'first_validity_time',
-                # 'last_validity_time', and 'misc_validity_time'.
-                # But, from the wider perspective of FieldsFile variants
-                # these names do not make sense - so we skip them.
-                pass
-
-        # Complement to 1-dimensional data bug fix
-        add_property('max_length', 161)
-
+        # Finish construction of the class
         return super(_HeaderMetaclass, metacls).__new__(metacls, classname,
                                                         bases, class_dict)
 
-
 class FixedLengthHeader(object):
-    """
-    Represents the FIXED_LENGTH_HEADER component of a UM FieldsFile
-    variant.
 
-    Access to simple header items is provided via named attributes,
-    e.g. fixed_length_header.sub_model. Other header items can be
-    accessed via the :attr:`raw` attribute which provides a simple array
-    view of the header.
-
-    """
-
+    # Preset the mappings into the array via the metaclass, using
+    # the mapping specified below
     __metaclass__ = _HeaderMetaclass
 
+    HEADER_MAPPING = _UM_FIXED_LENGTH_HEADER
     NUM_WORDS = 256
-    IMDI = -32768
+    MDI = -32768
 
+    # The empty classmethod always produces a blank version of the object
+    # of the correct (expected) size, filled with missing data indicators
     @classmethod
     def empty(cls, word_size=DEFAULT_WORD_SIZE):
-        integers = np.empty(cls.NUM_WORDS, dtype='>i{}'.format(word_size))
-        integers[:] = cls.IMDI
-        return cls(integers)
+        integers = np.empty(cls.NUM_WORDS, dtype='>i{0}'.format(word_size))
+        integers[:] = cls.MDI
+        return cls(integers, word_size)
 
+    # The from_file classmethod operates on a file to extract the header;
+    # unlike the other header components this is the only one which assumes
+    # the given size for the header
     @classmethod
     def from_file(cls, source, word_size=DEFAULT_WORD_SIZE):
-        """
-        Create a FixedLengthHeader from a file-like object.
-
-        Args:
-
-        * source:
-            The file-like object to read from.
-
-        Kwargs:
-
-        * word_size:
-            The number of bytes in each word of the header.
-
-        """
-        integers = np.fromfile(source, dtype='>i{}'.format(word_size),
+        source.seek(0)
+        integers = np.fromfile(source, dtype='>i{0}'.format(word_size),
                                count=cls.NUM_WORDS)
-        return cls(integers)
+        return cls(integers, word_size)
 
-    def __init__(self, integers):
-        """
-        Create a FixedLengthHeader from the given sequence of integer
-        values.
+    # In either case the init method will be called - it takes the raw array
+    # of integers and casts them into an object array; so that the zero-th
+    # element can appear as "None" - this makes it behave a little more like
+    # a Fortran array in terms of the header mappings and when the user is
+    # accessing it via the "raw" property
+    def __init__(self, integers, word_size=DEFAULT_WORD_SIZE):
 
-        """
+        # An extra check here, since it is paramount that fixed length headers
+        # have the exact expected number of words (the other header elements
+        # are slightly less strict)
         if len(integers) != self.NUM_WORDS:
-            raise ValueError('Incorrect number of words - given {} but should '
-                             'be {}.'.format(len(integers), self.NUM_WORDS))
-        self._integers = np.asarray(integers)
+            _msg = ('Incorrect number of words for {0} - given {1} but '
+                    'should be {2}.'.format(type(self).__name__,
+                                            len(integers), self.NUM_WORDS))
+            raise ValueError(_msg)
+        self._values = np.empty(self.NUM_WORDS + 1, dtype=object)
+        self._values[1:] = np.asarray(integers,
+                                      dtype=">i{0}".format(word_size))
+
+    # If called - writes the the array to the given output file
+    def to_file(self, fieldsfile, output_file, word_size=DEFAULT_WORD_SIZE):
+        output_file.write(self._values[1:].astype('>i{0}'.format(word_size)))
+
+    # This property enables access to the raw values in the array, in case
+    # a user wishes to access them by index rather than by named attribute
+    @property
+    def raw(self):
+        return self._values.view()
+
+    def copy(self):
+        new = type(self).empty()
+        new._values = self._values.copy()
+        return new
 
     def __eq__(self, other):
         try:
-            eq = np.all(self._integers == other._integers)
+            eq = np.all(self._values == other._values)
         except AttributeError:
             eq = NotImplemented
         return eq
@@ -170,62 +289,391 @@ class FixedLengthHeader(object):
             result = not result
         return result
 
+
+class IntegerConstants(object):
+
+    # Preset the mappings into the array via the metaclass, using
+    # the mapping specified below
+    __metaclass__ = _HeaderMetaclass
+    MDI = FixedLengthHeader.MDI
+
+    # The empty classmethod always produces a blank version of the object
+    # of the correct (expected) size, filled with missing data indicators    
+    @classmethod
+    def empty(cls, num_words=0, word_size=DEFAULT_WORD_SIZE):
+        return cls([cls.MDI]*num_words, word_size)
+
+    # The from_file classmethod operates on an existing fieldsfile object
+    # to extract the header
+    @classmethod
+    def from_file(cls, fieldsfile, word_size=DEFAULT_WORD_SIZE):
+        source = fieldsfile._source
+        flh = fieldsfile.fixed_length_header
+
+        # The start position and shape of the integer constants comes from
+        # the fixed length header
+        start = flh.integer_constants_start
+        shape = flh.integer_constants_length
+        if start > 0:
+            source.seek((start - 1) * word_size)
+            integers = np.fromfile(source, dtype='>i{0}'.format(word_size),
+                                   count=shape)
+            return cls(integers, word_size)
+        else:
+            return None
+
+    # If called, the init method takes the raw array of integers and casts
+    # them into an object array; so that the zero-th element can appear as
+    # "None" - this makes it behave a little more like a Fortran array in
+    # terms of the header mappings and when the user is accessing it via
+    # the "raw" property
+    def __init__(self, integers, word_size=DEFAULT_WORD_SIZE):
+        self._values = np.empty(len(integers) + 1, dtype=object)
+        self._values[1:] = np.asarray(integers,
+                                      dtype=">i{0}".format(word_size))
+
+    # If called - writes the the array to the given output file
+    def to_file(self, fieldsfile, output_file, word_size=DEFAULT_WORD_SIZE):
+        flh = fieldsfile.fixed_length_header
+        flh.integer_constants_start = int(output_file.tell() / word_size + 1)
+        flh.integer_constants_length = self.size            
+        output_file.write(self._values[1:].astype('>i{0}'.format(word_size)))
+
+    # This property enables access to the raw values in the array, in case
+    # a user wishes to access them by index rather than by named attribute
     @property
     def raw(self):
-        return self._integers.view()
+        return self._values.view()        
+
+    @property
+    def size(self):
+        return self._values.size - 1
+
+    def copy(self):
+        new = type(self).empty()
+        new._values = self._values.copy()
+        return new
+
+class RealConstants(object):
+
+    # Preset the mappings into the array via the metaclass, using
+    # the mapping specified below
+    __metaclass__ = _HeaderMetaclass
+    MDI = -1073741824.0
+
+    # The empty classmethod always produces a blank version of the object
+    # of the correct (expected) size, filled with missing data indicators    
+    @classmethod
+    def empty(cls, num_words=0, word_size=DEFAULT_WORD_SIZE):
+        return cls([cls.MDI]*num_words, word_size)
+
+    # The from_file classmethod operates on an existing fieldsfile object
+    # to extract the header
+    @classmethod
+    def from_file(cls, fieldsfile, word_size=DEFAULT_WORD_SIZE):
+        source = fieldsfile._source
+        flh = fieldsfile.fixed_length_header
+
+        # The start position and shape of the integer constants comes from
+        # the fixed length header; start by reading in however many values
+        # the file claims it contains
+        start = flh.real_constants_start
+        shape = flh.real_constants_length
+        if start > 0:
+            source.seek((start - 1) * word_size)
+            reals = np.fromfile(source, dtype='>f{0}'.format(word_size),
+                                count=shape)
+            return cls(reals, word_size)
+        else:
+            return None
+
+    # If called, the init method takes the raw array of integers and casts
+    # them into an object array; so that the zero-th element can appear as
+    # "None" - this makes it behave a little more like a Fortran array in
+    # terms of the header mappings and when the user is accessing it via
+    # the "raw" property
+    def __init__(self, reals, word_size=DEFAULT_WORD_SIZE):
+        self._values = np.empty(len(reals) + 1, dtype=object)
+        self._values[1:] = np.asarray(reals,
+                                      dtype=">f{0}".format(word_size))
+
+    # If called - writes the the array to the given output file
+    def to_file(self, fieldsfile, output_file, word_size=DEFAULT_WORD_SIZE):
+        flh = fieldsfile.fixed_length_header
+        flh.real_constants_start = int(output_file.tell() / word_size + 1)
+        flh.real_constants_length = self.size            
+        output_file.write(self._values[1:].astype('>f{0}'.format(word_size)))
+        
+    # This property enables access to the raw values in the array, in case
+    # a user wishes to access them by index rather than by named attribute
+    @property
+    def raw(self):
+        return self._values.view()
+    
+    @property
+    def size(self):
+        return self._values.size - 1
+    
+    def copy(self):
+        new = type(self).empty()
+        new._values = self._values.copy()
+        return new
 
 
-# The number of integer header items.
-_NUM_FIELD_INTS = 45
+class LevelDependentConstants(object):
+
+    # Preset the mappings into the array via the metaclass, using
+    # the mapping specified below
+    __metaclass__ = _HeaderMetaclass
+    MDI = RealConstants.MDI
+
+    # The empty classmethod always produces a blank version of the object
+    # of the correct (expected) size, filled with missing data indicators    
+    @classmethod
+    def empty(cls, num_levels=0, num_cols=0, word_size=DEFAULT_WORD_SIZE):
+        reals = np.empty((num_levels, num_cols),
+                         dtype='>f{0}'.format(word_size))
+        reals[:,:] = cls.MDI
+        return cls(reals, word_size)
+
+    # The from_file classmethod operates on an existing fieldsfile object
+    # to extract the header
+    @classmethod
+    def from_file(cls, fieldsfile, word_size=DEFAULT_WORD_SIZE):
+        source = fieldsfile._source
+        flh = fieldsfile.fixed_length_header
+
+        # The start position and shape of the integer constants comes from
+        # the fixed length header; start by reading in however many values
+        # the file claims it contains
+        start = flh.level_dependent_constants_start
+        n_levels = flh.level_dependent_constants_dim1
+        n_cols = flh.level_dependent_constants_dim2
+        
+        if start > 0:
+            source.seek((start - 1) * word_size)
+            reals = np.fromfile(source, dtype='>f{0}'.format(word_size),
+                                count=np.product((n_levels, n_cols)))
+            reals = reals.reshape((n_levels, n_cols), order="F")
+            return cls(reals, word_size)
+        else:
+            return None
+
+    # If called, the init method takes the raw array of integers and casts
+    # them into an object array; so that the zero-th element can appear as
+    # "None" - this makes it behave a little more like a Fortran array in
+    # terms of the header mappings and when the user is accessing it via
+    # the "raw" property
+    def __init__(self, reals, word_size=DEFAULT_WORD_SIZE):
+        self._values = np.empty((reals.shape[0], reals.shape[1] + 1),
+                                 dtype=object)
+        self._values[:,1:] = reals
+
+    # If called - writes the the array to the given output file
+    def to_file(self, fieldsfile, output_file, word_size=DEFAULT_WORD_SIZE):
+        flh = fieldsfile.fixed_length_header
+        flh.level_dependent_constants_start = int(output_file.tell() / word_size + 1)
+        flh.level_dependent_constants_dim1 = self._values.shape[0]
+        flh.level_dependent_constants_dim2 = self._values.shape[1] - 1        
+        output_file.write(np.ravel(
+            self._values[:,1:].astype('>f{0}'.format(word_size)), order="F"))
+
+    # This property enables access to the raw values in the array, in case
+    # a user wishes to access them by index rather than by named attribute
+    @property
+    def raw(self):
+        return self._values.view()
+
+    @property
+    def size(self):
+        return self._values.size - self._values.shape[0]
+
+    def copy(self):
+        new = type(self).empty(self._values.shape[0])
+        new._values = self._values.copy()
+        return new
 
 
-class _FieldMetaclass(type):
-    """
-    Adds human-readable get/set properties derived from a _HEADER_DEFN
-    attribute on the target class.
-        e.g. field.lbproc, field.blev
+class RowDependentConstants(object):
 
-    "Array-style" header items, such as LBUSER, result in multiple
-    single-valued properties with a one-based numeric suffix.
-        e.g. field.lbuser1, field.lbuser7
+    # Preset the mappings into the array via the metaclass, using
+    # the mapping specified below
+    __metaclass__ = _HeaderMetaclass
+    MDI = RealConstants.MDI
 
-    """
-    def __new__(metacls, classname, bases, class_dict):
-        defn = class_dict.get('_HEADER_DEFN')
-        if defn is not None:
-            for name, indices in defn:
-                if len(indices) == 1:
-                    names = [name]
-                else:
-                    names = [name + str(i + 1) for i, _ in enumerate(indices)]
-                for name, index in zip(names, indices):
-                    if index < _NUM_FIELD_INTS:
-                        attr_name = 'int_headers'
-                    else:
-                        attr_name = 'real_headers'
-                        index -= _NUM_FIELD_INTS
-                    class_dict[name] = property(_make_getter(attr_name, index),
-                                                _make_setter(attr_name, index))
-        return super(_FieldMetaclass, metacls).__new__(metacls, classname,
-                                                       bases, class_dict)
+    # The empty classmethod always produces a blank version of the object
+    # of the correct (expected) size, filled with missing data indicators    
+    @classmethod
+    def empty(cls, num_rows=0, num_grids=0, word_size=DEFAULT_WORD_SIZE):
+        reals = np.empty((num_rows, num_grids), dtype='>f{0}'.format(word_size))
+        reals[:,:] = cls.MDI
+        return cls(reals, word_size)
+
+    # The from_file classmethod operates on an existing fieldsfile object
+    # to extract the header
+    @classmethod
+    def from_file(cls, fieldsfile, word_size=DEFAULT_WORD_SIZE):
+        source = fieldsfile._source
+        flh = fieldsfile.fixed_length_header
+
+        # The start position and shape of the integer constants comes from
+        # the fixed length header; start by reading in however many values
+        # the file claims it contains
+        start = flh.row_dependent_constants_start
+        n_rows = flh.row_dependent_constants_dim1
+        n_grids = flh.row_dependent_constants_dim2
+
+        if start > 0:
+            source.seek((start - 1) * word_size)
+            reals = np.fromfile(source, dtype='>f{0}'.format(word_size),
+                                count=np.product((n_grids, n_rows)))
+            reals = reals.reshape((n_rows, n_grids), order="F")
+            return cls(reals, word_size)
+        else:
+            return None
+
+    # If called, the init method takes the raw array of integers and casts
+    # them into an object array; so that the zero-th element can appear as
+    # "None" - this makes it behave a little more like a Fortran array in
+    # terms of the header mappings and when the user is accessing it via
+    # the "raw" property
+    def __init__(self, reals, word_size=DEFAULT_WORD_SIZE):
+        self._values = np.empty((reals.shape[0], reals.shape[1]+1),
+                                 dtype=object)
+        self._values[:,1:] = reals
+
+    # If called - writes the the array to the given output file
+    def to_file(self, fieldsfile, output_file, word_size=DEFAULT_WORD_SIZE):
+        flh = fieldsfile.fixed_length_header
+        flh.row_dependent_constants_start = int(output_file.tell() / word_size + 1)
+        flh.row_dependent_constants_dim1 = self._values.shape[0]
+        flh.row_dependent_constants_dim2 = self._values.shape[1] - 1        
+        output_file.write(np.ravel(
+            self._values[:,1:].astype('>f{0}'.format(word_size)), order="F"))
+        
+    # This property enables access to the raw values in the array, in case
+    # a user wishes to access them by index rather than by named attribute
+    @property
+    def raw(self):
+        return self._values.view()
+
+    @property
+    def size(self):
+        return self._values.size - self._values.shape[0]
+
+    def copy(self):
+        new = type(self).empty(self._values.shape[0])
+        new._values = self._values.copy()
+        return new
+
+class ColumnDependentConstants(object):
+
+    # Preset the mappings into the array via the metaclass, using
+    # the mapping specified below
+    __metaclass__ = _HeaderMetaclass
+    MDI = RealConstants.MDI
+
+    # The empty classmethod always produces a blank version of the object
+    # of the correct (expected) size, filled with missing data indicators    
+    @classmethod
+    def empty(cls, num_cols=0, num_grids=0, word_size=DEFAULT_WORD_SIZE):
+        reals = np.empty((num_cols, num_grids), dtype='>f{0}'.format(word_size))
+        reals[:,:] = cls.MDI
+        return cls(reals, word_size)
+
+    # The from_file classmethod operates on an existing fieldsfile object
+    # to extract the header
+    @classmethod
+    def from_file(cls, fieldsfile, word_size=DEFAULT_WORD_SIZE):
+        source = fieldsfile._source
+        flh = fieldsfile.fixed_length_header
+
+        # The start position and shape of the integer constants comes from
+        # the fixed length header; start by reading in however many values
+        # the file claims it contains
+        start = flh.column_dependent_constants_start
+        n_cols = flh.column_dependent_constants_dim1
+        n_grids = flh.column_dependent_constants_dim2
+        
+        if start > 0:
+            source.seek((start - 1) * word_size)
+            reals = np.fromfile(source, dtype='>f{0}'.format(word_size),
+                                count=np.product((n_grids, n_cols)))
+            reals = reals.reshape((n_cols, n_grids), order="F")
+            return cls(reals, word_size)
+        else:
+            return None
+
+    # If called, the init method takes the raw array of integers and casts
+    # them into an object array; so that the zero-th element can appear as
+    # "None" - this makes it behave a little more like a Fortran array in
+    # terms of the header mappings and when the user is accessing it via
+    # the "raw" property
+    def __init__(self, reals, word_size=DEFAULT_WORD_SIZE):
+        self._values = np.empty((reals.shape[0], reals.shape[1] + 1),
+                                 dtype=object)
+        self._values[:,1:] = reals
+
+    # If called - writes the the array to the given output file
+    def to_file(self, fieldsfile, output_file, word_size=DEFAULT_WORD_SIZE):
+        flh = fieldsfile.fixed_length_header
+        flh.column_dependent_constants_start = int(output_file.tell() / word_size + 1)
+        flh.column_dependent_constants_dim1 = self._values.shape[0]
+        flh.column_dependent_constants_dim2 = self._values.shape[1] - 1
+        output_file.write(np.ravel(
+            self._values[:,1:].astype('>f{0}'.format(word_size)), order="F"))
+
+    # This property enables access to the raw values in the array, in case
+    # a user wishes to access them by index rather than by named attribute
+    @property
+    def raw(self):
+        return self._values.view()
+
+    @property
+    def size(self):
+        return self._values.size - self._values.shape[0]
+    
+    def copy(self):
+        new = type(self).empty(self._values.shape[0])
+        new._values = self._values.copy()
+        return new
 
 
 class Field(object):
     """
     Represents a single entry in the LOOKUP component and its
     corresponding section of the DATA component.
-
+    
     """
-    __metaclass__ = _FieldMetaclass
+    # Preset the mappings into the array via the metaclass, using
+    # the mapping specified below
+    __metaclass__ = _HeaderMetaclass
 
-    #: Zero-based index for lblrec.
+    # The number of lookup entries which are integers and reals
+    NUM_LOOKUP_INTS = 45
+    NUM_LOOKUP_REALS = 19
+
+    # Zero-based index for lblrec.
     LBLREC_OFFSET = 14
-    #: Zero-based index for lbrel.
+    # Zero-based index for lbrel.
     LBREL_OFFSET = 21
-    #: Zero-based index for lbegin.
+    # Zero-based index for lbegin.
     LBEGIN_OFFSET = 28
-    #: Zero-based index for lbnrec.
+    # Zero-based index for lbnrec.
     LBNREC_OFFSET = 29
+
+    # The empty classmethod always produces a blank version of the object
+    # of the correct (expected) size, filled with missing data indicators    
+    @classmethod
+    def empty(cls, word_size=DEFAULT_WORD_SIZE):
+        integers = np.empty(cls.NUM_LOOKUP_INTS,
+                            dtype='>i{0}'.format(word_size))
+        integers[:] = -99
+        reals = np.empty(cls.NUM_LOOKUP_REALS,
+                         dtype='>f{0}'.format(word_size))
+        reals[:] = 0.0
+        
+        return cls(integers, reals, None)
 
     def __init__(self, int_headers, real_headers, data_provider):
         """
@@ -240,25 +688,43 @@ class Field(object):
         * real_headers:
             A sequence of floating-point header values.
         * data_provider:
-            Either, an object with a `read_data()` method which will
-            provide the corresponding values from the DATA component,
-            or a NumPy array, or None.
+            A subclass of _DataProvider which returns the data
+            referred to by this field object
 
         """
-        #: A NumPy array of integer header values.
-        self.int_headers = np.asarray(int_headers)
-        #: A NumPy array of floating-point header values.
-        self.real_headers = np.asarray(real_headers)
-        self._data_provider = data_provider
+        # Create a numpy object array to hold the entire lookup, leaving a
+        # space for the zeroth index so that it behaves like the 1-based
+        # indexing referred to in UMDP F03
+        self._values = np.ndarray( len(int_headers) + len(real_headers) + 1,
+                                  dtype=object)
+        # Populate the first half with the integers
+        self._values[1:len(int_headers)+1] = (
+            np.asarray(int_headers, dtype=">i{0}".format(DEFAULT_WORD_SIZE)))
+        # And the rest with the real values
+        self._values[len(int_headers)+1:] = (
+            np.asarray(real_headers, dtype=">f{0}".format(DEFAULT_WORD_SIZE)))
+
+        # Create views onto the above array to retrieve the integer/real
+        # parts of the lookup header separately (for writing out)
+        self._lookup_ints = self._values[1:len(int_headers)+1]
+        self._lookup_reals = self._values[len(int_headers)+1:]
+
+        # Save the reference to the given _DataProvider
+        self.data_provider = data_provider
+
+    def to_file(self, fieldsfile, output_file, word_size=DEFAULT_WORD_SIZE):
+        output_file.write(self._values[1:self.NUM_LOOKUP_INTS+1]
+                          .astype(">i{0}".format(word_size)))
+        output_file.write(self._values[self.NUM_LOOKUP_INTS+1:]
+                          .astype(">f{0}".format(word_size)))
 
     def __eq__(self, other):
         try:
-            eq = (np.all(self.int_headers == other.int_headers) and
-                  np.all(self.real_headers == other.real_headers) and
-                  np.all(self.get_data() == other.get_data()))
+            is_eq = (np.all(self._values == other._values) and
+                     np.all(self.get_data() == other.get_data()))
         except AttributeError:
-            eq = NotImplemented
-        return eq
+            is_eq = NotImplemented
+        return is_eq
 
     def __ne__(self, other):
         result = self.__eq__(other)
@@ -266,64 +732,71 @@ class Field(object):
             result = not result
         return result
 
+    # This property enables access to the raw values in the array, in case
+    # a user wishes to access them by index rather than by named attribute
+    @property
+    def raw(self):
+        return self._values.view()
+
+    def copy(self):
+        """
+        Create a Field which copies its header information from this one.
+        
+        """
+        new_field = type(self) (self._lookup_ints.copy(),
+                                self._lookup_reals.copy(),
+                                self.data_provider)
+        return new_field
+
     def num_values(self):
         """
         Return the number of values defined by this header.
-
+        
         """
-        return len(self.int_headers) + len(self.real_headers)
+        return len(self._values) - 1
 
     def get_data(self):
         """
         Return a NumPy array containing the data for this field.
 
-        Data packed with the WGDOS archive method will be unpacked and
-        returned as int/float data as appropriate.
-
+        The field's data_provider is a flexible object which a user
+        may extend and override to perform various manipulations and
+        transformations of the data using a DataOperator subclass.
+        
         """
         data = None
-        if isinstance(self._data_provider, np.ndarray):
-            data = self._data_provider
-        elif self._data_provider is not None:
-            data = self._data_provider.read_data()
+        if self.data_provider is not None:
+            data = self.data_provider.data
         return data
 
     def _get_raw_payload_bytes(self):
         """
         Return a buffer containing the raw bytes of the data payload.
 
-        The field data must be a deferred-data provider, not an array.
-        Typically, that means a deferred data reference to an existing file.
-        This enables us to handle packed data without interpreting it.
-
+        The field data must be unmodified and using the same packing
+        code as the original data (this can be tested by calling
+        _can_copy_deferred_data).
+        
         """
-        return self._data_provider._read_raw_payload_bytes()
-
-    def set_data(self, data):
-        """
-        Set the data payload for this field.
-
-        * data:
-            Either, an object with a `read_data()` method which will
-            provide the corresponding values from the DATA component,
-            or a NumPy array, or None.
-
-        """
-        self._data_provider = data
+        if issubclass(type(self.data_provider), _RawReadProvider):
+            return self.data_provider._read_bytes()
+        else:
+            return None
 
     def _can_copy_deferred_data(self, required_lbpack, required_bacc):
         """
-        Return whether the field's raw payload can be reused unmodified,
-        for the specified output packing format.
-
+        Return whether or not it is possible to simply re-use the bytes
+        making up the field; for this to be possible the data must be
+        unmodified, and the requested output packing must be the same
+        as the input packing.
+        
         """
-        # Check that the original data payload has not been replaced by plain
-        # array data.
-        compatible = hasattr(self._data_provider, 'read_data')
+        # Whether or not this is possible depends on if the Fields
+        # data provider has been wrapped in any operations
+        compatible = issubclass(type(self.data_provider), _RawReadProvider)
         if compatible:
-            src_lbpack = self._data_provider.lookup_entry.lbpack
-            src_bacc = self._data_provider.lookup_entry.bacc
-
+            src_lbpack = self.data_provider.source.lbpack
+            src_bacc = self.data_provider.source.bacc
             # The packing words are compatible if nothing else is different.
             compatible = (required_lbpack == src_lbpack and
                           required_bacc == src_bacc)
@@ -337,7 +810,7 @@ class Field2(Field):
     number of 2.
 
     """
-    _HEADER_DEFN = _header_defn(2)
+    HEADER_MAPPING = _LOOKUP_HEADERS[2]
 
 
 class Field3(Field):
@@ -346,180 +819,180 @@ class Field3(Field):
     number of 3.
 
     """
-    _HEADER_DEFN = _header_defn(3)
-
-
-# Maps lbrel to a Field class.
-_FIELD_CLASSES = {2: Field2, 3: Field3}
-
-
-# Maps word size and then lbuser1 (i.e. the field's data type) to a dtype.
-_DATA_DTYPES = {4: {1: '>f4', 2: '>i4', 3: '>i4'},
-                8: {1: '>f8', 2: '>i8', 3: '>i8'}}
-
-
-_CRAY32_SIZE = 4
-_WGDOS_SIZE = 4
+    HEADER_MAPPING = _LOOKUP_HEADERS[3]
 
 
 class _DataProvider(object):
-    def __init__(self, sourcefile, filename, lookup, offset, word_size):
+    """
+    This class provides the means to wrap a Field object's existing data
+    provider with a new one; consisting of the product of the field and
+    a data operator capable of returning the data array.
+    
+    """
+    def __init__(self, operator, source):
         """
-        Create a provider that can load a lookup's data.
+        Initialise the wrapper, saving a reference to the data operator
+        and the field/s it will be applied to.
+        
+        """
+        self.operator = operator
+        self.source = source
+    @property
+    def data(self):
+        """
+        Return the data using the provided operator.
+        
+        """
+        return self.operator.transform(self.source)
+
+    
+class DataOperator(object):
+    """
+    Base class which should be sub-classed to perform manipulations on the
+    data of a field.  The Field classes never store any data directly in
+    memory; only the means to retrieve it from disk and perform any required
+    operations (which will only be executed when explicitly requested - this
+    would normally be at the point the file is being written/closed).
+
+    The user must override the following methods to produce a functional
+    operator:
+
+      * __init__(self, *args, **kwargs)
+        This method should accept any user arguments to be "baked" into the
+        operator or to otherwise initialise it as-per the user's requirements;
+        for example an operator which scales the values in fields by a
+        constant amount might want to accept an argument giving that amount.
+
+      * __call__(self, source, *args, **kwargs)
+        This method needs to return a Field instance corresponding to the new
+        field object resulting from the operator.  Normally the first argument
+        will be one or more existing Field objects; note that these should not
+        be modified by the operator (take a copy if needed).  In order to apply
+        the operator to the source Field/s the bind_operator method must be
+        called as part of this method.  If the operator is desigend to update
+        any of the Field's lookup headers this is where it should do so.
+
+      * transform(self, field)
+        This method represents the work carried out by the operator on the
+        source Field/s to produce and return a new data array.  It should
+        return a numpy array containing the (modified) field data.
+        
+    """
+    def bind_operator(self, new_field, source):
+        """
+        Use the _DataProvider class to bind the action of this operator to
+        the field's data_provider.
+        
+        """
+        new_field.data_provider = _DataProvider(self, source)
+
+        
+class _RawReadProvider(_DataProvider):
+    """
+    A special _DataProvider subclass, which deals with the most basic/common
+    data-provision operation of reading in Field data from a file.  This class
+    should not be used directly - since it does not define a "data" property
+    and so cannot return any data.  A series of subclasses of this class are
+    provided which define the property for the different packing types found
+    in FieldsFileVariants
+        
+    """
+    def __init__(self, source, sourcefile, offset, word_size):
+        """
+        Initialise the _RawReadOperator.
 
         Args:
-        * sourcefile: (file)
-            An open file.  This is essentially a shortcut, to avoid having to
-            always open a file. If it is *not* open when get_data is called,
-            a temporary file will be opened for 'filename'.
-        * filename: (string)
-            Path to the containing file.
-        * lookup: (Field)
-            The lookup which the provider relates to.  This encapsulates the
-            original encoding information in the input file.
-        * offset: (int)
-            The data offset in the file (bytes).
-        * word_size: (int)
-            Number of bytes in a header word -- either 4 or 8.
 
+        * source:
+            Initial field object reference (populated with the lookup values
+            from the file specified in sourcefile.
+
+        * sourcefile:
+            Filename associated with source FieldsFileVariant.
+
+        * offset:
+            Starting position of Field data in sourcefile (in bytes).
+
+        * word_size:
+            Word size of Field data (in bytes).
+        
         """
-        self.source = sourcefile
-        self.reopen_path = filename
+        self.source = source
+        self.sourcefile = sourcefile
         self.offset = offset
         self.word_size = word_size
-        self.lookup_entry = lookup
 
     @contextmanager
     def _with_source(self):
         # Context manager to temporarily reopen the sourcefile if the original
         # provided at create time has been closed.
-        reopen_required = self.source.closed
+        reopen_required = self.sourcefile.closed
         close_required = False
-
         try:
             if reopen_required:
-                self.source = open(self.reopen_path)
+                self.sourcefile = open(self.sourcefile.name)
                 close_required = True
-            yield self.source
+            yield self.sourcefile
         finally:
             if close_required:
-                self.source.close()
+                self.sourcefile.close()
 
-    def _read_raw_payload_bytes(self):
+    def _read_bytes(self):
         # Return the raw data payload, as an array of bytes.
         # This is independent of the content type.
-        field = self.lookup_entry
+        field = self.source
         with self._with_source():
-            self.source.seek(self.offset)
-            data_size = ((field.lbnrec * 2) - 1) * _WGDOS_SIZE
+            self.sourcefile.seek(self.offset)
+            data_size = field.lbnrec * self.word_size
             # This size calculation seems rather questionable, but derives from
             # a very long code legacy, so appeal to a "sleeping dogs" policy.
-            data_bytes = self.source.read(data_size)
+            data_bytes = self.sourcefile.read(data_size)
         return data_bytes
 
-
-class _NormalDataProvider(_DataProvider):
+class _NullReadProvider(_RawReadProvider):
     """
-    Provides access to a simple 2-dimensional array of data, corresponding
-    to the data payload for a standard FieldsFile LOOKUP entry.
-
+    A _DataProvider to use when a packing code is unrecognised - to allow
+    the headers to still be associated
     """
-    def read_data(self):
-        field = self.lookup_entry
-        with self._with_source():
-            self.source.seek(self.offset)
-            lbpack = field.lbpack
-            # Ensure lbpack.n4 (number format) is: native, CRAY, or IEEE.
-            format = (lbpack // 1000) % 10
-            if format not in (0, 2, 3):
-                msg = 'Unsupported number format: {}'
-                raise ValueError(msg.format(format))
-            lbpack = lbpack % 1000
-            # NB. This comparison includes checking for the absence of any
-            # compression.
-            if lbpack == 0 or lbpack == 2:
-                if lbpack == 0:
-                    word_size = self.word_size
-                else:
-                    word_size = _CRAY32_SIZE
-                dtype = _DATA_DTYPES[word_size][field.lbuser1]
-                rows = field.lbrow
-                cols = field.lbnpt
-                # The data is stored in rows, so with the shape (rows, cols)
-                # we don't need to invoke Fortran order.
-                data = np.fromfile(self.source, dtype, count=rows * cols)
-                data = data.reshape(rows, cols)
-            elif lbpack == 1:
-                if mo_pack is None:
-                    msg = 'mo_pack is required to read WGDOS packed data'
-                    raise ValueError(msg)
-                try:
-                    decompress_wgdos = mo_pack.decompress_wgdos
-                except AttributeError:
-                    decompress_wgdos = mo_pack.unpack_wgdos
-
-                data_bytes = self._read_raw_payload_bytes()
-                data = decompress_wgdos(data_bytes, field.lbrow, field.lbnpt,
-                                        field.bmdi)
-            else:
-                raise ValueError('Unsupported lbpack: {}'.format(field.lbpack))
-        return data
+    @property
+    def data(self):
+        lbpack = self.source.raw[21]
+        raise NotImplementedError("Packing code {0} unsupported".format(lbpack))
 
 
-class _BoundaryDataProvider(_DataProvider):
+class UMFile(object):
     """
-    Provides access to the data payload corresponding to a LOOKUP entry
-    in a lateral boundary condition FieldsFile variant.
-
-    The data will be 2-dimensional, with the first dimension expressing
-    the number of vertical levels and the second dimension being an
-    "unrolled" version of all the boundary points.
+    Represents a single UM file with a structure similar to what is described
+    In UMDP F03
 
     """
-    def read_data(self):
-        field = self.lookup_entry
-        with self._with_source():
-            self.source.seek(self.offset)
-            lbpack = field.lbpack
-            # Ensure lbpack.n4 (number format) is: native, CRAY, or IEEE.
-            format = (lbpack // 1000) % 10
-            if format not in (0, 2, 3):
-                msg = 'Unsupported number format: {}'
-                raise ValueError(msg.format(format))
-            lbpack = lbpack % 1000
-            if lbpack == 0 or lbpack == 2:
-                if lbpack == 0:
-                    word_size = self.word_size
-                else:
-                    word_size = _CRAY32_SIZE
-                dtype = _DATA_DTYPES[word_size][field.lbuser1]
-                data = np.fromfile(self.source, dtype, count=field.lblrec)
-                data = data.reshape(field.lbhem - 100, -1)
-            else:
-                msg = 'Unsupported lbpack for LBC: {}'.format(field.lbpack)
-                raise ValueError(msg)
-        return data
+    # The dataset types for any UM File variant
+    _DATASET_TYPES = []
 
+    # The components found in the file header (after the initial fixed-length
+    # header), and their types
+    _COMPONENTS = (('integer_constants', IntegerConstants),
+                   ('real_constants', RealConstants),
+                   ('level_dependent_constants', LevelDependentConstants),
+                   ('row_dependent_constants', RowDependentConstants),
+                   ('column_dependent_constants', ColumnDependentConstants))  
 
-class FieldsFileVariant(object):
-    """
-    Represents a single a file containing UM FieldsFile variant data.
+    # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
+    # equivalent _DataProvider to use for the reading, for FieldsFiles
+    _READ_PROVIDERS = {}
 
-    """
+    # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
+    # equivalent _WriteFFOperator to use for writing, for FieldsFiles
+    _WRITE_OPERATORS = {}
+        
+    # Maps lbrel to a Field class.
+    # Maps lbrel to a Field class.
+    _FIELD_CLASSES = {2: Field2, 3: Field3, -99: Field}
+    _FIELD = _FIELD_CLASSES[-99]
 
-    _COMPONENTS = (('integer_constants', 'i'),
-                   ('real_constants', 'f'),
-                   ('level_dependent_constants', 'f'),
-                   ('row_dependent_constants', 'f'),
-                   ('column_dependent_constants', 'f'),
-                   ('fields_of_constants', 'f'),
-                   ('extra_constants', 'f'),
-                   ('temp_historyfile', 'i'),
-                   ('compressed_field_index1', 'i'),
-                   ('compressed_field_index2', 'i'),
-                   ('compressed_field_index3', 'i'))
-
-    _WORDS_PER_SECTOR = 2048
+    # Data alignment values (to match with UM definitions)
+    _WORDS_PER_SECTOR = 512        # Padding for each field (in words)
+    _DATA_START_ALIGNMENT = 524288 # Padding to start of data (in bytes)
 
     class _Mode(object):
         def __init__(self, name):
@@ -538,14 +1011,54 @@ class FieldsFileVariant(object):
 
     _MODE_MAPPING = {READ_MODE: 'rb', UPDATE_MODE: 'r+b', CREATE_MODE: 'wb'}
 
+    @classmethod
+    def from_existing(cls, existing_ffv, filename):
+        """
+        Create a new FieldsFile object from an existing one; this will
+        copy all headers from the provided existing object, but none of the
+        field objects (the "fields" attribute will be an empty list).
+
+        Args:
+
+        * existing_ffv:
+            The existing FieldsFile object to copy from.
+
+        * filename:
+            A new FieldsFile must be associated with a filename; this
+            file will be created immediately and written when the "close"
+            method is called.
+        
+        """
+        if type(existing_ffv) is not cls:
+            _msg = ("Cannot copy from {0}, expecting {1}"
+                    .format(type(existing_ffv), cls))
+            raise ValueError(_msg)
+
+        # Create a new object, with the same word size
+        new_ffv = cls(filename, mode=cls.CREATE_MODE,
+                      word_size=existing_ffv._word_size)
+
+        # Copy the fixed length header from the source FieldsFile
+        new_ffv.fixed_length_header = existing_ffv.fixed_length_header.copy()
+
+        # Copy each other header component from the source FieldsFile
+        for name, _ in existing_ffv._COMPONENTS:
+            component = getattr(existing_ffv, name)
+            if component is not None:
+                setattr(new_ffv, name, component.copy())
+            else:
+                setattr(new_ffv, name, component)
+
+        return new_ffv
+
     def __init__(self, filename, mode=READ_MODE, word_size=DEFAULT_WORD_SIZE):
         """
-        Opens the given filename as a UM FieldsFile variant.
+        Opens the given filename as a UM FieldsFile.
 
         Args:
 
         * filename:
-            The name of the file containing the UM FieldsFile variant.
+            The name of the file containing the UM FieldsFile.
 
         Kwargs:
 
@@ -559,7 +1072,8 @@ class FieldsFileVariant(object):
 
         """
         if mode not in self._MODE_MAPPING:
-            raise ValueError('Invalid access mode: {}'.format(mode))
+            _msg = 'Invalid access mode: {0}'.format(mode)
+            raise ValueError(_msg)
 
         self._filename = filename
         self._mode = mode
@@ -567,41 +1081,48 @@ class FieldsFileVariant(object):
 
         source_mode = self._MODE_MAPPING[mode]
         self._source = source = open(filename, source_mode)
-
+        
         if mode is self.CREATE_MODE:
             header = FixedLengthHeader.empty(word_size)
         else:
             header = FixedLengthHeader.from_file(source, word_size)
+            # Check to see if the dataset type matches what is expected by
+            # this class/subclass
+            if (len(self._DATASET_TYPES) > 0
+                and header.dataset_type not in self._DATASET_TYPES):
+                _msg = ("Trying to read in file with dataset_type {0}; "
+                        "allowed types for {1} are {2}".format(
+                         header.dataset_type, type(self).__name__,
+                         str(self._DATASET_TYPES)))
+                raise ValueError(_msg)
+            
         self.fixed_length_header = header
 
-        def constants(name, dtype):
-            start = getattr(self.fixed_length_header, name + '_start')
-            if start > 0:
-                source.seek((start - 1) * word_size)
-                shape = getattr(self.fixed_length_header, name + '_shape')
-                values = np.fromfile(source, dtype, count=np.product(shape))
-                if len(shape) > 1:
-                    values = values.reshape(shape, order='F')
+        # Apply the appropriate headerclass from each component
+        for name, headerclass in self._COMPONENTS:
+            if mode is self.CREATE_MODE:
+                setattr(self, name, None)
             else:
-                values = None
-            return values
+                setattr(self, name, headerclass.from_file(self, word_size))
+        
+        int_dtype = '>i{0}'.format(word_size)
+        real_dtype = '>f{0}'.format(word_size)
 
-        for name, kind in self._COMPONENTS:
-            dtype = '>{}{}'.format(kind, word_size)
-            setattr(self, name, constants(name, dtype))
+        lookup_start = self.fixed_length_header.lookup_start
+        if lookup_start > 0:
+            source.seek((lookup_start - 1)*word_size)
 
-        int_dtype = '>i{}'.format(word_size)
-        real_dtype = '>f{}'.format(word_size)
-
-        if self.fixed_length_header.dataset_type == 5:
-            data_class = _BoundaryDataProvider
+            shape = (self.fixed_length_header.lookup_dim1,
+                     self.fixed_length_header.lookup_dim2)
+        
+            lookup = np.fromfile(source, dtype=int_dtype, count=np.product(shape))
+            lookup = lookup.reshape(shape, order = "F")
         else:
-            data_class = _NormalDataProvider
+            lookup = None
 
-        lookup = constants('lookup', int_dtype)
         fields = []
         if lookup is not None:
-            is_model_dump = lookup[Field.LBNREC_OFFSET, 0] == 0
+            is_model_dump = lookup[self._FIELD.LBNREC_OFFSET, 0] == 0
             if is_model_dump:
                 # A model dump has no direct addressing - only relative,
                 # so we need to update the offset as we create each
@@ -609,32 +1130,83 @@ class FieldsFileVariant(object):
                 running_offset = ((self.fixed_length_header.data_start - 1) *
                                   word_size)
 
+            # A list to store references to land packed fields, and a dummy
+            # variable to hold the reference to the land-sea mask (if found)
+            land_packed_fields = []
+            land_sea_mask = None
+
             for raw_headers in lookup.T:
-                ints = raw_headers[:_NUM_FIELD_INTS]
-                reals = raw_headers[_NUM_FIELD_INTS:].view(real_dtype)
-                field_class = _FIELD_CLASSES.get(ints[Field.LBREL_OFFSET],
-                                                 Field)
+                ints = raw_headers[:self._FIELD.NUM_LOOKUP_INTS]
+                reals = raw_headers[self._FIELD.NUM_LOOKUP_INTS:].view(real_dtype)
+                field_class = self._FIELD_CLASSES.get(
+                    ints[self._FIELD.LBREL_OFFSET], self._FIELD)
                 if raw_headers[0] == -99:
-                    data_provider = None
+                    provider = None
                 else:
                     if is_model_dump:
                         offset = running_offset
                     else:
-                        offset = raw_headers[Field.LBEGIN_OFFSET] * word_size
+                        offset = raw_headers[self._FIELD.LBEGIN_OFFSET] * word_size
                     # Make a *copy* of field lookup data, as it was in the
                     # untouched original file, as a context for data loading.
-                    # (N.B. most importantly, includes the original LBPACK)
                     lookup_reference = field_class(ints.copy(), reals.copy(),
                                                    None)
-                    # Make a "provider" that can fetch the data on request.
-                    data_provider = data_class(source, filename,
-                                               lookup_reference,
-                                               offset, word_size)
-                field = field_class(ints, reals, data_provider)
+
+                    # Now select which type of basic reading and unpacking
+                    # provider is suitable for the type of file and data,
+                    # starting by checking the number format (N4 position)
+                    lbpack = ints[20]
+                    num_format = (lbpack//1000) % 10
+                    # Check number format is valid
+                    if  num_format not in (0, 2, 3):
+                        msg = 'Unsupported number format (lbpack N4): {0}'
+                        raise ValueError(msg.format(format))
+
+                    # With that check out of the way remove the N4 digit and
+                    # proceed with the N1 - N3 digits
+                    lbpack321 = lbpack - num_format*1000
+
+                    # These will be the basic arguments to any of the providers
+                    # selected below, since they all inherit from the same
+                    # _RawReadProvider class
+                    args = (lookup_reference, source, offset, word_size)
+
+                    if self._READ_PROVIDERS.has_key(lbpack321):
+                        provider = (
+                            self._READ_PROVIDERS[lbpack321](*args))
+                    else:
+                        provider = _NullReadProvider(*args)
+
+                # Create the field object, with the _RawReadOperator subclass
+                # which is able to provide the data from the file
+                field = field_class(ints, reals, provider)
                 fields.append(field)
+
+                # If this object was the Land-Sea mask, save a reference to it
+                if hasattr(field, "lbuser4"):
+                    if field.lbuser4 == 30:
+                        land_sea_mask = field
+
+                # If this object is using a form of Land/Sea packing, update
+                # its reference to the land_sea_mask (if available), otherwise
+                # save a reference to it for checking later
+                if hasattr(field.data_provider, "LAND"):
+                    if land_sea_mask is not None:
+                        field.data_provider.lsm_source = land_sea_mask
+                    else:
+                        land_packed_fields.append(field)
+
+                # Update the running offset if required
                 if is_model_dump:
-                    running_offset += (raw_headers[Field.LBLREC_OFFSET] *
+                    running_offset += (raw_headers[self._FIELD.LBLREC_OFFSET] *
                                        word_size)
+
+            # If any fields were land-packed but encountered before the Land/Sea
+            # mask, update their references to it here
+            for field in land_packed_fields:
+                if land_sea_mask is not None:
+                    field.data_provider.lsm_source = land_sea_mask
+
         self.fields = fields
 
     def __del__(self):
@@ -642,19 +1214,18 @@ class FieldsFileVariant(object):
             self.close()
 
     def __str__(self):
-        dataset_type = self.fixed_length_header.dataset_type
-        items = ['dataset_type={}'.format(dataset_type)]
+        items = []
         for name, kind in self._COMPONENTS:
             value = getattr(self, name)
             if value is not None:
-                items.append('{}={}'.format(name, value.shape))
+                items.append('{0}={1}'.format(name, value.shape))
         if self.fields:
-            items.append('fields={}'.format(len(self.fields)))
-        return '<FieldsFileVariant: {}>'.format(', '.join(items))
+            items.append('fields={0}'.format(len(self.fields)))
+        return '<{0}: {1}>'.format(type(self).__name__,', '.join(items))
 
     def __repr__(self):
-        fmt = '<FieldsFileVariant: dataset_type={}>'
-        return fmt.format(self.fixed_length_header.dataset_type)
+        fmt = '<{0}: fields={1}>'
+        return fmt.format(type(self).__name__, len(self.fields))
 
     @property
     def filename(self):
@@ -664,68 +1235,74 @@ class FieldsFileVariant(object):
     def mode(self):
         return self._mode
 
-    def _update_fixed_length_header(self):
-        # Set the start locations and dimension lengths(*) in the fixed
-        # length header.
-        # *) Except for the DATA component where we only determine
-        #    the start location.
+    def purge_empty_lookups(self):
+        """
+        Calling this method will delete any fields from the field list
+        which are empty.
+        
+        """
+        self.fields = [field for field in self.fields
+                       if field.raw[1] != -99]
+
+    def _calc_lookup_and_data_positions(self, lookup_start):
+        # Calculate the positional data for the lookup and data parts of the
         header = self.fixed_length_header
-        word_number = header.NUM_WORDS + 1  # Numbered from 1.
-
-        # Start by dealing with the normal components.
-        for name, kind in self._COMPONENTS:
-            value = getattr(self, name)
-            start_name = name + '_start'
-            shape_name = name + '_shape'
-            if value is None:
-                setattr(header, start_name, header.IMDI)
-                setattr(header, shape_name, header.IMDI)
-            else:
-                setattr(header, start_name, word_number)
-                setattr(header, shape_name, value.shape)
-                word_number += value.size
-
-        # Now deal with the LOOKUP and DATA components.
         if self.fields:
-            header.lookup_start = word_number
-            lookup_lengths = {field.num_values() for field in self.fields}
+            header.lookup_start = lookup_start
+            lookup_lengths = set([field.num_values() for field in self.fields])
             if len(lookup_lengths) != 1:
-                msg = 'Inconsistent lookup header lengths - {}'
+                msg = 'Inconsistent lookup header lengths - {0}'
                 raise ValueError(msg.format(lookup_lengths))
             lookup_length = lookup_lengths.pop()
             n_fields = len(self.fields)
-            header.lookup_shape = (lookup_length, n_fields)
+            header.lookup_dim1 = lookup_length
+            header.lookup_dim2 = n_fields
 
             # make space for the lookup
-            word_number += lookup_length * n_fields
+            word_number = lookup_start + lookup_length * n_fields
             # Round up to the nearest whole number of "sectors".
             offset = word_number - 1
-            offset -= offset % -self._WORDS_PER_SECTOR
+            offset -= offset % -self._DATA_START_ALIGNMENT
             header.data_start = offset + 1
-        else:
-            header.lookup_start = header.IMDI
-            header.lookup_shape = header.IMDI
-            header.data_start = header.IMDI
-            header.data_shape = header.IMDI
+
+    def _write_singular_headers(self, output_file):
+        # Skip past the fixed length header for now
+        output_file.seek(self.fixed_length_header.NUM_WORDS * self._word_size)
+
+        # Go through each component defined for this file type
+        for name, _ in self._COMPONENTS:
+            component = getattr(self, name)
+            if component is not None:
+                # Write it out to the file; note a reference to this file
+                # object (self) is passed here, to allow the component's
+                # writing routine to update/check any headers it needs to
+                component.to_file(self, output_file)
 
     def _write_new(self, output_file):
-        self._update_fixed_length_header()
 
-        # Helper function to ensure an array is big-endian and of the
-        # correct dtype kind and word size.
-        def normalise(values, kind):
-            return values.astype('>{}{}'.format(kind, self._word_size))
+        # Setup the output writing operators - these need to be instantiated 
+        # and passed a reference to this object
+        for lbpack_write in self._WRITE_OPERATORS.keys():
+            self._WRITE_OPERATORS[lbpack_write] = (
+                self._WRITE_OPERATORS[lbpack_write](self))
 
-        # Skip the fixed length header. We'll write it at the end
-        # once we know how big the DATA component needs to be.
-        header = self.fixed_length_header
-        output_file.seek(header.NUM_WORDS * self._word_size)
+        # A reference to the header
+        flh = self.fixed_length_header
 
-        # Write all the normal components which have a value.
-        for name, kind in self._COMPONENTS:
-            values = getattr(self, name)
-            if values is not None:
-                output_file.write(np.ravel(normalise(values, kind), order='F'))
+        # Write the singular headers (i.e. all headers apart from the
+        # lookups, which will be done below)  This will also populate most
+        # of the positional values reset above
+        self._write_singular_headers(output_file)
+
+        # Update the fixed length header position entries corresponding to
+        # the data and lookup
+        single_headers_end =  output_file.tell() // self._word_size
+        self._calc_lookup_and_data_positions(single_headers_end + 1)
+
+        # Reset the total field count (we don't have a way of calculating
+        # the correct value for it, and if we copied from an existing file
+        # which did have it set it will appear incorrect now)
+        flh.total_prognostic_fields = flh.MDI
 
         if self.fields:
             # Skip the LOOKUP component and write the DATA component.
@@ -734,47 +1311,60 @@ class FieldsFileVariant(object):
             # seeking backwards and forwards it makes sense to wait
             # until we've adjusted them all and write them out in
             # one go.
-            output_file.seek((header.data_start - 1) * self._word_size)
-            dataset_type = self.fixed_length_header.dataset_type
+            output_file.seek((flh.data_start - 1) * self._word_size)
             sector_size = self._WORDS_PER_SECTOR * self._word_size
 
+            # If the land-sea mask is present, extract it here to save
+            # doing so for each field that might need it (for land/sea
+            # packing on output)
             for field in self.fields:
-                if hasattr(field, '_HEADER_DEFN'):
+                if hasattr(field, "lbuser4"):
+                    if field.lbuser4 == 30:
+                        lsm = field.get_data().ravel()
+                        self.land_mask = np.where(lsm == 1)[0]
+                        self.sea_mask = np.where(lsm != 1)[0]
+                        
+            for field in self.fields:
+                if hasattr(field, 'HEADER_MAPPING'):
+
                     # Output 'recognised' lookup types (not blank entries).
                     field.lbegin = output_file.tell() / self._word_size
+
+                    # WGDOS packed fields can be tagged with an accuracy of
+                    # -99.0; this indicates that they should not be packed,
+                    # so reset the packing code here accordingly
+                    if field.lbpack % 10 == 1 and int(field.bacc) == -99:
+                        field.lbpack = 10*(field.lbpack//10)
+                        
                     required_lbpack, required_bacc = field.lbpack, field.bacc
+
                     if field._can_copy_deferred_data(
                             required_lbpack, required_bacc):
                         # The original, unread file data is encoded as wanted,
-                        # so pass it through unchanged.  In this case, we
-                        # should also leave the lookup controls unchanged
-                        # -- i.e. do not recalculate LBLREC and LBNREC.
-                        output_file.write(field._get_raw_payload_bytes())
-                    elif required_lbpack in (0, 2000, 3000):
-                        # Write unpacked data -- in supported word types, all
-                        # equivalent.
-                        data = field.get_data()
-
-                        # Ensure the output is coded right.
-                        # NOTE: For now, as we don't do compression, this just
-                        # means fixing data wordlength and endian-ness.
-                        kind = {1: 'f', 2: 'i', 3: 'i'}.get(field.lbuser1,
-                                                            data.dtype.kind)
-                        data = normalise(data, kind)
-                        output_file.write(data)
-
-                        # Record the payload size in the lookup control words.
-                        data_size = data.size
-                        data_sectors_size = data_size
-                        data_sectors_size -= \
-                            data_size % -self._WORDS_PER_SECTOR
-                        field.lblrec = data_size
-                        field.lbnrec = data_sectors_size
+                        # so extract the raw bytes and write them back out
+                        # again unchanged; however first trim off any existing
+                        # padding to allow the code below to re-pad the output
+                        data_bytes = field._get_raw_payload_bytes()
+                        data_bytes = data_bytes[:field.lblrec*self._word_size]
+                        output_file.write(data_bytes)
                     else:
-                        # No packing is supported.
-                        msg = ('Cannot save data with lbpack={} : '
-                               'packing not supported.')
-                        raise ValueError(msg.format(required_lbpack))
+
+                        num_format = (required_lbpack//1000) % 10
+                        lbpack321 = required_lbpack - num_format*1000
+
+                        if lbpack321 not in self._WRITE_OPERATORS:
+                            msg = ('Cannot save data with lbpack={0} : '
+                                   'packing not supported.')
+                            raise ValueError(msg.format(required_lbpack))
+
+                        data_bytes, data_size = (
+                            self._WRITE_OPERATORS[lbpack321].to_bytes(field))
+
+                        output_file.write(data_bytes)
+                        field.lblrec = data_size
+                        field.lbnrec = (
+                            field.lblrec - field.lblrec
+                            % -self._WORDS_PER_SECTOR)
 
                     # Pad out the data section to a whole number of sectors.
                     overrun = output_file.tell() % sector_size
@@ -784,22 +1374,20 @@ class FieldsFileVariant(object):
 
             # Update the fixed length header to reflect the extent
             # of the DATA component.
-            if dataset_type == 5:
-                header.data_shape = 0
-            else:
-                header.data_shape = ((output_file.tell() // self._word_size) -
-                                     header.data_start + 1)
+            flh.data_dim1 = ((output_file.tell() // self._word_size)
+                             - flh.data_start + 1)
 
             # Go back and write the LOOKUP component.
-            output_file.seek((header.lookup_start - 1) * self._word_size)
+            output_file.seek((flh.lookup_start - 1) * self._word_size)
+            
             for field in self.fields:
-                output_file.write(normalise(field.int_headers, 'i'))
-                output_file.write(normalise(field.real_headers, 'f'))
+                field.to_file(self, output_file)
 
         # Write the fixed length header - now that we know how big
         # the DATA component was.
         output_file.seek(0)
-        output_file.write(normalise(self.fixed_length_header.raw, 'i'))
+        self.fixed_length_header.to_file(self, output_file)
+
 
     def close(self):
         """
@@ -827,11 +1415,9 @@ class FieldsFileVariant(object):
         .. note::
 
             On output, each field's data is encoded according to the LBPACK
-            and BACC words in the field.  A field data array defined using
-            :meth:`Field.set_data` can *only* be written in an "unpacked"
-            form, corresponding to LBACK=0 (or the equivalent 2000 / 3000).
-            However, data from the input file can be saved in its original
-            packed form, as long as the data, LBPACK and BACC remain unchanged.
+            and BACC words in the field.  However, data from the input file can
+            be saved in its original packed form, as long as the data, LBPACK
+            and BACC remain unchanged.
 
         """
         if not self._source.closed:
@@ -849,5 +1435,37 @@ class FieldsFileVariant(object):
                         self._write_new(tmp_file)
                     os.unlink(self.filename)
                     os.rename(tmp_file.name, self.filename)
+                    os.chmod(self.filename, 0o644)
             finally:
                 self._source.close()
+
+# Import the derived UM File formats
+from mule.ff import FieldsFile
+from mule.lbc import LBCFile
+
+# Mapping from known dataset types to the appropriate class to use
+DATASET_TYPE_MAPPING = {
+    1: FieldsFile,
+    2: FieldsFile,
+    3: FieldsFile,
+    5: LBCFile,
+}
+    
+def load_umfile(unknown_umfile):
+    """
+    Can be used to try and load a UM file of undetermined type, by checking
+    its dataset type and trying to match it to the correct class.
+    
+    """
+    with open(unknown_umfile, "r") as umfile:
+        flh = FixedLengthHeader.from_file(umfile)
+    if flh.dataset_type in DATASET_TYPE_MAPPING:
+        return DATASET_TYPE_MAPPING[flh.dataset_type](unknown_umfile)
+    else:
+        msg = ("Unknown dataset_type {0}, supported types are {1}"
+               .format(flh.dataset_type, str(DATASET_TYPE_MAPPING.keys())))
+        raise ValueError(msg)
+
+    
+
+

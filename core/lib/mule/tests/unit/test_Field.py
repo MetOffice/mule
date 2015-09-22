@@ -28,19 +28,19 @@ import iris.tests as tests
 import mock
 import numpy as np
 
-from mule import Field
+from mule import Field, _NullReadProvider
 
 
 class Test_int_headers(tests.IrisTest):
     def test(self):
         field = Field(np.arange(45), list(range(19)), None)
-        self.assertArrayEqual(field.int_headers, np.arange(45))
+        self.assertArrayEqual(field._lookup_ints, np.arange(45))
 
 
 class Test_real_headers(tests.IrisTest):
     def test(self):
         field = Field(list(range(45)), np.arange(19), None)
-        self.assertArrayEqual(field.real_headers, np.arange(19))
+        self.assertArrayEqual(field._lookup_reals, np.arange(19))
 
 
 class Test___eq__(tests.IrisTest):
@@ -110,35 +110,40 @@ class Test_get_data(tests.IrisTest):
         field = Field([], [], None)
         self.assertIsNone(field.get_data())
 
-    def test_ndarray(self):
-        data = np.arange(12).reshape(3, 4)
-        field = Field([], [], data)
-        self.assertIs(field.get_data(), data)
+# Disabled because: the functionality to replace the provider with a straight
+#                   numpy array no longer exists
+#    def test_ndarray(self):
+#        data = np.arange(12).reshape(3, 4)
+#        field = Field([], [], data)
+#        self.assertIs(field.get_data(), data)
 
-    def test_provider(self):
-        provider = mock.Mock(read_data=lambda: mock.sentinel.DATA)
-        field = Field([], [], provider)
-        self.assertIs(field.get_data(), mock.sentinel.DATA)
+# Disabled because: the provider object is slightly stricter now - any class
+#                   with a "read_data" method is no longer sufficient
+#    def test_provider(self):
+#        provider = mock.Mock(read_data=lambda: mock.sentinel.DATA)
+#        field = Field([], [], provider)
+#        self.assertIs(field.get_data(), mock.sentinel.DATA)
 
+# Disabled because: the functionality to replace the provider with a straight
+#                   numpy array no longer exists, and neither does set_data
+# class Test_set_data(tests.IrisTest):
+#     def test_None(self):
+#         data = np.arange(12).reshape(3, 4)
+#         field = Field([], [], data)
+#         field.set_data(None)
+#         self.assertIsNone(field.get_data())
 
-class Test_set_data(tests.IrisTest):
-    def test_None(self):
-        data = np.arange(12).reshape(3, 4)
-        field = Field([], [], data)
-        field.set_data(None)
-        self.assertIsNone(field.get_data())
+#     def test_ndarray(self):
+#         field = Field([], [], None)
+#         data = np.arange(12).reshape(3, 4)
+#         field.set_data(data)
+#         self.assertArrayEqual(field.get_data(), data)
 
-    def test_ndarray(self):
-        field = Field([], [], None)
-        data = np.arange(12).reshape(3, 4)
-        field.set_data(data)
-        self.assertArrayEqual(field.get_data(), data)
-
-    def test_provider(self):
-        provider = mock.Mock(read_data=lambda: mock.sentinel.DATA)
-        field = Field([], [], None)
-        field.set_data(provider)
-        self.assertIs(field.get_data(), mock.sentinel.DATA)
+#     def test_provider(self):
+#         provider = mock.Mock(read_data=lambda: mock.sentinel.DATA)
+#         field = Field([], [], None)
+#         field.set_data(provider)
+#         self.assertIs(field.get_data(), mock.sentinel.DATA)
 
 
 class Test__can_copy_deferred_data(tests.IrisTest):
@@ -146,11 +151,11 @@ class Test__can_copy_deferred_data(tests.IrisTest):
                        old_lbpack, new_lbpack,
                        old_bacc=-6, new_bacc=-6,
                        absent_provider=False):
+
         lookup_entry = mock.Mock(lbpack=old_lbpack, bacc=old_bacc)
-        provider = mock.Mock(lookup_entry=lookup_entry)
+        provider = _NullReadProvider(lookup_entry, None, None, None)
         if absent_provider:
-            # Replace the provider with a simple array.
-            provider = np.zeros(2)
+            provider = None
         field = Field(list(range(45)), list(range(19)), provider)
         return field._can_copy_deferred_data(new_lbpack, new_bacc)
 
