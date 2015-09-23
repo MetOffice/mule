@@ -21,29 +21,27 @@ Unit tests for :class:`mule.Field`.
 from __future__ import (absolute_import, division, print_function)
 from six.moves import (filter, input, map, range, zip)  # noqa
 
-# import iris tests first so that some things can be initialised before
-# importing anything else
-import iris.tests as tests
-
 import mock
 import numpy as np
+
+import mule.tests as tests
 
 from mule import Field, _NullReadProvider
 
 
-class Test_int_headers(tests.IrisTest):
+class Test_int_headers(tests.MuleTest):
     def test(self):
         field = Field(np.arange(45), list(range(19)), None)
         self.assertArrayEqual(field._lookup_ints, np.arange(45))
 
 
-class Test_real_headers(tests.IrisTest):
+class Test_real_headers(tests.MuleTest):
     def test(self):
         field = Field(list(range(45)), np.arange(19), None)
         self.assertArrayEqual(field._lookup_reals, np.arange(19))
 
 
-class Test___eq__(tests.IrisTest):
+class Test___eq__(tests.MuleTest):
     def test_equal(self):
         field1 = Field(list(range(45)), list(range(19)), None)
         field2 = Field(np.arange(45), np.arange(19), None)
@@ -69,7 +67,7 @@ class Test___eq__(tests.IrisTest):
         self.assertIs(field1.__eq__('foo'), NotImplemented)
 
 
-class Test___ne__(tests.IrisTest):
+class Test___ne__(tests.MuleTest):
     def test_equal(self):
         field1 = Field(list(range(45)), list(range(19)), None)
         field2 = Field(np.arange(45), np.arange(19), None)
@@ -95,7 +93,7 @@ class Test___ne__(tests.IrisTest):
         self.assertIs(field1.__ne__('foo'), NotImplemented)
 
 
-class Test_num_values(tests.IrisTest):
+class Test_num_values(tests.MuleTest):
     def test_64(self):
         field = Field(list(range(45)), list(range(19)), None)
         self.assertEqual(field.num_values(), 64)
@@ -105,7 +103,7 @@ class Test_num_values(tests.IrisTest):
         self.assertEqual(field.num_values(), 128)
 
 
-class Test_get_data(tests.IrisTest):
+class Test_get_data(tests.MuleTest):
     def test_None(self):
         field = Field([], [], None)
         self.assertIsNone(field.get_data())
@@ -126,7 +124,7 @@ class Test_get_data(tests.IrisTest):
 
 # Disabled because: the functionality to replace the provider with a straight
 #                   numpy array no longer exists, and neither does set_data
-# class Test_set_data(tests.IrisTest):
+# class Test_set_data(tests.MuleTest):
 #     def test_None(self):
 #         data = np.arange(12).reshape(3, 4)
 #         field = Field([], [], data)
@@ -146,7 +144,7 @@ class Test_get_data(tests.IrisTest):
 #         self.assertIs(field.get_data(), mock.sentinel.DATA)
 
 
-class Test__can_copy_deferred_data(tests.IrisTest):
+class Test__can_copy_deferred_data(tests.MuleTest):
     def _check_formats(self,
                        old_lbpack, new_lbpack,
                        old_bacc=-6, new_bacc=-6,

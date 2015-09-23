@@ -21,16 +21,14 @@ Unit tests for :class:`mule.FixedLengthHeader`.
 from __future__ import (absolute_import, division, print_function)
 from six.moves import (filter, input, map, range, zip)  # noqa
 
-# import iris tests first so that some things can be initialised before
-# importing anything else
-import iris.tests as tests
-
 import numpy as np
+
+import mule.tests as tests
 
 from mule import FixedLengthHeader
 
 
-class Test_empty(tests.IrisTest):
+class Test_empty(tests.MuleTest):
     def check(self, dtype, word_size=None):
         if word_size is None:
             header = FixedLengthHeader.empty()
@@ -41,7 +39,7 @@ class Test_empty(tests.IrisTest):
         # Disabled because: The header is now of "object" dtype, making this
         #                   test, and actually those below, a little bit less
         #                   relevant
-        #self.assertEqual(header.raw.dtype, dtype)
+        # self.assertEqual(header.raw.dtype, dtype)
 
     def test_default(self):
         self.check('>i8')
@@ -53,7 +51,7 @@ class Test_empty(tests.IrisTest):
         self.check('>i4', 4)
 
 
-class Test_from_file(tests.IrisTest):
+class Test_from_file(tests.MuleTest):
     def check(self, src_dtype, word_size=None):
         data = (np.arange(1000) * 10).astype(src_dtype)
         with self.temp_filename() as filename:
@@ -75,13 +73,13 @@ class Test_from_file(tests.IrisTest):
         self.check('>i4', 4)
 
 
-class Test___init__(tests.IrisTest):
+class Test___init__(tests.MuleTest):
     def test_invalid_length(self):
         with self.assertRaisesRegexp(ValueError, 'Incorrect number of words'):
             FixedLengthHeader(list(range(15)))
 
 
-class Test___eq__(tests.IrisTest):
+class Test___eq__(tests.MuleTest):
     def test_equal(self):
         ffv1 = FixedLengthHeader(list(range(256)))
         ffv2 = FixedLengthHeader(np.arange(256))
@@ -97,7 +95,7 @@ class Test___eq__(tests.IrisTest):
         self.assertIs(ffv1.__eq__(np.arange(256)), NotImplemented)
 
 
-class Test___ne__(tests.IrisTest):
+class Test___ne__(tests.MuleTest):
     def test_equal(self):
         ffv1 = FixedLengthHeader(list(range(256)))
         ffv2 = FixedLengthHeader(np.arange(256))
@@ -117,47 +115,49 @@ def make_header():
     return FixedLengthHeader((np.arange(256) + 1) * 10)
 
 
-class Test_data_set_format_version(tests.IrisTest):
+class Test_data_set_format_version(tests.MuleTest):
     def test(self):
         header = make_header()
         self.assertEqual(header.data_set_format_version, 10)
 
 
-class Test_sub_model(tests.IrisTest):
+class Test_sub_model(tests.MuleTest):
     def test(self):
         header = make_header()
         self.assertEqual(header.sub_model, 20)
 
 
-class Test_total_prognostic_fields(tests.IrisTest):
+class Test_total_prognostic_fields(tests.MuleTest):
     def test(self):
         header = make_header()
         self.assertEqual(header.total_prognostic_fields, 1530)
 
 
-class Test_integer_constants_start(tests.IrisTest):
+class Test_integer_constants_start(tests.MuleTest):
     def test(self):
         header = make_header()
         self.assertEqual(header.integer_constants_start, 1000)
 
 
-class Test_integer_constants_shape(tests.IrisTest):
+class Test_integer_constants_shape(tests.MuleTest):
     def test(self):
         header = make_header()
         self.assertEqual(header.integer_constants_length, 1010)
 
 
-class Test_row_dependent_constants_shape(tests.IrisTest):
+class Test_row_dependent_constants_shape(tests.MuleTest):
     def test(self):
         header = make_header()
         self.assertEqual((header.row_dependent_constants_dim1,
                           header.row_dependent_constants_dim2), (1160, 1170))
 
-class Test_data_shape(tests.IrisTest):
+
+class Test_data_shape(tests.MuleTest):
     def test(self):
         header = make_header()
         self.assertEqual((header.data_dim1,
-                          header.data_dim2), (1610,1620,))
+                          header.data_dim2), (1610, 1620,))
+
 
 if __name__ == '__main__':
     tests.main()
