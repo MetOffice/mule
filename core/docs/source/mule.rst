@@ -1,4 +1,4 @@
-Mule
+mule
 ====
 
 .. automodule:: mule

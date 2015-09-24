@@ -12,7 +12,9 @@ Contents:
    :maxdepth: 2
 
    mule
-
+   mule/ff
+   mule/lbc
+   mule/packing
 
 
 Indices and tables
