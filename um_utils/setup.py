@@ -16,14 +16,12 @@
 
 from setuptools import setup
 
-setup(name='mule',
+setup(name='um_utils',
       version='1.0',
-      description='Unified Model Fields File interface',
-      authors='UM Systems Team',
+      description='Unified Model Fields File utilities',
+      author='UM Systems Team',
       url='https://code.metoffice.gov.uk/trac/um',
       package_dir = {'': 'lib'},
-      packages=['mule', 'mule.tests', 'mule.tests.unit'],
-      data_files=[('mule/tests/test_datafiles',
-                   ['lib/mule/tests/test_datafiles/n48_multi_field.ff'])]
-     )
+      packages=['um_utils',
+                'um_utils.tests',])
 

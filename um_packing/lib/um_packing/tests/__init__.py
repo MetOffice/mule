@@ -1,0 +1,48 @@
+# (C) Crown Copyright 2015, Met Office. All rights reserved.
+#
+# This file is part of the UM packing library module.
+#
+# It is free software: you can redistribute it and/or modify it under
+# the terms of the Modified BSD License, as published by the
+# Open Source Initiative.
+#
+# Mule is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Modified BSD License for more details.
+#
+# You should have received a copy of the Modified BSD License
+# along with this UM packing module.
+# If not, see <http://opensource.org/licenses/BSD-3-Clause>.
+"""Tests for the :mod:`um_packing` module."""
+
+from __future__ import (absolute_import, division, print_function)
+import six
+from six.moves import (filter, input, map, range, zip)  # noqa
+
+import contextlib
+import os.path
+
+import numpy as np
+import tempfile
+import unittest as tests
+
+class UMPackingTest(tests.TestCase):
+    """An extension of unittest.TestCase with extra test methods."""
+
+    def assertArrayEqual(self, a, b, err_msg=''):
+        """Check that numpy arrays have identical contents."""
+        np.testing.assert_array_equal(a, b, err_msg=err_msg)
+
+    def assertArrayLess(self, a, b, err_msg=''):
+        """Check that numpy array is less than value."""
+        np.testing.assert_array_less(a, b, err_msg=err_msg)        
+
+def main():
+    """
+    A wrapper that just calls unittest.main().
+
+    Allows um_packing.tests to be imported in place of unittest
+
+    """
+    tests.main()    

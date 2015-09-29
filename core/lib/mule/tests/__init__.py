@@ -37,8 +37,7 @@ def _testdata_path():
 
 TESTDATA_DIRPATH = _testdata_path()
 
-
-def testfile_datapath(relative_path):
+def get_file_datapath(relative_path):
     """
     Return the full path to a datafile in the test-data directory.
 

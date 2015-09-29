@@ -14,16 +14,30 @@
 # You should have received a copy of the Modified BSD License
 # along with Mule.  If not, see <http://opensource.org/licenses/BSD-3-Clause>.
 
-from setuptools import setup
+import setuptools
+import numpy as np
 
-setup(name='mule',
+setuptools.setup(name='um_packing',
       version='1.0',
-      description='Unified Model Fields File interface',
-      authors='UM Systems Team',
+      description='Unified Model packing library extension',
+      author='UM Systems Team',
       url='https://code.metoffice.gov.uk/trac/um',
       package_dir = {'': 'lib'},
-      packages=['mule', 'mule.tests', 'mule.tests.unit'],
-      data_files=[('mule/tests/test_datafiles',
-                   ['lib/mule/tests/test_datafiles/n48_multi_field.ff'])]
+      packages=['um_packing',
+                'um_packing.tests',],
+
+      features={
+          'packing': setuptools.Feature(
+              "UM Packing library (requires UM Licence)",
+              standard=True,
+              ext_modules=[
+                  setuptools.Extension(
+                      'um_packing/um_packing',
+                      ['lib/um_packing/um_packing.c'],
+                      include_dirs=[np.get_include()],
+                      )
+                  ]
+              )
+          },      
      )
 

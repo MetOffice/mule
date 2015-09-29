@@ -31,17 +31,6 @@ import mule.tests as tests
 
 from mule import UMFile, Field, Field3
 
-try:
-    import mo_pack
-except ImportError:
-    # Disable all these tests if mo_pack is not installed.
-    mo_pack = None
-
-skip_mo_pack = unittest.skipIf(mo_pack is None,
-                               'Test(s) require "mo_pack", '
-                               'which is not available.')
-
-
 class Test___init__(tests.MuleTest):
     def test_invalid_mode(self):
         with self.assertRaisesRegexp(ValueError, 'access mode'):
@@ -82,7 +71,7 @@ class Test___init__(tests.MuleTest):
 
 class Test_filename(tests.MuleTest):
     def test(self):
-        path = tests.testfile_datapath('n48_multi_field.ff')
+        path = tests.get_file_datapath('n48_multi_field.ff')
         ffv = UMFile(path)
         self.assertEqual(ffv.filename, path)
 
@@ -90,7 +79,7 @@ class Test_filename(tests.MuleTest):
 # class Test_class_assignment(tests.MuleTest):
 #     @skip_mo_pack
 #     def test_lbrel_class(self):
-#         path = tests.testfile_datapath('lbrel_test_data.ff')
+#         path = tests.get_file_datapath('lbrel_test_data.ff')
 #         ffv = UMFile(path)
 #         self.assertEqual(type(ffv.fields[0]), Field)
 #         self.assertEqual(type(ffv.fields[1]), Field3)
@@ -101,12 +90,12 @@ class Test_filename(tests.MuleTest):
 
 class Test_mode(tests.MuleTest):
     def test_read(self):
-        path = tests.testfile_datapath('n48_multi_field.ff')
+        path = tests.get_file_datapath('n48_multi_field.ff')
         ffv = UMFile(path)
         self.assertIs(ffv.mode, UMFile.READ_MODE)
 
     def test_append(self):
-        src_path = tests.testfile_datapath('n48_multi_field.ff')
+        src_path = tests.get_file_datapath('n48_multi_field.ff')
         with self.temp_filename() as temp_path:
             shutil.copyfile(src_path, temp_path)
             ffv = UMFile(temp_path, mode=UMFile.UPDATE_MODE)
