@@ -1320,9 +1320,14 @@ class UMFile(object):
             for field in self.fields:
                 if hasattr(field, "lbuser4"):
                     if field.lbuser4 == 30:
-                        lsm = field.get_data().ravel()
-                        self.land_mask = np.where(lsm == 1)[0]
-                        self.sea_mask = np.where(lsm != 1)[0]
+                        # Can only do this if the LSM is packed in a way
+                        # which this file object understands
+                        lbpack321 = (field.lbpack -
+                                     ((field.lbpack//1000) % 10)*1000)
+                        if lbpack321 in self._WRITE_OPERATORS:
+                            lsm = field.get_data().ravel()
+                            self.land_mask = np.where(lsm == 1)[0]
+                            self.sea_mask = np.where(lsm != 1)[0]
                         
             for field in self.fields:
                 if hasattr(field, 'HEADER_MAPPING'):
@@ -1336,10 +1341,7 @@ class UMFile(object):
                     if field.lbpack % 10 == 1 and int(field.bacc) == -99:
                         field.lbpack = 10*(field.lbpack//10)
                         
-                    required_lbpack, required_bacc = field.lbpack, field.bacc
-
-                    if field._can_copy_deferred_data(
-                            required_lbpack, required_bacc):
+                    if field._can_copy_deferred_data(field.lbpack, field.bacc):
                         # The original, unread file data is encoded as wanted,
                         # so extract the raw bytes and write them back out
                         # again unchanged; however first trim off any existing
@@ -1349,13 +1351,15 @@ class UMFile(object):
                         output_file.write(data_bytes)
                     else:
 
-                        num_format = (required_lbpack//1000) % 10
-                        lbpack321 = required_lbpack - num_format*1000
+                        # Strip just the n1-n3 digits from the lbpack value
+                        # and check for a suitable write operator
+                        lbpack321 = (field.lbpack -
+                                     ((field.lbpack//1000) % 10)*1000)
 
                         if lbpack321 not in self._WRITE_OPERATORS:
                             msg = ('Cannot save data with lbpack={0} : '
                                    'packing not supported.')
-                            raise ValueError(msg.format(required_lbpack))
+                            raise ValueError(msg.format(field.lbpack))
 
                         data_bytes, data_size = (
                             self._WRITE_OPERATORS[lbpack321].to_bytes(field))
