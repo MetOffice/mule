@@ -27,7 +27,8 @@ from __future__ import (absolute_import, division, print_function)
 
 from mule import (IntegerConstants, RealConstants, LevelDependentConstants,
                   RowDependentConstants, ColumnDependentConstants, UMFile,
-                  _RawReadProvider, DEFAULT_WORD_SIZE, DataOperator)
+                  _RawReadProvider, DEFAULT_WORD_SIZE, DataOperator,
+                  UnsupportedHeaderItem1D, UnsupportedHeaderItem2D)
 from mule.ff import (_CRAY32_SIZE, _DATA_DTYPES,
                      _FF_REAL_CONSTANTS,
                      _FF_ROW_DEPENDENT_CONSTANTS,
@@ -59,19 +60,23 @@ _LBC_LEVEL_DEPENDENT_CONSTANTS = [
 
 class LBC_IntegerConstants(IntegerConstants):
     HEADER_MAPPING = _LBC_INTEGER_CONSTANTS
+    CREATE_DIMS = (46,)
 
 class LBC_RealConstants(RealConstants):
     HEADER_MAPPING = _FF_REAL_CONSTANTS
+    CREATE_DIMS = (38,)
 
 class LBC_LevelDependentConstants(LevelDependentConstants):
     HEADER_MAPPING = _LBC_LEVEL_DEPENDENT_CONSTANTS
+    CREATE_DIMS = (None, 4)
 
 class LBC_RowDependentConstants(RowDependentConstants):
-    HEADER_MAPPING = _FF_ROW_DEPENDENT_CONSTANTS    
+    HEADER_MAPPING = _FF_ROW_DEPENDENT_CONSTANTS
+    CREATE_DIMS = (None, 2)
 
 class LBC_ColumnDependentConstants(ColumnDependentConstants):
     HEADER_MAPPING = _FF_COLUMN_DEPENDENT_CONSTANTS
-
+    CREATE_DIMS = (None, 2)    
 
 # Setup the providers for the LBC file packing types
 class _ReadLBCProviderUnpacked(_RawReadProvider):
@@ -319,7 +324,14 @@ class LBCFile(UMFile):
                    ('real_constants', LBC_RealConstants),
                    ('level_dependent_constants', LBC_LevelDependentConstants),
                    ('row_dependent_constants', LBC_RowDependentConstants),
-                   ('column_dependent_constants', LBC_ColumnDependentConstants))
+                   ('column_dependent_constants', LBC_ColumnDependentConstants),
+                   ('fields_of_constants', UnsupportedHeaderItem2D),
+                   ('extra_constants', UnsupportedHeaderItem1D),
+                   ('temp_historyfile', UnsupportedHeaderItem1D),
+                   ('compressed_field_index1', UnsupportedHeaderItem1D),
+                   ('compressed_field_index2', UnsupportedHeaderItem1D),
+                   ('compressed_field_index3', UnsupportedHeaderItem1D),
+                   )
     
     # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
     # equivalent _DataProvider to use for the reading, for LBC Files
@@ -330,12 +342,12 @@ class LBCFile(UMFile):
                         002: _WriteLBCOperatorCray32Packed}
 
     # The only other difference is that LBC files do not set the data shape
-    def _write_new(self, output_file):
+    def _write_to_file(self, output_file):
         # Do exactly what the FieldsFile class does
-        super(LBCFile, self)._write_new(output_file)
+        super(LBCFile, self)._write_to_file(output_file)
 
         # But clear out the data shape property (it should be set to zero for
         # LBC files) and write the fixed length header again to update this
         self.fixed_length_header.data_shape = 0
         output_file.seek(0)
-        self.fixed_length_header.to_file(self, output_file)
+        self.fixed_length_header.to_file(output_file)

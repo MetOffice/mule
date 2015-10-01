@@ -27,7 +27,8 @@ from __future__ import (absolute_import, division, print_function)
 
 from mule import (IntegerConstants, RealConstants, LevelDependentConstants,
                   RowDependentConstants, ColumnDependentConstants, UMFile,
-                  _RawReadProvider, DEFAULT_WORD_SIZE)
+                  _RawReadProvider, DEFAULT_WORD_SIZE, UnsupportedHeaderItem1D,
+                  UnsupportedHeaderItem2D)
 import numpy as np
 
 # The packing module will select and return a suitable set of packing methods
@@ -134,18 +135,23 @@ _WGDOS_SIZE = 4
 # Overidden versions of the relevant header elements for a FieldsFile
 class FF_IntegerConstants(IntegerConstants):
     HEADER_MAPPING = _FF_INTEGER_CONSTANTS
+    CREATE_DIMS = (46,)
 
 class FF_RealConstants(RealConstants):
     HEADER_MAPPING = _FF_REAL_CONSTANTS
+    CREATE_DIMS = (38,)
 
 class FF_LevelDependentConstants(LevelDependentConstants):
     HEADER_MAPPING = _FF_LEVEL_DEPENDENT_CONSTANTS
+    CREATE_DIMS = (None, 8)
 
 class FF_RowDependentConstants(RowDependentConstants):
     HEADER_MAPPING = _FF_ROW_DEPENDENT_CONSTANTS    
+    CREATE_DIMS = (None, 2)
 
 class FF_ColumnDependentConstants(ColumnDependentConstants):
     HEADER_MAPPING = _FF_COLUMN_DEPENDENT_CONSTANTS
+    CREATE_DIMS = (None, 2)
 
 # Read Providers
 class _ReadFFProviderUnpacked(_RawReadProvider):
@@ -351,7 +357,14 @@ class FieldsFile(UMFile):
                    ('real_constants', FF_RealConstants),
                    ('level_dependent_constants', FF_LevelDependentConstants),
                    ('row_dependent_constants', FF_RowDependentConstants),
-                   ('column_dependent_constants', FF_ColumnDependentConstants))
+                   ('column_dependent_constants', FF_ColumnDependentConstants),
+                   ('fields_of_constants', UnsupportedHeaderItem2D),
+                   ('extra_constants', UnsupportedHeaderItem1D),
+                   ('temp_historyfile', UnsupportedHeaderItem1D),
+                   ('compressed_field_index1', UnsupportedHeaderItem1D),
+                   ('compressed_field_index2', UnsupportedHeaderItem1D),
+                   ('compressed_field_index3', UnsupportedHeaderItem1D),
+                   )
 
     # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
     # equivalent _DataProvider to use for the reading, for FieldsFiles
