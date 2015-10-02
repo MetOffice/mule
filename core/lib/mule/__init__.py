@@ -494,7 +494,6 @@ class RowDependentConstants(object):
     @classmethod
     def from_file(cls, source, num_rows, num_grids,
                   word_size=DEFAULT_WORD_SIZE):
-        import pdb ; pdb.set_trace()
         reals = np.fromfile(source, dtype='>f{0}'.format(word_size),
                             count=np.product((num_rows, num_grids)))
         reals = reals.reshape((num_rows, num_grids), order="F")
@@ -1050,6 +1049,10 @@ class UMFile(object):
         """
         new_ffv = cls(word_size=word_size)
         new_ffv._read_file(file_or_filepath)
+
+        # Validate the new object, to check it has been created properly
+        new_ffv.validate()
+        
         return new_ffv
 
     @classmethod
@@ -1262,6 +1265,15 @@ class UMFile(object):
         fmt = '<{0}: fields={1}>'
         return fmt.format(type(self).__name__, len(self.fields))
 
+    def validate(self):
+        """
+        Apply any consistency checks, in the base class this routine does
+        nothing but a format-specific subclass can override this method to
+        do whatever it considers appropriate to validate the file object.
+        
+        """
+        pass
+
     def purge_empty_lookups(self):
         """
         Calling this method will delete any fields from the field list
@@ -1349,6 +1361,11 @@ class UMFile(object):
             If a path, it is opened and closed afterwards.
 
         """
+        # Call validate - to ensure the file about to be written out doesn't
+        # contain obvious errors.  This is done here before any new file is
+        # created so that we don't create a blank file if the validation fails
+        self.validate()
+        
         if isinstance(output_file_or_path, basestring):
             with open(output_file_or_path, 'wb') as output_file:
                 self._write_to_file(output_file)
