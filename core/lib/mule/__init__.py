@@ -477,7 +477,7 @@ class RowDependentConstants(object):
     # The empty classmethod always produces a blank version of the object
     # of the correct (expected) size, filled with missing data indicators    
     @classmethod
-    def empty(cls, num_rows=0, num_grids=0, word_size=DEFAULT_WORD_SIZE):
+    def empty(cls, num_rows=None, num_grids=None, word_size=DEFAULT_WORD_SIZE):
         if num_rows is None:
             num_rows = cls.CREATE_DIMS[0]
         if num_grids is None:
@@ -498,7 +498,7 @@ class RowDependentConstants(object):
                             count=np.product((num_rows, num_grids)))
         reals = reals.reshape((num_rows, num_grids), order="F")
         return cls(reals, word_size)
-    
+
     # If called, the init method takes the raw array of integers and casts
     # them into an object array; so that the zero-th element can appear as
     # "None" - this makes it behave a little more like a Fortran array in
@@ -539,7 +539,7 @@ class ColumnDependentConstants(object):
     # The empty classmethod always produces a blank version of the object
     # of the correct (expected) size, filled with missing data indicators    
     @classmethod
-    def empty(cls, num_cols=0, num_grids=0, word_size=DEFAULT_WORD_SIZE):
+    def empty(cls, num_cols=None, num_grids=None, word_size=DEFAULT_WORD_SIZE):
         if num_cols is None:
             num_cols = cls.CREATE_DIMS[0]
         if num_grids is None:
@@ -572,7 +572,7 @@ class ColumnDependentConstants(object):
         self._values[:,1:] = reals
 
     # If called - writes the the array to the given output file
-    def to_file(self, fieldsfile, output_file, word_size=DEFAULT_WORD_SIZE):
+    def to_file(self, output_file, word_size=DEFAULT_WORD_SIZE):
         output_file.write(np.ravel(
             self._values[:,1:].astype('>f{0}'.format(word_size)), order="F"))
 

@@ -26,6 +26,17 @@ import numpy as np
 import tempfile
 import unittest as tests
 
+from mule import Field
+
+try:
+    import mo_pack
+except ImportError:
+    # Disable specific tests if mo_pack is not installed.
+    mo_pack = None
+
+skip_mo_pack = tests.skipIf(mo_pack is None,
+                            'Test(s) require "mo_pack", '
+                            'which is not available.')
 
 def _testdata_path():
     """Define the path to the directory containing testing datafiles."""
@@ -37,9 +48,10 @@ def _testdata_path():
 
 TESTDATA_DIRPATH = _testdata_path()
 
-def get_file_datapath(relative_path):
+
+def testdata_filepath(relative_path):
     """
-    Return the full path to a datafile in the test-data directory.
+    Return the full path to a file in the test-data directory.
 
     Args:
 
@@ -58,6 +70,9 @@ def get_file_datapath(relative_path):
     data_path = os.path.join(TESTDATA_DIRPATH, relative_path)
     return data_path
 
+# Prevent nosetests running this as a test.
+testdata_filepath.__test__ = False
+
 
 class MuleTest(tests.TestCase):
     """An extension of unittest.TestCase with extra test methods."""
@@ -75,6 +90,27 @@ class MuleTest(tests.TestCase):
             yield filename
         finally:
             os.remove(filename)
+
+# Define the path to the common load-test data.
+COMMON_N48_TESTDATA_PATH = testdata_filepath('n48_multi_field.ff')
+
+# Define basic sanity checks on that specific test datafile.
+# For testing alternative load methods.
+def check_common_n48_testdata(testcase, ffv):
+    # Test for known content properties of a basic test datafile.
+    testcase.assertIsNotNone(ffv.integer_constants)
+    testcase.assertEqual(ffv.integer_constants.shape, (46,))
+    testcase.assertIsNotNone(ffv.real_constants)
+    testcase.assertEqual(ffv.real_constants.shape, (38,))
+    testcase.assertIsNotNone(ffv.level_dependent_constants)
+    testcase.assertIsNone(ffv.row_dependent_constants)
+    testcase.assertIsNone(ffv.column_dependent_constants)
+    testcase.assertEqual(len(ffv.fields), 5)
+    testcase.assertEqual([fld.lbrel for fld in ffv.fields[:-1]],
+                     [3, 3, 3, 3])
+    testcase.assertEqual(type(ffv.fields[-1]), Field)
+    testcase.assertEqual([fld.lbvc for fld in ffv.fields[:-1]],
+                     [1, 1, 6, 129])
 
 
 def main():
