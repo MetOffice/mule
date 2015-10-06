@@ -159,12 +159,13 @@ class _ReadFFProviderUnpacked(_RawReadProvider):
     A _DataProvider which extends the _RawReadProvider to read a FieldsFile
     which has not been packed.
     
-    """    
+    """
+    WORD_SIZE = DEFAULT_WORD_SIZE    
     @property
     def data(self):
         field = self.source
         data_bytes = self._read_bytes()
-        dtype = _DATA_DTYPES[self.word_size][field.lbuser1]
+        dtype = _DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
         data = np.fromstring(data_bytes, dtype,
                              count=field.lbrow*field.lbnpt)
         data = data.reshape(field.lbrow, field.lbnpt)
@@ -177,17 +178,14 @@ class _ReadFFProviderCray32Packed(_ReadFFProviderUnpacked):
     to the unpacked case but with a different word size.
     
     """
-    @property
-    def data(self):
-        self.word_size = _CRAY32_SIZE
-        return super(_ReadFFProviderCray32Packed, self).data
+    WORD_SIZE = _CRAY32_SIZE
 
 class _ReadFFProviderWGDOSPacked(_RawReadProvider):
     """
     A _DataProvider which extends the _RawReadProvider to read and then unpack
     a FieldsFile which has been packed using the WGDOS packing method.
     
-    """    
+    """
     @property
     def data(self):
         field = self.source
@@ -203,6 +201,7 @@ class _ReadFFProviderLandPacked(_RawReadProvider):
     reference to the Land-Sea mask Field has been set as the "lsm_source".
     
     """
+    WORD_SIZE = DEFAULT_WORD_SIZE    
     _LAND = True
     @property
     def data(self):
@@ -214,7 +213,7 @@ class _ReadFFProviderLandPacked(_RawReadProvider):
             msg = ("Land Packed Field cannot be unpacked as it "
                    "has no associated Land-Sea mask")
             raise ValueError(msg)
-        dtype = _DATA_DTYPES[self.word_size][field.lbuser1]
+        dtype = _DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
         data_p = np.fromstring(data_bytes, dtype, count=field.lblrec)
         if self._LAND:
             mask = np.where(lsm.ravel() == 1.0)[0]
@@ -248,10 +247,7 @@ class _ReadFFProviderCray32LandPacked(_ReadFFProviderLandPacked):
     similar to the LandPacked case but with a different word size.
     
     """
-    @property
-    def data(self):
-        self.word_size = _CRAY32_SIZE
-        return super(_ReadFFProviderCray32LandPacked, self).data
+    WORD_SIZE = _CRAY32_SIZE
 
 class _ReadFFProviderCray32SeaPacked(_ReadFFProviderSeaPacked):
     """
@@ -260,10 +256,7 @@ class _ReadFFProviderCray32SeaPacked(_ReadFFProviderSeaPacked):
     similar to the SeaPacked case but with a different word size.
     
     """
-    @property
-    def data(self):
-        self.word_size = _CRAY32_SIZE
-        return super(_ReadFFProviderCray32SeaPacked, self).data
+    WORD_SIZE = _CRAY32_SIZE
 
 # Write operators - these handle writing out of the data components
 class _WriteFFOperatorUnpacked(object):

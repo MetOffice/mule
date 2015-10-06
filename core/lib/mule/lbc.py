@@ -84,12 +84,13 @@ class _ReadLBCProviderUnpacked(_RawReadProvider):
     A _DataProvider which extends the _RawReadProvider to read an LBC file
     which has not been packed.
     
-    """    
+    """
+    WORD_SIZE = DEFAULT_WORD_SIZE    
     @property
     def data(self):
         field = self.source
         data_bytes = self._read_bytes()
-        dtype = _DATA_DTYPES[self.word_size][field.lbuser1]
+        dtype = _DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
         data = np.fromstring(data_bytes, dtype, count=field.lblrec)
         data = data.reshape(field.lbhem - 100, -1)
         return data
@@ -102,10 +103,7 @@ class _ReadLBCProviderCray32Packed(_ReadLBCProviderUnpacked):
     size.
     
     """
-    @property
-    def data(self):
-        self.word_size = _CRAY32_SIZE
-        return super(_ReadLBCProviderCray32Packed, self).data
+    WORD_SIZE = _CRAY32_SIZE
 
 # Write operators - these handle writing out of the data components
 class _WriteLBCOperatorUnpacked(object):

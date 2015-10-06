@@ -22,8 +22,14 @@ setup(name='mule',
       authors='UM Systems Team',
       url='https://code.metoffice.gov.uk/trac/um',
       package_dir = {'': 'lib'},
-      packages=['mule', 'mule.tests', 'mule.tests.unit'],
+      packages=['mule',
+                'mule.tests',
+                'mule.tests.unit',
+                'mule.tests.integration'],
       data_files=[('mule/tests/test_datafiles',
-                   ['lib/mule/tests/test_datafiles/n48_multi_field.ff'])]
+                   ['lib/mule/tests/test_datafiles/n48_multi_field.ff',
+                    'lib/mule/tests/test_datafiles/n48_eg_regular_sample.ff',
+                    'lib/mule/tests/test_datafiles/ukv_eg_variable_sample.ff',
+                    'lib/mule/tests/test_datafiles/eg_boundary_sample.lbc'])]
      )
 

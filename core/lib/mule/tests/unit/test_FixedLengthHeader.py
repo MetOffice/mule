@@ -29,86 +29,26 @@ from mule import FixedLengthHeader
 
 
 class Test_empty(tests.MuleTest):
-    def check(self, dtype, word_size=None):
-        if word_size is None:
-            header = FixedLengthHeader.empty()
-        else:
-            header = FixedLengthHeader.empty(word_size)
-        self.assertArrayEqual(header.raw, [None] + [-32768] * 256)
-
-        # Disabled because: The header is now of "object" dtype, making this
-        #                   test, and actually those below, a little bit less
-        #                   relevant
-        # self.assertEqual(header.raw.dtype, dtype)
-
     def test_default(self):
-        self.check('>i8')
-
-    def test_explicit_64_bit(self):
-        self.check('>i8', 8)
-
-    def test_explicit_32_bit(self):
-        self.check('>i4', 4)
+        header = FixedLengthHeader.empty()
+        self.assertArrayEqual(header.raw, [None] + [-32768] * 256)
 
 
 class Test_from_file(tests.MuleTest):
-    def check(self, src_dtype, word_size=None):
-        data = (np.arange(1000) * 10).astype(src_dtype)
+    def test_default(self):
+        data = (np.arange(1000) * 10).astype(">i8")
         with self.temp_filename() as filename:
             data.tofile(filename)
             with open(filename, 'rb') as source:
-                if word_size is None:
-                    header = FixedLengthHeader.from_file(source)
-                else:
-                    header = FixedLengthHeader.from_file(source, word_size)
+                header = FixedLengthHeader.from_file(source)
         self.assertArrayEqual(header.raw[1:], np.arange(256) * 10)
-
-    def test_default(self):
-        self.check('>i8')
-
-    def test_explicit_64_bit(self):
-        self.check('>i8', 8)
-
-    def test_explicit_32_bit(self):
-        self.check('>i4', 4)
 
 
 class Test___init__(tests.MuleTest):
     def test_invalid_length(self):
-        with self.assertRaisesRegexp(ValueError, 'Incorrect number of words'):
+        with self.assertRaisesRegexp(ValueError,
+                                     'Incorrect size for fixed length header'):
             FixedLengthHeader(list(range(15)))
-
-
-class Test___eq__(tests.MuleTest):
-    def test_equal(self):
-        ffv1 = FixedLengthHeader(list(range(256)))
-        ffv2 = FixedLengthHeader(np.arange(256))
-        self.assertTrue(ffv1.__eq__(ffv2))
-
-    def test_not_equal(self):
-        ffv1 = FixedLengthHeader(list(range(256)))
-        ffv2 = FixedLengthHeader(np.arange(256, 512))
-        self.assertFalse(ffv1.__eq__(ffv2))
-
-    def test_invalid(self):
-        ffv1 = FixedLengthHeader(list(range(256)))
-        self.assertIs(ffv1.__eq__(np.arange(256)), NotImplemented)
-
-
-class Test___ne__(tests.MuleTest):
-    def test_equal(self):
-        ffv1 = FixedLengthHeader(list(range(256)))
-        ffv2 = FixedLengthHeader(np.arange(256))
-        self.assertFalse(ffv1.__ne__(ffv2))
-
-    def test_not_equal(self):
-        ffv1 = FixedLengthHeader(list(range(256)))
-        ffv2 = FixedLengthHeader(np.arange(256, 512))
-        self.assertTrue(ffv1.__ne__(ffv2))
-
-    def test_invalid(self):
-        ffv1 = FixedLengthHeader(list(range(256)))
-        self.assertIs(ffv1.__ne__(np.arange(256)), NotImplemented)
 
 
 def make_header():

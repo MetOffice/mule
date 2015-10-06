@@ -151,7 +151,7 @@ class Test__can_copy_deferred_data(tests.MuleTest):
                        absent_provider=False):
 
         lookup_entry = mock.Mock(lbpack=old_lbpack, bacc=old_bacc)
-        provider = _NullReadProvider(lookup_entry, None, None, None)
+        provider = _NullReadProvider(lookup_entry, None, None)
         if absent_provider:
             provider = None
         field = Field(list(range(45)), list(range(19)), provider)

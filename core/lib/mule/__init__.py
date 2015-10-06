@@ -164,6 +164,10 @@ _LOOKUP_HEADERS = {2: _LOOKUP_HEADER_2, 3: _LOOKUP_HEADER_3}
 # Global default word (record) size (in bytes)
 DEFAULT_WORD_SIZE = 8
 
+# Default missing values for **header** objects (not values in data!)
+_INTEGER_MDI = -32768
+_REAL_MDI = -1073741824.0
+
 # Metaclass for header objects
 class _HeaderMetaclass(type):
     """
@@ -214,388 +218,349 @@ class _HeaderMetaclass(type):
         return super(_HeaderMetaclass, cls).__new__(cls, classname,
                                                     bases, class_dict)
 
-class FixedLengthHeader(object):
+class _BaseHeaderClass(object):
+    """
+    A UM header component.
 
-    # Preset the mappings into the array via the metaclass, using
-    # the mapping specified below
+    Attributes:
+        * MDI:
+            The value to use to indicate missing header values.
+        * DTYPE:
+            The data-type of the words in the header.
+        * CREATE_DIMS:
+            A tuple containing the shape of the header when the class
+            creates it from-scratch and the user does not provide a shape.
+            If any element is set to "None" this indicates the user *must*
+            provide the size for the corresponding dimension.
+    
+    """
     __metaclass__ = _HeaderMetaclass
 
-    HEADER_MAPPING = _UM_FIXED_LENGTH_HEADER
-    NUM_WORDS = 256
-    MDI = -32768
-
-    # The empty classmethod always produces a blank version of the object
-    # of the correct (expected) size, filled with missing data indicators
-    @classmethod
-    def empty(cls, word_size=DEFAULT_WORD_SIZE):
-        integers = np.empty(cls.NUM_WORDS, dtype='>i{0}'.format(word_size))
-        integers[:] = cls.MDI
-        return cls(integers, word_size)
-
-    # The from_file classmethod operates on a file to extract the header;
-    # unlike the other header components this is the only one which assumes
-    # the given size for the header
-    @classmethod
-    def from_file(cls, source, word_size=DEFAULT_WORD_SIZE):
-        integers = np.fromfile(source, dtype='>i{0}'.format(word_size),
-                               count=cls.NUM_WORDS)
-        return cls(integers, word_size)
-
-    # In either case the init method will be called - it takes the raw array
-    # of integers and casts them into an object array; so that the zero-th
-    # element can appear as "None" - this makes it behave a little more like
-    # a Fortran array in terms of the header mappings and when the user is
-    # accessing it via the "raw" property
-    def __init__(self, integers, word_size=DEFAULT_WORD_SIZE):
-
-        # An extra check here, since it is paramount that fixed length headers
-        # have the exact expected number of words (the other header elements
-        # are slightly less strict)
-        if len(integers) != self.NUM_WORDS:
-            _msg = ('Incorrect number of words for {0} - given {1} but '
-                    'should be {2}.'.format(type(self).__name__,
-                                            len(integers), self.NUM_WORDS))
-            raise ValueError(_msg)
-        self._values = np.empty(self.NUM_WORDS + 1, dtype=object)
-        self._values[1:] = np.asarray(integers,
-                                      dtype=">i{0}".format(word_size))
-
-    # If called - writes the the array to the given output file
-    def to_file(self, output_file, word_size=DEFAULT_WORD_SIZE):
-        output_file.write(self._values[1:].astype('>i{0}'.format(word_size)))
+    # The values in this base class should be overidden as they will
+    # not do anything useful if left set to None.
+    MDI = None
+    DTYPE = None
+    CREATE_DIMS = None
 
     @property
     def shape(self):
-        return (self.NUM_WORDS,)
+        """
+        Return the shape of the header object.
+        
+        """
+        return self._values[..., 1:].shape
 
-    # This property enables access to the raw values in the array, in case
-    # a user wishes to access them by index rather than by named attribute
     @property
     def raw(self):
-        return self._values.view()
-
-    def copy(self):
-        new = type(self).empty()
-        new._values = self._values.copy()
-        return new
-
-    def __eq__(self, other):
-        try:
-            eq = np.all(self._values == other._values)
-        except AttributeError:
-            eq = NotImplemented
-        return eq
-
-    def __ne__(self, other):
-        result = self.__eq__(other)
-        if result is not NotImplemented:
-            result = not result
-        return result
-
-
-class IntegerConstants(object):
-
-    # Preset the mappings into the array via the metaclass, using
-    # the mapping specified below
-    __metaclass__ = _HeaderMetaclass
-    MDI = FixedLengthHeader.MDI
-    CREATE_DIMS = (None,)
-    # Note: subclasses can redefine this to define a default 'empty' shape.
-
-    # The empty classmethod always produces a blank version of the object
-    # of the correct (expected) size, filled with missing data indicators    
-    @classmethod
-    def empty(cls, num_words=None, word_size=DEFAULT_WORD_SIZE):
-        if num_words is None:
-            num_words = cls.CREATE_DIMS[0]
-        if num_words is None:
-            raise(ValueError('"num_words" has no valid default'))
-        return cls([cls.MDI]*num_words, word_size)
-
-    # The from_file classmethod reads the header from a file object
-    @classmethod
-    def from_file(cls, source, num_words, word_size=DEFAULT_WORD_SIZE):
-        integers = np.fromfile(source, dtype='>i{0}'.format(word_size),
-                               count=num_words)
-        return cls(integers, word_size)
-
-    # If called, the init method takes the raw array of integers and casts
-    # them into an object array; so that the zero-th element can appear as
-    # "None" - this makes it behave a little more like a Fortran array in
-    # terms of the header mappings and when the user is accessing it via
-    # the "raw" property
-    def __init__(self, integers, word_size=DEFAULT_WORD_SIZE):
-        self._values = np.empty(len(integers) + 1, dtype=object)
-        self._values[1:] = np.asarray(integers,
-                                      dtype=">i{0}".format(word_size))
-
-    # If called - writes the the array to the given output file
-    def to_file(self, output_file, word_size=DEFAULT_WORD_SIZE):
-        output_file.write(self._values[1:].astype('>i{0}'.format(word_size)))
-
-    @property
-    def shape(self):
-        return self._values[1:].shape
-
-    # This property enables access to the raw values in the array, in case
-    # a user wishes to access them by index rather than by named attribute
-    @property
-    def raw(self):
+        """
+        Return the raw values of the header object.
+        
+        """
         return self._values.view()        
 
     def copy(self):
-        return type(self)(self.raw[1:])
+        """
+        Create a copy of the header object.
+        
+        """
+        return type(self)(self.raw[..., 1:])     
 
 
-class RealConstants(object):
-
-    # Preset the mappings into the array via the metaclass, using
-    # the mapping specified below
-    __metaclass__ = _HeaderMetaclass
-    MDI = -1073741824.0
-    N_DIMENSIONS = 1
+class BaseHeaderClass1D(_BaseHeaderClass):
+    """
+    1-Dimensional UM header component.
+                 
+    """
     CREATE_DIMS = (None,)
-    # Note: subclasses can redefine this to define a default 'empty' shape.
 
-    # The empty classmethod always produces a blank version of the object
-    # of the correct (expected) size, filled with missing data indicators    
     @classmethod
-    def empty(cls, num_words=None, word_size=DEFAULT_WORD_SIZE):
+    def empty(cls, num_words=None):
+        """
+        Create an instance of the class from-scratch.
+
+        Kwargs:
+            * num_words:
+                The number of words to use to create the header.
+                Note: this may be optional or mandatory depending on
+                the value of the class's CREATE_DIMS attribute.
+        
+        """
         if num_words is None:
             num_words = cls.CREATE_DIMS[0]
         if num_words is None:
             raise(ValueError('"num_words" has no valid default'))
-        return cls([cls.MDI]*num_words, word_size)
+        return cls([cls.MDI]*num_words)
 
-    # The from_file classmethod reads the header from a file object
     @classmethod
-    def from_file(cls, source, num_words, word_size=DEFAULT_WORD_SIZE):
-        reals = np.fromfile(source, dtype='>f{0}'.format(word_size),
-                            count=num_words)
-        return cls(reals, word_size)
+    def from_file(cls, source, num_words):
+        """
+        Create an instance of the class populated by values from a file.
+
+        Args:
+            * source:
+                The (opened) file object containing the header value, with
+                its file pointer positioned at the start of this header.
+            * num_words:
+                The number of words to read in from the file to populate
+                the header.
+        
+        """
+        values = np.fromfile(source, dtype=cls.DTYPE, count=num_words)
+        return cls(values)
+
+    def __init__(self, values):
+        """
+        Initialise the object from a series of values.
+        
+        Note that the values are internally stored offset by 1 element (so
+        that when the raw values are accessed their indexing is 1-based, to
+        match up more closely with the definitions used in Fortran/UMDP F03).
+
+        Args:
+            * values:
+                array-like object containing values in this header.
+                
+        """
+        self._values = np.empty(len(values) + 1, dtype=object)
+        self._values[1:] = np.asarray(values, dtype=self.DTYPE)
+
+    def to_file(self, output_file):
+        """
+        Write the header to a file object.
+
+        Args:
+            * output_file:
+                The (opened) file object for the header to be written to.
+                
+        """
+        output_file.write(self._values[1:].astype(self.DTYPE))
+
+
+class BaseHeaderClass2D(_BaseHeaderClass):
+    """
+    2-Dimensional UM header component.
+
+    """
+    CREATE_DIMS = (None, None)
+
+    @classmethod
+    def empty(cls, dim1=None, dim2=None):
+        """
+        Create an instance of the class from-scratch.
+
+        Kwargs:
+            * dim1:
+                The number of words to use for the header's first dimension.
+                Note: this may be optional or mandatory depending on
+                the values of the class's CREATE_DIMS attribute.
+            * dim2:
+                The number of words to use for the header's second dimension.
+                Note: this may be optional or mandatory depending on
+                the values of the class's CREATE_DIMS attribute.                
+        
+        """
+        if dim1 is None:
+            dim1 = cls.CREATE_DIMS[0]
+        if dim2 is None:
+            dim2 = cls.CREATE_DIMS[1]
+        if dim1 is None:
+            raise(ValueError('"dim1" has no valid default'))
+        if dim2 is None:
+            raise(ValueError('"dim2" has no valid default'))
+        values = np.empty((dim1, dim2), dtype=cls.DTYPE)
+        values[:,:] = cls.MDI
+        return cls(values)
+
+    @classmethod
+    def from_file(cls, source, dim1, dim2):
+        """
+        Create an instance of the class populated by values from a file.
+
+        Args:
+            * source:
+                The (opened) file object containing the header value, with
+                its file pointer positioned at the start of this header.
+            * dim1:
+                The number of words to read in from the file to populate
+                each row of the header.
+            * dim2:
+                The number of the above rows to read in from the file to
+                populate the header.
+        
+        """        
+        values = np.fromfile(source, dtype=cls.DTYPE,
+                            count=np.product((dim1, dim2)))
+        values = values.reshape((dim1, dim2), order="F")
+        return cls(values)
+
+    def __init__(self, values):
+        """
+        Initialise the object from a series of values.
+
+        Note that the values are internally stored offset by 1 element in
+        their second dimension only (so that when the raw values are accessed
+        their indexing is 1-based in this dimension, to match up more closely
+        with the definitions used in Fortran/UMDP F03).        
+        
+        Args:
+            * values:
+                2-dimensional array-like object containing values in
+                this header.
+                
+        """
+        self._values = np.empty((values.shape[0], values.shape[1] + 1),
+                                 dtype=object)
+        self._values[:,1:] = values
+
+    def to_file(self, output_file):
+        """
+        Write the header to a file object.
+
+        Args:
+            * output_file:
+                The (opened) file object for the header to be written to.
+                
+        """        
+        output_file.write(np.ravel(
+            self._values[:,1:].astype(self.DTYPE), order="F"))
+        
+
+class FixedLengthHeader(BaseHeaderClass1D):
+    """
+    The fixed length header component of a UM file.
+
+    This component is different to the others since its length is not
+    able to be altered at creation-time; the fixed length header is
+    always a specific number of words in length.
+
+    Attributes:
+        * HEADER_MAPPING:
+            List of tuples which maps indices of the raw header values
+            onto attribute names to be attached to the class.
+        * NUM_WORDS:
+            The (fixed) number of words in a fixed length header.
     
-    # If called, the init method takes the raw array of integers and casts
-    # them into an object array; so that the zero-th element can appear as
-    # "None" - this makes it behave a little more like a Fortran array in
-    # terms of the header mappings and when the user is accessing it via
-    # the "raw" property
-    def __init__(self, reals, word_size=DEFAULT_WORD_SIZE):
-        self._values = np.empty(len(reals) + 1, dtype=object)
-        self._values[1:] = np.asarray(reals,
-                                      dtype=">f{0}".format(word_size))
+    """
+    HEADER_MAPPING = _UM_FIXED_LENGTH_HEADER
+    MDI = _INTEGER_MDI
+    DTYPE = ">i8"
 
-    # If called - writes the the array to the given output file
-    def to_file(self, output_file, word_size=DEFAULT_WORD_SIZE):
-        output_file.write(self._values[1:].astype('>f{0}'.format(word_size)))
+    NUM_WORDS = 256
 
-    @property
-    def shape(self):
-        return self._values[1:].shape
-
-    # This property enables access to the raw values in the array, in case
-    # a user wishes to access them by index rather than by named attribute
-    @property
-    def raw(self):
-        return self._values.view()
-
-    def copy(self):
-        return type(self)(self.raw[1:])
-
-
-class LevelDependentConstants(object):
-
-    # Preset the mappings into the array via the metaclass, using
-    # the mapping specified below
-    __metaclass__ = _HeaderMetaclass
-    MDI = RealConstants.MDI
-    CREATE_DIMS = (None, None)
-
-    # The empty classmethod always produces a blank version of the object
-    # of the correct (expected) size, filled with missing data indicators    
     @classmethod
-    def empty(cls, num_levels=None, num_level_types=None, word_size=DEFAULT_WORD_SIZE):
-        # NOTE: is "num_cols" the right term here ??
-        if num_levels is None:
-            num_levels = cls.CREATE_DIMS[0]
-        if num_level_types is None:
-            num_level_types = cls.CREATE_DIMS[1]
-        if num_levels is None:
-            raise(ValueError('"num_levels" has no valid default'))
-        if num_level_types is None:
-            raise(ValueError('"num_level_types" has no valid default'))
-        reals = np.empty((num_levels, num_level_types),
-                         dtype='>f{0}'.format(word_size))
-        reals[:,:] = cls.MDI
-        return cls(reals, word_size)
+    def empty(cls):
+        """
+        Create an instance of the class from-scratch.
 
-    # The from_file classmethod reads the header from a file object
+        Unlike the other header components the fixed length header always
+        creates a class of a fixed size (based on its NUM_WORDS attribute).
+        
+        """
+        return super(FixedLengthHeader, cls).empty(cls.NUM_WORDS)
+
     @classmethod
-    def from_file(cls, source, num_levels, num_level_types,
-                  word_size=DEFAULT_WORD_SIZE):
-        reals = np.fromfile(source, dtype='>f{0}'.format(word_size),
-                            count=np.product((num_levels, num_level_types)))
-        reals = reals.reshape((num_levels, num_level_types), order="F")
-        return cls(reals, word_size)
+    def from_file(cls, source):
+        """
+        Create an instance of the class populated by values from a file.
 
-    # If called, the init method takes the raw array of integers and casts
-    # them into an object array; so that the zero-th element can appear as
-    # "None" - this makes it behave a little more like a Fortran array in
-    # terms of the header mappings and when the user is accessing it via
-    # the "raw" property
-    def __init__(self, reals, word_size=DEFAULT_WORD_SIZE):
-        self._values = np.empty((reals.shape[0], reals.shape[1] + 1),
-                                 dtype=object)
-        self._values[:,1:] = reals
+        Unlike the other header components the fixed length header always
+        reads in a specific number of values (based on its NUM_WORDS attribute).
 
-    # If called - writes the the array to the given output file
-    def to_file(self, output_file, word_size=DEFAULT_WORD_SIZE):
-        output_file.write(np.ravel(
-            self._values[:,1:].astype('>f{0}'.format(word_size)), order="F"))
+        Args:
+            * source:
+                The (opened) file object containing the header value, with
+                its file pointer positioned at the start of this header.                
+        
+        """
+        return super(FixedLengthHeader, cls).from_file(source, cls.NUM_WORDS)
 
-    @property
-    def shape(self):
-        return self._values[:, 1:].shape
+    def __init__(self, values):
+        """
+        Initialise the object from a series of values.
+        
+        Note that the values are internally stored offset by 1 element (so
+        that when the raw values are accessed their indexing is 1-based, to
+        match up more closely with the definitions used in Fortran/UMDP F03).
 
-    # This property enables access to the raw values in the array, in case
-    # a user wishes to access them by index rather than by named attribute
-    @property
-    def raw(self):
-        return self._values.view()
-
-    def copy(self):
-        return type(self)(self.raw[:,1:])
-
-
-class RowDependentConstants(object):
-
-    # Preset the mappings into the array via the metaclass, using
-    # the mapping specified below
-    __metaclass__ = _HeaderMetaclass
-    MDI = RealConstants.MDI
-    CREATE_DIMS = (None, None)
-
-    # The empty classmethod always produces a blank version of the object
-    # of the correct (expected) size, filled with missing data indicators    
-    @classmethod
-    def empty(cls, num_rows=None, num_grids=None, word_size=DEFAULT_WORD_SIZE):
-        if num_rows is None:
-            num_rows = cls.CREATE_DIMS[0]
-        if num_grids is None:
-            num_grids = cls.CREATE_DIMS[1]
-        if num_rows is None:
-            raise(ValueError('"num_rows" has no valid default'))
-        if num_grids is None:
-            raise(ValueError('"num_grids" has no valid default'))
-        reals = np.empty((num_rows, num_grids), dtype='>f{0}'.format(word_size))
-        reals[:,:] = cls.MDI
-        return cls(reals, word_size)
-
-    # The from_file classmethod reads the header from a file object
-    @classmethod
-    def from_file(cls, source, num_rows, num_grids,
-                  word_size=DEFAULT_WORD_SIZE):
-        reals = np.fromfile(source, dtype='>f{0}'.format(word_size),
-                            count=np.product((num_rows, num_grids)))
-        reals = reals.reshape((num_rows, num_grids), order="F")
-        return cls(reals, word_size)
-
-    # If called, the init method takes the raw array of integers and casts
-    # them into an object array; so that the zero-th element can appear as
-    # "None" - this makes it behave a little more like a Fortran array in
-    # terms of the header mappings and when the user is accessing it via
-    # the "raw" property
-    def __init__(self, reals, word_size=DEFAULT_WORD_SIZE):
-        self._values = np.empty((reals.shape[0], reals.shape[1]+1),
-                                 dtype=object)
-        self._values[:,1:] = reals
-
-    # If called - writes the the array to the given output file
-    def to_file(self, output_file, word_size=DEFAULT_WORD_SIZE):
-        output_file.write(np.ravel(
-            self._values[:,1:].astype('>f{0}'.format(word_size)), order="F"))
-
-    @property
-    def shape(self):
-        return self._values[:, 1:].shape
-
-    # This property enables access to the raw values in the array, in case
-    # a user wishes to access them by index rather than by named attribute
-    @property
-    def raw(self):
-        return self._values.view()
-
-    def copy(self):
-        return type(self)(self.raw[:,1:])
+        Args:
+            * values:
+                array-like object containing values contained in this header.
+                Must be the exact length specified by NUM_WORDS.            
+                
+        """
+        if len(values) != self.NUM_WORDS:
+            _msg = ('Incorrect size for fixed length header; given {0} words '
+                    'but should be {1}.'.format(len(values), self.NUM_WORDS))
+            raise ValueError(_msg)
+        super(FixedLengthHeader, self).__init__(values)
 
 
-class ColumnDependentConstants(object):
+class IntegerConstants(BaseHeaderClass1D):
+    """
+    The integer constants component of a UM file.
+    
+    """
+    MDI = _INTEGER_MDI
+    DTYPE = ">i8"
 
-    # Preset the mappings into the array via the metaclass, using
-    # the mapping specified below
-    __metaclass__ = _HeaderMetaclass
-    MDI = RealConstants.MDI
-    CREATE_DIMS = (None, None)
 
-    # The empty classmethod always produces a blank version of the object
-    # of the correct (expected) size, filled with missing data indicators    
-    @classmethod
-    def empty(cls, num_cols=None, num_grids=None, word_size=DEFAULT_WORD_SIZE):
-        if num_cols is None:
-            num_cols = cls.CREATE_DIMS[0]
-        if num_grids is None:
-            num_grids = cls.CREATE_DIMS[1]
-        if num_cols is None:
-            raise(ValueError('"num_cols" has no valid default'))
-        if num_grids is None:
-            raise(ValueError('"num_grids" has no valid default'))
-        reals = np.empty((num_cols, num_grids), dtype='>f{0}'.format(word_size))
-        reals[:,:] = cls.MDI
-        return cls(reals, word_size)
+class RealConstants(BaseHeaderClass1D):
+    """
+    The real constants component of a UM file.
+    
+    """
+    MDI = _REAL_MDI
+    DTYPE = ">f8"
 
-    # The from_file classmethod reads the header from a file object
-    @classmethod
-    def from_file(cls, source, num_cols, num_grids,
-                  word_size=DEFAULT_WORD_SIZE):
-        reals = np.fromfile(source, dtype='>f{0}'.format(word_size),
-                            count=np.product((num_cols, num_grids)))
-        reals = reals.reshape((num_cols, num_grids), order="F")
-        return cls(reals, word_size)
 
-    # If called, the init method takes the raw array of integers and casts
-    # them into an object array; so that the zero-th element can appear as
-    # "None" - this makes it behave a little more like a Fortran array in
-    # terms of the header mappings and when the user is accessing it via
-    # the "raw" property
-    def __init__(self, reals, word_size=DEFAULT_WORD_SIZE):
-        self._values = np.empty((reals.shape[0], reals.shape[1] + 1),
-                                 dtype=object)
-        self._values[:,1:] = reals
+class LevelDependentConstants(BaseHeaderClass2D):
+    """
+    The level dependent constants component of a UM file.
+    
+    """
+    MDI = _REAL_MDI
+    DTYPE = ">f8"
 
-    # If called - writes the the array to the given output file
-    def to_file(self, output_file, word_size=DEFAULT_WORD_SIZE):
-        output_file.write(np.ravel(
-            self._values[:,1:].astype('>f{0}'.format(word_size)), order="F"))
 
-    @property
-    def shape(self):
-        return self._values[:, 1:].shape
+class RowDependentConstants(BaseHeaderClass2D):
+    """
+    The row dependent constants component of a UM file.
 
-    # This property enables access to the raw values in the array, in case
-    # a user wishes to access them by index rather than by named attribute
-    @property
-    def raw(self):
-        return self._values.view()
+    """
+    MDI = _REAL_MDI
+    DTYPE = ">f8"    
 
-    def copy(self):
-        return type(self)(self.raw[:,1:])
+    
+class ColumnDependentConstants(BaseHeaderClass2D):
+    """
+    The column dependent constants component of a UM file.
+    
+    """
+    MDI = _REAL_MDI
+    DTYPE = ">f8"
 
-class UnsupportedHeaderItem1D(IntegerConstants):
+
+class UnsupportedHeaderItem1D(BaseHeaderClass1D):
+    """
+    An unsupported 1-dimensional component of a UM file.
+    
+    """
     __metaclass__ = type
-    CREATE_DIMS = (None,)
 
-class UnsupportedHeaderItem2D(LevelDependentConstants):
+    MDI = _INTEGER_MDI
+    DTYPE = ">i8"
+
+
+class UnsupportedHeaderItem2D(BaseHeaderClass2D):
+    """
+    An unsupported 2-dimensional component of a UM file.
+    
+    """
     __metaclass__ = type
-    CREATE_DIMS = (None, None)
+
+    MDI = _INTEGER_MDI
+    DTYPE = ">i8"
+
 
 class Field(object):
     """
@@ -611,6 +576,9 @@ class Field(object):
     NUM_LOOKUP_INTS = 45
     NUM_LOOKUP_REALS = 19
 
+    DTYPE_INT = ">i8"
+    DTYPE_REAL = ">f8"
+
     # Zero-based index for lblrec.
     LBLREC_OFFSET = 14
     # Zero-based index for lbrel.
@@ -623,12 +591,10 @@ class Field(object):
     # The empty classmethod always produces a blank version of the object
     # of the correct (expected) size, filled with missing data indicators    
     @classmethod
-    def empty(cls, word_size=DEFAULT_WORD_SIZE):
-        integers = np.empty(cls.NUM_LOOKUP_INTS,
-                            dtype='>i{0}'.format(word_size))
+    def empty(cls):
+        integers = np.empty(cls.NUM_LOOKUP_INTS, cls.DTYPE_INT)
         integers[:] = -99
-        reals = np.empty(cls.NUM_LOOKUP_REALS,
-                         dtype='>f{0}'.format(word_size))
+        reals = np.empty(cls.NUM_LOOKUP_REALS, cls.DTYPE_REAL)
         reals[:] = 0.0
         
         return cls(integers, reals, None)
@@ -657,10 +623,10 @@ class Field(object):
                                   dtype=object)
         # Populate the first half with the integers
         self._values[1:len(int_headers)+1] = (
-            np.asarray(int_headers, dtype=">i{0}".format(DEFAULT_WORD_SIZE)))
+            np.asarray(int_headers, dtype=self.DTYPE_INT))
         # And the rest with the real values
         self._values[len(int_headers)+1:] = (
-            np.asarray(real_headers, dtype=">f{0}".format(DEFAULT_WORD_SIZE)))
+            np.asarray(real_headers, dtype=self.DTYPE_REAL))
 
         # Create views onto the above array to retrieve the integer/real
         # parts of the lookup header separately (for writing out)
@@ -670,11 +636,11 @@ class Field(object):
         # Save the reference to the given _DataProvider
         self.data_provider = data_provider
 
-    def to_file(self, output_file, word_size=DEFAULT_WORD_SIZE):
+    def to_file(self, output_file):
         output_file.write(self._values[1:self.NUM_LOOKUP_INTS+1]
-                          .astype(">i{0}".format(word_size)))
+                          .astype(self.DTYPE_INT))
         output_file.write(self._values[self.NUM_LOOKUP_INTS+1:]
-                          .astype(">f{0}".format(word_size)))
+                          .astype(self.DTYPE_REAL))
 
     def __eq__(self, other):
         try:
@@ -812,30 +778,68 @@ class DataOperator(object):
     operations (which will only be executed when explicitly requested - this
     would normally be at the point the file is being written/closed).
 
-    The user must override the following methods to produce a functional
-    operator:
+    Note: the user must override the __init__, __call__ and transform methods
+          of this baseclass to create a valid operator.
+          
+    """
 
-      * __init__(self, *args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        """
+        Initialise the operator object - this should be overidden by the user.
+        
         This method should accept any user arguments to be "baked" into the
         operator or to otherwise initialise it as-per the user's requirements;
         for example an operator which scales the values in fields by a
         constant amount might want to accept an argument giving that amount.
 
-      * __call__(self, source, *args, **kwargs)
-        This method needs to return a Field instance corresponding to the new
-        field object resulting from the operator.  Normally the first argument
-        will be one or more existing Field objects; note that these should not
-        be modified by the operator (take a copy if needed).  In order to apply
-        the operator to the source Field/s the bind_operator method must be
-        called as part of this method.  If the operator is desigend to update
-        any of the Field's lookup headers this is where it should do so.
+        """
+        msg = ("The __init__ method of the DataOperator baseclass should be "
+               "overidden by the user")
+        raise NotImplementedError(msg)
 
-      * transform(self, field)
-        This method represents the work carried out by the operator on the
-        source Field/s to produce and return a new data array.  It should
-        return a numpy array containing the (modified) field data.
+    def __call__(self, source, *args, **kwargs):
+        """
+        Wrap the operator around a source object - this should be overidden
+        by the user.
+
+        This method should return a new Field instance, whose lookup attributes
+        reflect the final state of the field (e.g. if this operator affects the
+        number of rows in the field, the Field instance output here should have
+        its row settings set accordingly).
+
+        The method *must* call the bind_operator method, passing the new Field
+        instance and the source object to it.
+
+        Args:
+            * source:
+                This can be an object of any type; it is what will be passed
+                to this operator's transform method when the field data is
+                requested (typically source will be a Field object).  Note
+                that this should not be modified in any way.
+                
+        """
+        msg = ("The __call__ method of the DataOperator baseclass should be "
+               "overidden by the user")
+        raise NotImplementedError(msg)        
+
+    def transform(self, source):
+        """
+        Called by the bound DataProvider at the point the field data is
+        requested - this should be overidden by the user.
+
+        This method should return a 2d numpy array containing the field data,
+        typically it will first extract existing data from its source object
+        and manipulate it in some way.
+
+        Args:
+            * source:
+                This will be whatever was provided to the __call__ method.
         
-    """
+        """
+        msg = ("The transform method of the DataOperator baseclass should be "
+               "overidden by the user")
+        raise NotImplementedError(msg)          
+    
     def bind_operator(self, new_field, source):
         """
         Use the _DataProvider class to bind the action of this operator to
@@ -855,7 +859,9 @@ class _RawReadProvider(_DataProvider):
     in FieldsFileVariants
         
     """
-    def __init__(self, source, sourcefile, offset, word_size):
+    DISK_RECORD_SIZE = DEFAULT_WORD_SIZE
+
+    def __init__(self, source, sourcefile, offset):
         """
         Initialise the _RawReadOperator.
 
@@ -871,14 +877,10 @@ class _RawReadProvider(_DataProvider):
         * offset:
             Starting position of Field data in sourcefile (in bytes).
 
-        * word_size:
-            Word size of Field data (in bytes).
-        
         """
         self.source = source
         self.sourcefile = sourcefile
         self.offset = offset
-        self.word_size = word_size
 
     @contextmanager
     def _with_source(self):
@@ -901,9 +903,7 @@ class _RawReadProvider(_DataProvider):
         field = self.source
         with self._with_source():
             self.sourcefile.seek(self.offset)
-            data_size = field.lbnrec * self.word_size
-            # This size calculation seems rather questionable, but derives from
-            # a very long code legacy, so appeal to a "sleeping dogs" policy.
+            data_size = field.lbnrec * self.DISK_RECORD_SIZE
             data_bytes = self.sourcefile.read(data_size)
         return data_bytes
 
@@ -949,6 +949,8 @@ class UMFile(object):
     # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
     # equivalent _WriteFFOperator to use for writing, for FieldsFiles
     _WRITE_OPERATORS = {}
+
+    WORD_SIZE = DEFAULT_WORD_SIZE
         
     # Maps lbrel to a Field class.
     # Maps lbrel to a Field class.
@@ -973,7 +975,7 @@ class UMFile(object):
 
         """
         # Create a new object, with the same word size
-        new_ffv = self.__class__(word_size=self._word_size)
+        new_ffv = self.__class__()
 
         # Copy the fixed length header from the source FieldsFile
         new_ffv.fixed_length_header = self.fixed_length_header.copy()
@@ -992,22 +994,14 @@ class UMFile(object):
 
         return new_ffv
 
-    def __init__(self, word_size=None):
+    def __init__(self):
         """
         Create a UMFile instance.
 
         The initial creation contains an empty fixed-length-header, and
         any defined components for which the dimensions are fixed.
 
-        Kwargs:
-
-        * word_size:
-            The number of bytes in each word.  Defaults to 8.
-
         """
-        if word_size is None:
-            word_size = DEFAULT_WORD_SIZE
-        self._word_size = word_size
         self._source = None
         # source file
         self._source_path = None
@@ -1023,7 +1017,7 @@ class UMFile(object):
                 self._WRITE_OPERATORS[lbpack_write](self))
 
         # Create an empty fixed length header.
-        self.fixed_length_header = FixedLengthHeader.empty(word_size)
+        self.fixed_length_header = FixedLengthHeader.empty()
 
         # Add 'missing' components for all the required ones.
         for name, _ in self._COMPONENTS:
@@ -1033,7 +1027,7 @@ class UMFile(object):
         self.fields = []
 
     @classmethod
-    def from_file(cls, file_or_filepath, word_size=None):
+    def from_file(cls, file_or_filepath):
         """
         Initialise a UMFile, populated using the contents of a file
 
@@ -1043,11 +1037,8 @@ class UMFile(object):
             An open file-like object, or file path.
             A path is opened for read; a 'file-like' must support seeks.
 
-        * word_size:
-            The number of byte in each word.
-
         """
-        new_ffv = cls(word_size=word_size)
+        new_ffv = cls()
         new_ffv._read_file(file_or_filepath)
 
         # Validate the new object, to check it has been created properly
@@ -1056,7 +1047,7 @@ class UMFile(object):
         return new_ffv
 
     @classmethod
-    def from_template(cls, template=None, word_size=None):
+    def from_template(cls, template=None):
         """
         Create a fieldsfile from a template.
 
@@ -1086,7 +1077,7 @@ class UMFile(object):
         convenient starting-point for creating files with a given structure.
 
         """
-        new_ffv = cls(word_size=word_size)
+        new_ffv = cls()
         new_ffv._apply_template(template)
         return new_ffv
 
@@ -1102,11 +1093,10 @@ class UMFile(object):
             self._source_path = file_or_filepath.name
 
         source = self._source
-        word_size = self._word_size
         
         # Attach the fixed length header to the class
         self.fixed_length_header = (
-            FixedLengthHeader.from_file(source, word_size))
+            FixedLengthHeader.from_file(source))
 
         # Apply the appropriate headerclass from each component
         for name, headerclass in self._COMPONENTS:
@@ -1115,11 +1105,11 @@ class UMFile(object):
                 continue
             if len(headerclass.CREATE_DIMS) == 1:
                 length = getattr(self.fixed_length_header, name+'_length')
-                header = headerclass.from_file(source, length, word_size)
+                header = headerclass.from_file(source, length)
             elif len(headerclass.CREATE_DIMS) == 2:
                 dim1 = getattr(self.fixed_length_header, name+'_dim1')
                 dim2 = getattr(self.fixed_length_header, name+'_dim2')
-                header = headerclass.from_file(source, dim1, dim2, word_size)
+                header = headerclass.from_file(source, dim1, dim2)
                 
             # Attach the component to the class
             setattr(self, name, header)
@@ -1127,13 +1117,13 @@ class UMFile(object):
         # Now move onto reading in the lookup headers
         lookup_start = self.fixed_length_header.lookup_start
         if lookup_start > 0:
-            source.seek((lookup_start - 1) * word_size)
+            source.seek((lookup_start - 1) * self.WORD_SIZE)
 
             shape = (self.fixed_length_header.lookup_dim1,
                      self.fixed_length_header.lookup_dim2)
 
             lookup = np.fromfile(source,
-                                 dtype='>i{0}'.format(word_size),
+                                 dtype='>i{0}'.format(self.WORD_SIZE),
                                  count=np.product(shape))
             lookup = lookup.reshape(shape, order = "F")
         else:
@@ -1148,7 +1138,7 @@ class UMFile(object):
                 # so we need to update the offset as we create each
                 # Field.
                 running_offset = ((self.fixed_length_header.data_start - 1) *
-                                  word_size)
+                                  self.WORD_SIZE)
 
             # A list to store references to land packed fields, and a dummy
             # variable to hold the reference to the land-sea mask (if found)
@@ -1158,7 +1148,7 @@ class UMFile(object):
             for raw_headers in lookup.T:
                 ints = raw_headers[:self._FIELD.NUM_LOOKUP_INTS]
                 reals = (raw_headers[self._FIELD.NUM_LOOKUP_INTS:]
-                         .view(">f{0}".format(word_size)))
+                         .view(">f{0}".format(self.WORD_SIZE)))
                 field_class = self._FIELD_CLASSES.get(
                     ints[self._FIELD.LBREL_OFFSET], self._FIELD)
                 if raw_headers[0] == -99:
@@ -1168,7 +1158,7 @@ class UMFile(object):
                         offset = running_offset
                     else:
                         offset = (raw_headers[self._FIELD.LBEGIN_OFFSET] *
-                                  word_size)
+                                  self.WORD_SIZE)
                     # Make a *copy* of field lookup data, as it was in the
                     # untouched original file, as a context for data loading.
                     lookup_reference = field_class(ints.copy(), reals.copy(),
@@ -1191,7 +1181,7 @@ class UMFile(object):
                     # These will be the basic arguments to any of the providers
                     # selected below, since they all inherit from the same
                     # _RawReadProvider class
-                    args = (lookup_reference, source, offset, word_size)
+                    args = (lookup_reference, source, offset)
 
                     if self._READ_PROVIDERS.has_key(lbpack321):
                         provider = (
@@ -1221,7 +1211,7 @@ class UMFile(object):
                 # Update the running offset if required
                 if is_model_dump:
                     running_offset += (raw_headers[self._FIELD.LBLREC_OFFSET] *
-                                       word_size)
+                                       self.WORD_SIZE)
 
             # If any fields were land-packed but encountered before the Land/Sea
             # mask, update their references to it here
@@ -1231,7 +1221,6 @@ class UMFile(object):
 
     def _apply_template(self, template):
         """Apply the assignments specified in a template."""
-        word_size=self._word_size
         for name, component_class in self._COMPONENTS:
             settings_dict = template.get(name)
             if settings_dict is not None:
@@ -1239,8 +1228,8 @@ class UMFile(object):
                 component = getattr(self, name, None)
                 if create_dims or component is None:
                     # Create a new component, or replace with given dimensions.
-                    component = component_class.empty(*create_dims,
-                                                      word_size=word_size)
+                    component = component_class.empty(*create_dims)
+
                     # Install new component.
                     setattr(self, name, component)
                 # Assign to specific properties of the component.
@@ -1305,7 +1294,7 @@ class UMFile(object):
             header.data_start = offset + 1
 
     def _write_singular_headers(self, output_file):
-        """"
+        """
         Write all 'components' to the file, _except_ the fixed header.
 
         Also updates all the component location and dimension records in the
@@ -1319,7 +1308,7 @@ class UMFile(object):
             component = getattr(self, name)
 
             # Construct component position and shape info (or missing-values).
-            file_word_position = int(output_file.tell() / self._word_size + 1)
+            file_word_position = int(output_file.tell() / self.WORD_SIZE + 1)
             if component is not None:
                 shape = component.shape
                 ndims = len(shape)
@@ -1378,7 +1367,7 @@ class UMFile(object):
         flh = self.fixed_length_header
 
         # Skip past the fixed length header for now
-        output_file.seek(flh.NUM_WORDS * self._word_size)
+        output_file.seek(flh.NUM_WORDS * self.WORD_SIZE)
 
         # Write out the singular headers (i.e. all headers apart from the
         # lookups, which will be done below).
@@ -1388,7 +1377,7 @@ class UMFile(object):
 
         # Update the fixed length header position entries corresponding to
         # the data and lookup
-        single_headers_end =  output_file.tell() // self._word_size
+        single_headers_end =  output_file.tell() // self.WORD_SIZE
         self._calc_lookup_and_data_positions(single_headers_end + 1)
 
         # Reset the total field count (we don't have a way of calculating
@@ -1403,8 +1392,8 @@ class UMFile(object):
             # seeking backwards and forwards it makes sense to wait
             # until we've adjusted them all and write them out in
             # one go.
-            output_file.seek((flh.data_start - 1) * self._word_size)
-            sector_size = self._WORDS_PER_SECTOR * self._word_size
+            output_file.seek((flh.data_start - 1) * self.WORD_SIZE)
+            sector_size = self._WORDS_PER_SECTOR * self.WORD_SIZE
 
             # If the land-sea mask is present, extract it here to save
             # doing so for each field that might need it (for land/sea
@@ -1426,7 +1415,7 @@ class UMFile(object):
                 if hasattr(field, 'HEADER_MAPPING'):
 
                     # Output 'recognised' lookup types (not blank entries).
-                    field.lbegin = output_file.tell() / self._word_size
+                    field.lbegin = output_file.tell() / self.WORD_SIZE
 
                     # WGDOS packed fields can be tagged with an accuracy of
                     # -99.0; this indicates that they should not be packed,
@@ -1440,7 +1429,7 @@ class UMFile(object):
                         # again unchanged; however first trim off any existing
                         # padding to allow the code below to re-pad the output
                         data_bytes = field._get_raw_payload_bytes()
-                        data_bytes = data_bytes[:field.lblrec*self._word_size]
+                        data_bytes = data_bytes[:field.lblrec*self.WORD_SIZE]
                         output_file.write(data_bytes)
                     else:
 
@@ -1471,11 +1460,11 @@ class UMFile(object):
 
             # Update the fixed length header to reflect the extent
             # of the DATA component.
-            flh.data_dim1 = ((output_file.tell() // self._word_size)
+            flh.data_dim1 = ((output_file.tell() // self.WORD_SIZE)
                              - flh.data_start + 1)
 
             # Go back and write the LOOKUP component.
-            output_file.seek((flh.lookup_start - 1) * self._word_size)
+            output_file.seek((flh.lookup_start - 1) * self.WORD_SIZE)
 
             # Write out all the field lookups.
             for field in self.fields:
