@@ -133,6 +133,14 @@ class Test_from_template(tests.MuleTest):
         ffv = UMFile.from_template(test_template)
         self.assertEqual(ffv.integer_constants.shape, (12,))
 
+    def test_unknown_component__fail(self):
+        test_template = {"junk": {}}
+        with self.assertRaisesRegexp(
+                ValueError,
+                'unrecognised.*component.*("junk")'):
+            _ = UMFile.from_template(test_template)
+                                     
+
     def test_unsized_component__fail(self):
         test_template = {"integer_constants": {}}
         with self.assertRaisesRegexp(ValueError,

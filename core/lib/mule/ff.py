@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # *****************************COPYRIGHT******************************
 # (C) Crown copyright Met Office. All rights reserved.
 # For further details please refer to the file LICENCE.txt
@@ -20,81 +19,76 @@
 # along with Mule.  If not, see <http://opensource.org/licenses/BSD-3-Clause>.
 
 """
-This module provides the elements specific to FieldsFiles (and dumps)
+This module provides the elements specific to UM FieldsFiles (and dumps)
 
 """
 from __future__ import (absolute_import, division, print_function)
 
-from mule import (IntegerConstants, RealConstants, LevelDependentConstants,
-                  RowDependentConstants, ColumnDependentConstants, UMFile,
-                  _RawReadProvider, DEFAULT_WORD_SIZE, UnsupportedHeaderItem1D,
-                  UnsupportedHeaderItem2D)
+import mule
 import numpy as np
-
-# The packing module will select and return a suitable set of packing methods
 from mule.packing import wgdos_pack_field, wgdos_unpack_field
 
 # UM FieldsFile integer constant names
 _FF_INTEGER_CONSTANTS = [
-    ('timestep',              1  ),
-    ('meaning_interval',      2  ),
-    ('dumps_in_mean',         3  ),
-    ('num_cols',              6  ),
-    ('num_rows',              7  ),
-    ('num_p_levels',          8  ),
-    ('num_wet_levels',        9  ),
-    ('num_soil_levels',       10 ),
-    ('num_cloud_levels',      11 ),
-    ('num_tracer_levels',     12 ),
-    ('num_boundary_levels',   13 ),
-    ('num_passive_tracers',   14 ),
-    ('num_field_types',       15 ),
-    ('n_steps_since_river',   16 ),
-    ('height_algorithm',      17 ),
-    ('num_radiation_vars',    18 ),
-    ('river_row_length',      19 ),
-    ('river_num_rows',        20 ),
-    ('integer_mdi',           21 ),
-    ('triffid_call_period',   22 ),
-    ('triffid_last_step',     23 ),
-    ('first_constant_rho',    24 ),
-    ('num_land_points',       25 ),
-    ('num_ozone_levels',      26 ),
-    ('num_tracer_adv_levels', 27 ),
-    ('num_soil_hydr_levels',  28 ),
-    ('num_conv_levels',       34 ),
-    ('radiation_timestep',    35 ),
-    ('amip_flag',             36 ),
-    ('amip_first_year',       37 ),
-    ('amip_first_month',      38 ),
-    ('amip_current_day',      39 ),
-    ('ozone_current_month',   40 ),
-    ('sh_zonal_flag',         41 ),
-    ('sh_zonal_begin',        42 ),
-    ('sh_zonal_period',       43 ),
-    ('suhe_level_weight',     44 ),
-    ('suhe_level_cutoff',     45 ),
-    ('frictional_timescale',  46 ),
+    ('timestep',               1),
+    ('meaning_interval',       2),
+    ('dumps_in_mean',          3),
+    ('num_cols',               6),
+    ('num_rows',               7),
+    ('num_p_levels',           8),
+    ('num_wet_levels',         9),
+    ('num_soil_levels',       10),
+    ('num_cloud_levels',      11),
+    ('num_tracer_levels',     12),
+    ('num_boundary_levels',   13),
+    ('num_passive_tracers',   14),
+    ('num_field_types',       15),
+    ('n_steps_since_river',   16),
+    ('height_algorithm',      17),
+    ('num_radiation_vars',    18),
+    ('river_row_length',      19),
+    ('river_num_rows',        20),
+    ('integer_mdi',           21),
+    ('triffid_call_period',   22),
+    ('triffid_last_step',     23),
+    ('first_constant_rho',    24),
+    ('num_land_points',       25),
+    ('num_ozone_levels',      26),
+    ('num_tracer_adv_levels', 27),
+    ('num_soil_hydr_levels',  28),
+    ('num_conv_levels',       34),
+    ('radiation_timestep',    35),
+    ('amip_flag',             36),
+    ('amip_first_year',       37),
+    ('amip_first_month',      38),
+    ('amip_current_day',      39),
+    ('ozone_current_month',   40),
+    ('sh_zonal_flag',         41),
+    ('sh_zonal_begin',        42),
+    ('sh_zonal_period',       43),
+    ('suhe_level_weight',     44),
+    ('suhe_level_cutoff',     45),
+    ('frictional_timescale',  46),
     ]
 
 _FF_REAL_CONSTANTS = [
-    ('col_spacing',        1  ),
-    ('row_spacing',        2  ),
-    ('start_lat',          3  ),
-    ('start_lon',          4  ),
-    ('north_pole_lat',     5  ),
-    ('north_pole_lon',     6  ),
-    ('atmos_year',         8  ),
-    ('atmos_day',          9  ),
-    ('atmos_hour',         10 ),
-    ('atmos_minute',       11 ),
-    ('atmos_second',       12 ),
-    ('top_theta_height',   16 ),
-    ('mean_diabatic_flux', 18 ),
-    ('mass',               19 ),
-    ('energy',             20 ),
-    ('energy_drift',       21 ),
-    ('real_mdi',           29 ),
+    ('col_spacing',         1),
+    ('row_spacing',         2),
+    ('start_lat',           3),
+    ('start_lon',           4),
+    ('north_pole_lat',      5),
+    ('north_pole_lon',      6),
+    ('atmos_year',          8),
+    ('atmos_day',           9),
+    ('atmos_hour',         10),
+    ('atmos_minute',       11),
+    ('atmos_second',       12),
+    ('top_theta_height',   16),
+    ('mean_diabatic_flux', 18),
+    ('mass',               19),
+    ('energy',             20),
+    ('energy_drift',       21),
+    ('real_mdi',           29),
     ]
 
 # UM FieldsFile level/row/column dependent constants, note that the first
@@ -104,24 +98,24 @@ _FF_REAL_CONSTANTS = [
 # is equivalent to inserting a ":" when performing the indexing (i.e. return
 # all values for that level-type)
 _FF_LEVEL_DEPENDENT_CONSTANTS = [
-    ('eta_at_theta',      (slice(None), 1) ),
-    ('eta_at_rho',        (slice(None), 2) ),
-    ('rhcrit',            (slice(None), 3) ),
-    ('soil_thickness',    (slice(None), 4) ),
-    ('zsea_at_theta',     (slice(None), 5) ),
-    ('c_at_theta',        (slice(None), 6) ),
-    ('zsea_at_rho',       (slice(None), 7) ),
-    ('c_at_rho',          (slice(None), 8) ),
+    ('eta_at_theta',      (slice(None), 1)),
+    ('eta_at_rho',        (slice(None), 2)),
+    ('rhcrit',            (slice(None), 3)),
+    ('soil_thickness',    (slice(None), 4)),
+    ('zsea_at_theta',     (slice(None), 5)),
+    ('c_at_theta',        (slice(None), 6)),
+    ('zsea_at_rho',       (slice(None), 7)),
+    ('c_at_rho',          (slice(None), 8)),
     ]
 
 _FF_ROW_DEPENDENT_CONSTANTS = [
-    ('phi_p', (slice(None), 1) ),
-    ('phi_v', (slice(None), 2) ),
+    ('phi_p', (slice(None), 1)),
+    ('phi_v', (slice(None), 2)),
     ]
 
 _FF_COLUMN_DEPENDENT_CONSTANTS = [
-    ('lambda_p', (slice(None), 1) ),
-    ('lambda_u', (slice(None), 2) ),
+    ('lambda_p', (slice(None), 1)),
+    ('lambda_u', (slice(None), 2)),
     ]
 
 # Maps word size and then lbuser1 (i.e. the field's data type) to a dtype.
@@ -132,35 +126,43 @@ _DATA_DTYPES = {4: {1: '>f4', 2: '>i4', 3: '>i4'},
 _CRAY32_SIZE = 4
 _WGDOS_SIZE = 4
 
+
 # Overidden versions of the relevant header elements for a FieldsFile
-class FF_IntegerConstants(IntegerConstants):
+class FF_IntegerConstants(mule.IntegerConstants):
+    """The integer constants component of a UM FieldsFile."""
     HEADER_MAPPING = _FF_INTEGER_CONSTANTS
     CREATE_DIMS = (46,)
 
-class FF_RealConstants(RealConstants):
+
+class FF_RealConstants(mule.RealConstants):
+    """The real constants component of a UM FieldsFile."""
     HEADER_MAPPING = _FF_REAL_CONSTANTS
     CREATE_DIMS = (38,)
 
-class FF_LevelDependentConstants(LevelDependentConstants):
+
+class FF_LevelDependentConstants(mule.LevelDependentConstants):
+    """The level dependent constants component of a UM FieldsFile."""
     HEADER_MAPPING = _FF_LEVEL_DEPENDENT_CONSTANTS
     CREATE_DIMS = (None, 8)
 
-class FF_RowDependentConstants(RowDependentConstants):
-    HEADER_MAPPING = _FF_ROW_DEPENDENT_CONSTANTS    
+
+class FF_RowDependentConstants(mule.RowDependentConstants):
+    """The row dependent constants component of a UM FieldsFile."""
+    HEADER_MAPPING = _FF_ROW_DEPENDENT_CONSTANTS
     CREATE_DIMS = (None, 2)
 
-class FF_ColumnDependentConstants(ColumnDependentConstants):
+
+class FF_ColumnDependentConstants(mule.ColumnDependentConstants):
+    """The column dependent constants component of a UM FieldsFile."""
     HEADER_MAPPING = _FF_COLUMN_DEPENDENT_CONSTANTS
     CREATE_DIMS = (None, 2)
 
+
 # Read Providers
-class _ReadFFProviderUnpacked(_RawReadProvider):
-    """
-    A _DataProvider which extends the _RawReadProvider to read a FieldsFile
-    which has not been packed.
-    
-    """
-    WORD_SIZE = DEFAULT_WORD_SIZE    
+class _ReadFFProviderUnpacked(mule.RawReadProvider):
+    """A :class:`mule.RawReadProvider` which reads an unpacked field."""
+    WORD_SIZE = mule._DEFAULT_WORD_SIZE
+
     @property
     def data(self):
         field = self.source
@@ -171,21 +173,17 @@ class _ReadFFProviderUnpacked(_RawReadProvider):
         data = data.reshape(field.lbrow, field.lbnpt)
         return data
 
+
 class _ReadFFProviderCray32Packed(_ReadFFProviderUnpacked):
     """
-    A _DataProvider which reads and then unpacks a FieldsFile which has been
-    packed using the Cray 32-bit packing method - note that this is similar
-    to the unpacked case but with a different word size.
-    
+    A :class:`mule.RawReadProvider` which reads a Cray32-bit packed field.
+
     """
     WORD_SIZE = _CRAY32_SIZE
 
-class _ReadFFProviderWGDOSPacked(_RawReadProvider):
-    """
-    A _DataProvider which extends the _RawReadProvider to read and then unpack
-    a FieldsFile which has been packed using the WGDOS packing method.
-    
-    """
+
+class _ReadFFProviderWGDOSPacked(mule.RawReadProvider):
+    """A :class:`mule.RawReadProvider` which reads a WGDOS packed field."""
     @property
     def data(self):
         field = self.source
@@ -194,15 +192,20 @@ class _ReadFFProviderWGDOSPacked(_RawReadProvider):
                                   field.lbrow, field.lbnpt)
         return data
 
-class _ReadFFProviderLandPacked(_RawReadProvider):
+
+class _ReadFFProviderLandPacked(mule.RawReadProvider):
     """
-    A _DataProvider which extends the _RawReadProvider to read and then unpack
-    a FieldsFile which has been land-packed.  Note that this requires that a
-    reference to the Land-Sea mask Field has been set as the "lsm_source".
-    
+    A :class:`mule.RawReadProvider` which reads an unpacked field defined
+    only on land points.
+
+    .. Note::
+        This requires that a reference to the Land-Sea mask Field has
+        been set as the "lsm_source" attribute.
+
     """
-    WORD_SIZE = DEFAULT_WORD_SIZE    
+    WORD_SIZE = mule._DEFAULT_WORD_SIZE
     _LAND = True
+
     @property
     def data(self):
         field = self.source
@@ -218,7 +221,7 @@ class _ReadFFProviderLandPacked(_RawReadProvider):
         if self._LAND:
             mask = np.where(lsm.ravel() == 1.0)[0]
         else:
-            mask = np.where(lsm.ravel() == 0.0)[0]             
+            mask = np.where(lsm.ravel() == 0.0)[0]
         if len(mask) != len(data_p):
             msg = "Number of points in mask is incompatible; {0} != {1}"
             raise ValueError(msg.format(len(mask), len(data_p)))
@@ -232,72 +235,96 @@ class _ReadFFProviderLandPacked(_RawReadProvider):
         data = data.reshape(rows, cols)
         return data
 
+
 class _ReadFFProviderSeaPacked(_ReadFFProviderLandPacked):
     """
-    A _DataProvider which behaves the same as the LandPacked provider but the
-    packing takes place over sea points instead of land points.
-    
+    A :class:`mule.RawReadProvider` which reads an unpacked field defined
+    only on sea points.
+
+    .. Note::
+        This requires that a reference to the Land-Sea mask Field has
+        been set as the "lsm_source" attribute.
+
     """
-    _LAND= False
-    
+    _LAND = False
+
+
 class _ReadFFProviderCray32LandPacked(_ReadFFProviderLandPacked):
     """
-    A _DataProvider which reads and then unpacks a Field which has been packed
-    using the Cray 32-bit packing method with land-packing - note that this is
-    similar to the LandPacked case but with a different word size.
-    
+    A :class:`mule.RawReadProvider` which reads a Cray32-bit packed field
+    defined only on land points.
+
+    .. Note::
+        This requires that a reference to the Land-Sea mask Field has
+        been set as the "lsm_source" attribute.
+
     """
     WORD_SIZE = _CRAY32_SIZE
 
+
 class _ReadFFProviderCray32SeaPacked(_ReadFFProviderSeaPacked):
     """
-    A _DataProvider which reads and then unpacks a Field which has been packed
-    using the Cray 32-bit packing method with sea-packing - note that this is
-    similar to the SeaPacked case but with a different word size.
-    
+    A :class:`mule.RawReadProvider` which reads a Cray32-bit packed field
+    defined only on sea points.
+
+    .. Note::
+        This requires that a reference to the Land-Sea mask Field has
+        been set as the "lsm_source" attribute.
+
     """
     WORD_SIZE = _CRAY32_SIZE
+
 
 # Write operators - these handle writing out of the data components
 class _WriteFFOperatorUnpacked(object):
     """
     Formats the data array from a field into bytes suitable to be written into
-    the output file, as unpacked FieldsFile data
-    """    
-    WORD_SIZE = DEFAULT_WORD_SIZE
+    the output file, as unpacked FieldsFile data.
+
+    """
+    WORD_SIZE = mule._DEFAULT_WORD_SIZE
+
     def __init__(self, file_obj):
         self.file = file_obj
-        
+
     def to_bytes(self, field):
         data = field.get_data()
-        kind = {1: 'f', 2: 'i', 3: 'i'}.get(field.lbuser1, data.dtype.kind)        
-        data = data.astype('>{0}{1}'.format(kind, self.WORD_SIZE))
+        dtype = _DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
+        data = data.astype(dtype)
         return data.tostring(), data.size
+
 
 class _WriteFFOperatorWGDOSPacked(_WriteFFOperatorUnpacked):
     """
     Formats the data array from a field into bytes suitable to be written
-    into the output file, as WGDOS packed FieldsFile data
+    into the output file, as WGDOS packed FieldsFile data.
+
     """
     WORD_SIZE = _WGDOS_SIZE
+
     def to_bytes(self, field):
         data = field.get_data()
         data_bytes = wgdos_pack_field(data, field.bmdi, int(field.bacc))
         return data_bytes, len(data_bytes)/(2*self.WORD_SIZE)
 
+
 class _WriteFFOperatorCray32Packed(_WriteFFOperatorUnpacked):
     """
     Formats the data array from a field into bytes suitable to be written into
-    the output file, as Cray32 packed FieldsFile data
-    """    
+    the output file, as Cray32-bit packed FieldsFile data.
+
+    """
     WORD_SIZE = _CRAY32_SIZE
+
 
 class _WriteFFOperatorLandPacked(_WriteFFOperatorUnpacked):
     """
     Formats the data array from a field into bytes suitable to be written into
-    the output file, as Land packed FieldsFile data
+    the output file, as unpacked FieldsFile data defined only on land points.
+
     """
     LAND = True
+
     def to_bytes(self, field):
         data = field.get_data()
         if self.LAND and hasattr(self.file, "land_mask"):
@@ -308,32 +335,41 @@ class _WriteFFOperatorLandPacked(_WriteFFOperatorUnpacked):
             msg = ("Cannot land/sea pack fields on output without a valid "
                    "land-sea-mask")
             raise ValueError(msg)
-        
+
         data = data.ravel()[mask]
-        kind = {1: 'f', 2: 'i', 3: 'i'}.get(field.lbuser1, data.dtype.kind)        
-        data = data.astype('>{0}{1}'.format(kind, self.WORD_SIZE))
+        dtype = _DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
+        data = data.astype(dtype)
         return data.tostring(), data.size
+
 
 class _WriteFFOperatorSeaPacked(_WriteFFOperatorLandPacked):
     """
     Formats the data array from a field into bytes suitable to be written into
-    the output file, as Sea packed FieldsFile data
-    """  
+    the output file, as unpacked FieldsFiled data defiend only on sea points.
+
+    """
     LAND = False
+
 
 class _WriteFFOperatorCray32LandPacked(_WriteFFOperatorLandPacked):
     """
     Formats the data array from a field into bytes suitable to be written into
-    the output file, as Cray32 Land packed FieldsFile data
+    the output file, a Cray32-bit packed FieldsFiled data defiend only on
+    land points.
+
     """
     WORD_SIZE = _CRAY32_SIZE
-    
+
+
 class _WriteFFOperatorCray32SeaPacked(_WriteFFOperatorSeaPacked):
     """
     Formats the data array from a field into bytes suitable to be written into
-    the output file, as Cray32 Land packed FieldsFile data
+    the output file, a Cray32-bit packed FieldsFiled data defiend only on
+    sea points.
+
     """
     WORD_SIZE = _CRAY32_SIZE
+
 
 # An exception class to use when raising validation errors
 class ValidateError(ValueError):
@@ -341,53 +377,51 @@ class ValidateError(ValueError):
         message = "FieldsFile failed to validate: " + message
         super(ValidateError, self).__init__(message)
 
+
 # The FieldsFile definition itself
-class FieldsFile(UMFile):
-    """
-    Representes a single UM FieldsFile
-    
-    """
+class FieldsFile(mule.UMFile):
+    """Represents a single UM FieldsFile."""
     # The components found in the file header (after the initial fixed-length
     # header), and their types
-    _COMPONENTS = (('integer_constants', FF_IntegerConstants),
-                   ('real_constants', FF_RealConstants),
-                   ('level_dependent_constants', FF_LevelDependentConstants),
-                   ('row_dependent_constants', FF_RowDependentConstants),
-                   ('column_dependent_constants', FF_ColumnDependentConstants),
-                   ('fields_of_constants', UnsupportedHeaderItem2D),
-                   ('extra_constants', UnsupportedHeaderItem1D),
-                   ('temp_historyfile', UnsupportedHeaderItem1D),
-                   ('compressed_field_index1', UnsupportedHeaderItem1D),
-                   ('compressed_field_index2', UnsupportedHeaderItem1D),
-                   ('compressed_field_index3', UnsupportedHeaderItem1D),
-                   )
+    COMPONENTS = (('integer_constants', FF_IntegerConstants),
+                  ('real_constants', FF_RealConstants),
+                  ('level_dependent_constants', FF_LevelDependentConstants),
+                  ('row_dependent_constants', FF_RowDependentConstants),
+                  ('column_dependent_constants', FF_ColumnDependentConstants),
+                  ('fields_of_constants', mule.UnsupportedHeaderItem2D),
+                  ('extra_constants', mule.UnsupportedHeaderItem1D),
+                  ('temp_historyfile', mule.UnsupportedHeaderItem1D),
+                  ('compressed_field_index1', mule.UnsupportedHeaderItem1D),
+                  ('compressed_field_index2', mule.UnsupportedHeaderItem1D),
+                  ('compressed_field_index3', mule.UnsupportedHeaderItem1D),
+                  )
 
     # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
     # equivalent _DataProvider to use for the reading, for FieldsFiles
-    _READ_PROVIDERS = {000: _ReadFFProviderUnpacked,
-                       001: _ReadFFProviderWGDOSPacked,
-                       002: _ReadFFProviderCray32Packed,
-                       120: _ReadFFProviderLandPacked,
-                       220: _ReadFFProviderSeaPacked,
-                       122: _ReadFFProviderCray32LandPacked,
-                       222: _ReadFFProviderCray32SeaPacked}
+    READ_PROVIDERS = {000: _ReadFFProviderUnpacked,
+                      001: _ReadFFProviderWGDOSPacked,
+                      002: _ReadFFProviderCray32Packed,
+                      120: _ReadFFProviderLandPacked,
+                      220: _ReadFFProviderSeaPacked,
+                      122: _ReadFFProviderCray32LandPacked,
+                      222: _ReadFFProviderCray32SeaPacked}
 
     # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
     # equivalent _WriteFFOperator to use for writing, for FieldsFiles
-    _WRITE_OPERATORS = {000: _WriteFFOperatorUnpacked,
-                        001: _WriteFFOperatorWGDOSPacked,
-                        002: _WriteFFOperatorCray32Packed,
-                        120: _WriteFFOperatorLandPacked,
-                        220: _WriteFFOperatorSeaPacked,
-                        122: _WriteFFOperatorCray32LandPacked,
-                        222: _WriteFFOperatorCray32SeaPacked,
-                        }
+    WRITE_OPERATORS = {000: _WriteFFOperatorUnpacked,
+                       001: _WriteFFOperatorWGDOSPacked,
+                       002: _WriteFFOperatorCray32Packed,
+                       120: _WriteFFOperatorLandPacked,
+                       220: _WriteFFOperatorSeaPacked,
+                       122: _WriteFFOperatorCray32LandPacked,
+                       222: _WriteFFOperatorCray32SeaPacked,
+                       }
 
     def validate(self):
         """
         FieldsFile validation method, ensures that certain quantities are the
         expected sizes and different header quantities are self-consistent.
-        
+
         """
         # File must have its dataset_type set correctly
         dt_found = self.fixed_length_header.dataset_type
@@ -404,7 +438,7 @@ class FieldsFile(UMFile):
             raise ValidateError(
                 "Unsupported grid_staggering (found {0}, can support one of"
                 "{1})".format(gs_found, gs_valid))
-        
+
         # Integer, real and level dependent constants are mandatory
         if self.integer_constants is None:
             raise ValidateError(
@@ -431,7 +465,7 @@ class FieldsFile(UMFile):
             raise ValidateError(
                 "Incorrect number of real constants, "
                 "(found {0}, should be {1})".format(rc_length, rc_valid))
-                                        
+
         # Shape of level dependent constants
         ldc_shape = self.level_dependent_constants.shape
         ldc_valid = (self.integer_constants.num_p_levels + 1, 8)
@@ -439,13 +473,13 @@ class FieldsFile(UMFile):
             raise ValidateError(
                 "Incorrectly shaped level dependent constants based on "
                 "file type and number of levels in integer_constants "
-                "(found {0}, should be {1})".format(ldc_length, ldc_valid))
-        
+                "(found {0}, should be {1})".format(ldc_shape, ldc_valid))
+
         # Sizes for row and column dependent constants
         if self.row_dependent_constants is not None:
             rdc_shape = self.row_dependent_constants.shape
             # ENDGame row dependent constants have an extra point
-            if self.fixed_length_header.grid_staggering == 6:            
+            if self.fixed_length_header.grid_staggering == 6:
                 rdc_valid = (self.integer_constants.num_rows + 1, 2)
             else:
                 rdc_valid = (self.integer_constants.num_rows, 2)
@@ -453,7 +487,7 @@ class FieldsFile(UMFile):
                 raise ValidateError(
                     "Incorrectly shaped row dependent constants based on "
                     "file type and number of rows in integer_constants "
-                    "(found {0}, should be {1})".format(rdc_length, rdc_valid))
+                    "(found {0}, should be {1})".format(rdc_shape, rdc_valid))
 
         if self.column_dependent_constants is not None:
             cdc_shape = self.column_dependent_constants.shape
@@ -462,13 +496,13 @@ class FieldsFile(UMFile):
                 raise ValidateError(
                     "Incorrectly shaped column dependent constants based on "
                     "file type and number of columns in integer_constants "
-                    "(found {0}, should be {1})".format(cdc_length, cdc_valid))
+                    "(found {0}, should be {1})".format(cdc_shape, cdc_valid))
 
         # Since we don't have access to the STASHmaster (which would
         # be strictly necessary to exmaine this in full detail) we will
         # make a few assumptions when checking the grid
         for ifield, field in enumerate(self.fields):
-            if hasattr(field, "HEADER_MAPPING"):
+            if field.lbrel != -99:
 
                 # Land packed fields shouldn't set their rows or columns
                 if (field.lbpack % 100)//10 == 2:
@@ -491,8 +525,8 @@ class FieldsFile(UMFile):
                                       self.integer_constants.num_cols)
                     if col_diff > 1:
                         raise ValidateError(
-                            "Field {0} column count inconsistent with variable "
-                            "resolution grid constants".format(ifield))
+                            "Field {0} column count inconsistent with variable"
+                            " resolution grid constants".format(ifield))
                     row_diff = np.abs(field.lbrow -
                                       self.integer_constants.num_rows)
                     if row_diff > 1:
@@ -529,7 +563,7 @@ class FieldsFile(UMFile):
                                     self.real_constants.col_spacing)
                     lon_diff = np.abs(field_end_lon - file_end_lon)
 
-                    # For the longitude the field's result must be within 1 
+                    # For the longitude the field's result must be within 1
                     # grid-spacing of the P grid in the header
                     if lon_diff > self.real_constants.col_spacing:
                         raise ValidateError(
@@ -547,4 +581,3 @@ class FieldsFile(UMFile):
                         raise ValidateError(
                             "Field {0} grid latitudes inconsistent"
                             .format(ifield))
-                

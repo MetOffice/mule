@@ -1,0 +1,346 @@
+The Basics
+==========
+This part of the tutorial focuses on the key elements you will be working with
+when using the API; to prepare for the later examples.
+
+Opening files
+-------------
+First of all we will need a file to work with - to make this easier you 
+can borrow one of the testing files that comes with the API.  To locate 
+these files run the following code snippet:
+
+.. code-block:: python
+
+    >>> import os
+    >>> import mule
+    >>> import glob
+    >>> mule_dir = os.path.dirname(mule.__file__)
+    >>> test_pattern = os.path.join(mule_dir, "tests", "test_datafiles", "*")
+    >>> test_files = sorted(glob.glob(test_pattern))
+    
+.. Note::
+    
+    This is just returning all of the example file paths as a python list; 
+    you can then access specific files from the list via indexing.
+
+Mule supports different UM file types using a series of classes; when 
+writing scripts you should generally select a class that corresponds to
+the specific type of file you aim to support.  Currently there are two
+available classes:
+
+  * :class:`mule.FieldsFile`
+  * :class:`mule.LBCFile`
+
+Pick one of the classes and a file which it should correspond to (the test
+files have either ".ff" or ".lbc" extensions that should indicate this).  
+You can then create a new class instance based on the file like so:
+
+.. code-block:: python
+
+    >>> ff = mule.FieldsFile.from_file(test_files[1])
+
+This will load the 2nd file from the list of test files (a fields-file) using
+the :class:`mule.FieldsFile` class.  You should find you can load a LBC file 
+using the :class:`mule.LBCFile` class in the same way.
+
+.. Note::
+    
+    You might also notice that if you try to load a fields-file with the
+    :class:`mule.LBCFile` class or visca-versa; it will not work; the 
+    classes can detect if the file they are given appears to be the correct
+    type - based on information from the headers (more on this later).
+
+Alternatively, there is a convenience method which will allow you to attempt
+to load a file when you aren't sure of the type (or more likely - where you
+are writing a script which can accept *any* type of UM file).  The method
+will return whichever type appears to be correct:
+
+.. code-block:: python
+
+    >>> umf = mule.load_umfile(test_files[0])
+    >>> type(umf)
+    <class 'mule.lbc.LBCFile'>
+    >>> umf = mule.load_umfile(test_files[1])
+    >>> type(umf)
+    <class 'mule.ff.FieldsFile'>
+
+.. Warning::
+
+    It is *not* considered good practice to use this method when your code 
+    is actually designed to target a specific file type; since the specific
+    sub-classes are **not identical** - so you have to be very careful about 
+    what properties you make use of.
+    
+
+Header Components
+-----------------
+You should now be able to create a file object from a UM file, so now let's 
+examine the structure of these objects.  
+
+.. Note::
+
+    At this point it might be very useful (depending on how familiar
+    you are with UM file formats) to ensure you have a copy of the 
+    UM Documentation Paper F03 to hand.
+
+The objects are designed to represent the layout of the files themselves 
+very closely.  Load the "ff" object from the example above again and take
+a look at your first *header component* - the "fixed length header" (which
+is common to all UM files):
+
+.. code-block:: python
+
+    >>> ff.fixed_length_header
+    <mule.FixedLengthHeader object at 0x22f7d50>
+
+Many of the parts of the file header are represented in similar classes to
+this one, and they provide two different methods to access the data in the 
+header.  Many properties can be accessed as named attributes - typically 
+these will be those where UMDP F03 provides an obvious name and use for the 
+property.  For example the fixed length header contains entries which 
+describe the type of file, and the grid staggering:
+
+.. code-block:: python
+
+    >>> ff.fixed_length_header.dataset_type
+    3
+    >>> ff.fixed_length_header.grid_staggering
+    9
+
+All of the header properties can also be accessed directly via their indices, 
+which provides a method to access "unknown" properties.  For example to access
+the same two properties by index:
+
+.. code-block:: python
+
+    >>> ff.fixed_length_header.raw[5]
+    3
+    >>> ff.fixed_length_header.raw[9]
+    9
+
+.. Note::
+
+    The "raw" method of accessing the header directly applies a hidden offset
+    to the indices so that they correspond exactly to the (1-based) indices
+    in UMDP F03.  This is to avoid confusion when referring to the document.
+    If you inspect the zero-th element you will see it is set to "None" and
+    will always be ignored.
+
+Each header component behaves in a similar way; you can refer to UMDP F03 for 
+details of all possible components, but here are a few examples:
+
+.. code-block:: python
+
+    >>> ff.integer_constants.num_rows, ff.integer_constants.num_cols
+    (72, 96)
+    >>> ff.real_constants.real_mdi
+    -1073741824.0
+    >>> ff.level_dependent_constants.eta_at_theta
+    array([0.0, 0.00025, 0.0006667, 0.00125, 0.002, 0.0029167, 0.004, 0.00525,
+           ...
+           0.6707432, 0.73825, 0.8148403, 0.9016668, 1.0], dtype=object)
+    >>> ff.column_dependent_constants
+    
+
+Notice that some components may be 2-dimensional (with a named attribute
+returning a slice - as in the level dependent constants), and that sometimes
+a component can be missing (here the row and column dependent constants are
+both missing and set to "None").  To obtain a listing of the possible 
+components in the file object, you may inspect the "COMPONENTS" attribute:
+
+.. code-block:: python
+
+    >>> for name, _ in ff.COMPONENTS: print(name)
+    ... 
+    integer_constants
+    real_constants
+    level_dependent_constants
+    row_dependent_constants
+    column_dependent_constants
+    fields_of_constants
+    extra_constants
+    temp_historyfile
+    compressed_field_index1
+    compressed_field_index2
+    compressed_field_index3
+
+Spend some time examining these components in the file object to see what
+is available.  You should find that named attributes exist for everything
+mentioned in UMDP F03.
+
+Field Objects
+-------------
+Moving onto the fields which are stored in the file; a UM field comprises
+of a lookup-header entry which provides metadata for the field as well as a 
+description of where to find the data and how to extract it.  This is all
+encapsulated in a series of :class:`mule.Field` objects - one for each field,
+and these can be found in the "fields" attribute of the file object:
+
+.. code-block:: python
+
+    >>> ff.fields
+    [<mule.Field3 object at 0x2d53050>, <mule.Field3 object at 0x2d3bfd0>, <mule.Field3 object at 0x2d53110>, <mule.Field3 object at 0x2d531d0>, <mule.Field3 object at 0x2d53290>, <mule.Field3 object at 0x2d53350>, <mule.Field3 object at 0x2d53410>, <mule.Field3 object at 0x2d534d0>, <mule.Field3 object at 0x2d53590>, <mule.Field3 object at 0x2d53650>]
+
+Firstly, the lookup header - this behaves fairly similarly to the other
+header components, and it contains both the integer and real properties in a
+single object.  Accessing these works in the same way as the other header
+components:
+
+.. code-block:: python
+
+    >>> field = ff.fields[0]
+    >>> field.lbuser4, field.lbft, field.lblev, field.bdy, field.bdx
+    (30, 0, 9999, 3.75, 2.5)
+    >>> field.raw[42], field.raw[14] ,field.raw[33], field.raw[60], field.raw[62]
+    (30, 0, 9999, 3.75, 2.5)
+
+Bonus points if you know what this field is without looking up its STASH code!
+
+.. Note::
+
+    When accessing the "raw" values in the lookup array by index, notice
+    that the indices do not "reset" at the point where the real values
+    begin; this means the indices are *exactly* what UMDP F03 says for all
+    components in the lookup header.
+
+The other part of a UM field is the data itself, but you won't be able to find
+a property which contains it.  Unlike the components the API does *not* read in
+any of the data when you load the file.  Instead, it uses the information in the 
+lookup headers to generate a method for each field that will allow it to access 
+that field's data.  Let's tell this field to go and get its data:
+
+.. code-block:: python
+
+    >>> data = field.get_data()
+    >>> data
+    array([[1, 1, 1, ..., 1, 1, 1],
+           [1, 1, 1, ..., 1, 1, 1],
+           [1, 1, 1, ..., 1, 1, 1],
+           ..., 
+           [0, 0, 0, ..., 0, 0, 0],
+           [0, 0, 0, ..., 0, 0, 0],
+           [0, 0, 0, ..., 0, 0, 0]])
+
+As you can see the data has been returned as a 2-d numpy array.  If you want
+(and have matplotlib installed) you can visualise the data quickly like this:
+
+.. code-block:: python
+
+    >>> import matplotlib.pyplot as plt
+    >>> plt.pcolormesh(data)
+    <matplotlib.collections.QuadMesh object at 0x2e8f0d0>
+    >>> plt.axis("tight")
+    (0.0, 96.0, 0.0, 72.0)
+    >>> plt.show()
+
+Take some time now to explore the field objects from the file, and the file
+as a whole - you have now seen all of the key elements that will allow you 
+to examine the contents of a file and its fields.
+
+Manipulation and Writing Out
+----------------------------
+To conclude this section we'll perform a few basic manipulations of the file
+object and write it out to a new file.  Let's assume we only want to output 
+the first field (which we examined above); we can do this by replacing the
+list of fields with a list containing only the first field:
+
+.. code-block:: python
+
+    >>> ff.fields = list(ff.fields[0])
+
+If we want to adjust any headers we can just set the attributes, for instance
+we could change the grid staggering and give the field a different (and invalid)
+STASH code (for testing purposes!):
+
+.. code-block:: python
+
+    >>> ff.fields[0].lbuser4 = 99999
+    >>> ff.fixed_length_header.grid_staggering = 3
+
+.. Warning::
+
+    Clearly this is just an example and in a lot of cases you should not be
+    doing operations like this without good reason.  A lot of the time header
+    values will have inter-dependencies and cannot simply be changed without
+    the file becoming invalid.  The API will check for very obvious errors in
+    when you try to write the file but it cannot guarantee that the file is 
+    completely correct - that is up to you.
+
+We can now write out the file, providing a suitable filename (in this case a
+file in your home directory - amend as necessary):
+
+.. code-block:: python
+
+    >>> ff.to_file(os.path.expanduser("~/mule_example.ff"))
+
+If you inspect the file produced using a different tool (or re-open it with
+the API) you should find your changes are in-tact.  In a moment you should 
+experiment with this process, but before you do there is a helpful feature
+worth mentioning.
+
+Copying File Objects
+....................
+When following the steps above you might have found yourself having to 
+"refresh" the file object by re-loading the original file again if you made 
+any mistakes manipulating the object.  In many cases it may be preferable 
+to keep an un-modified copy of the original object instead of manipulating 
+it directly.  You can take a copy of any UM file object in either of these 
+forms:
+
+.. code-block:: python
+
+    >>> ff_copy = ff.copy()
+    >>> ff_copy2 = ff.copy(include_fields=True)
+    
+.. Note::
+
+    The "include_fields" flag enables you to choose whether or not you want 
+    your copy to include *copies* of all the field objects or not (all of the 
+    other header components are always copied).  Which approach is correct 
+    depends on your application; you might want the copy to start with a blank 
+    list if you intend to select only a few fields from the original object, 
+    or you might prefer it to contain all fields if you intend to apply some 
+    sort of processing to every field.
+
+Now you should experiment a little with the processes above - in particular 
+try the following (*solutions will follow in the next section!*):
+
+  * What happens if you change the value of "num_p_levels" in the 
+    integer constants and then try to write out the file?
+
+  * Since the first field is the land-sea mask (sorry - spoiled the surprise -
+    did you guess it earlier?) see if you can write a new file which contains
+    only the first *two* fields in the file, and change the second field so 
+    that it gets written out on land-points only.
+
+    .. Note:: In case you don't have a copy of UMDP F03 to hand the "lbpack"
+              code for an unpacked field on land-points only is "120".
+
+Solutions 
+,,,,,,,,,
+If you tried the above you should have found that changing the number of 
+levels produces a file object that can't be written out; because the setting
+no longer agrees with the dimensions of the level dependent constants.
+
+Did you manage to output the land packed field?  Here's a solution:
+
+.. code-block:: python
+
+    >>> ff = mule.FieldsFile.from_file(test_files[1])
+    >>> ff.fields = ff.fields[0:2]
+    >>> ff.fields[1].lbpack = 120
+    >>> ff.fields[1].lbrow = 0
+    >>> ff.fields[1].lbnpt = 0
+    >>> ff.to_file(os.path.expanduser("~/mule_example.ff"))
+
+You might have found that the API would not let you write the file without 
+you also setting the number of rows and columns in the field to zero (which 
+is a requirement for land-packed fields).
+
+Conclusion
+----------
+Having worked through this section you should now be familiar with the basic 
+elements of the API - you should be able to interrogate a file to access 
+and modify its header values, and write it to a new file.  In the next part of
+this guide we will apply this to a few example cases.
+    

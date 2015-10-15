@@ -34,12 +34,12 @@ class CutoutDataOperator(DataOperator):
         self.nx = nx
         self.ny = ny
 
-    def __call__(self, field):
+    def new_field(self, field):
         """
-        Attach the operator to an existing Field.
+        Create the new cutout field.
 
         Args:
-          * field - the Field object to attach to.
+          * field - the Field object containing the source.
         
         """
         new_field = field.copy()
@@ -51,7 +51,6 @@ class CutoutDataOperator(DataOperator):
 
         new_field.lbhem = 3
 
-        self.bind_operator(new_field, field)
         return new_field
 
     def transform(self, field):
@@ -105,7 +104,7 @@ def cutout(ffv_src, filename, cutout_params):
     stagger = stagger[ffv_src.fixed_length_header.grid_staggering]
 
     # Remove empty fields before processing
-    ffv_src.purge_empty_lookups()
+    ffv_src.remove_empty_lookups()
 
     # Grid-spacing in degrees, ensure this is a regular grid
     rmdi = ffv_src.real_constants.real_mdi
@@ -141,7 +140,7 @@ def cutout(ffv_src, filename, cutout_params):
         raise ValueError(msg)
 
     # Create a new fieldsfile to store the cutout fields
-    ffv_dest = FieldsFile.from_existing(ffv_src, filename)
+    ffv_dest = ffv_src.copy()
 
     # Calculate new file headers describing the cutout domain
     if stagger == "new_dynamics":
@@ -228,10 +227,9 @@ def cutout(ffv_src, filename, cutout_params):
 if __name__ == "__main__":
     import sys
     in_file, out_file, x_start, y_start, nx, ny = sys.argv[1:]
-    ff = FieldsFile(in_file)
+    ff = FieldsFile.from_file(in_file)
     ff_new = cutout(ff, out_file, [int(x_start),
                                    int(y_start),
                                    int(nx),
                                    int(ny)])
-    ff_new.close()
-    ff.close()
+    ff_new.to_file(out_file)

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # *****************************COPYRIGHT******************************
 # (C) Crown copyright Met Office. All rights reserved.
 # For further details please refer to the file LICENCE.txt
@@ -25,128 +24,160 @@ This module provides a class for interacting with LBC files.
 """
 from __future__ import (absolute_import, division, print_function)
 
-from mule import (IntegerConstants, RealConstants, LevelDependentConstants,
-                  RowDependentConstants, ColumnDependentConstants, UMFile,
-                  _RawReadProvider, DEFAULT_WORD_SIZE, DataOperator,
-                  UnsupportedHeaderItem1D, UnsupportedHeaderItem2D)
-from mule.ff import (_CRAY32_SIZE, _DATA_DTYPES,
-                     _FF_REAL_CONSTANTS,
-                     _FF_ROW_DEPENDENT_CONSTANTS,
-                     _FF_COLUMN_DEPENDENT_CONSTANTS)
+import mule
+import mule.ff
 import numpy as np
 
 # LBC Files do not recognise all of the properties from a FieldsFile, and some
 # of their properties are slightly different, so override the class here
 _LBC_INTEGER_CONSTANTS = [
-    ('num_times',             3  ),
-    ('num_cols',              6  ),
-    ('num_rows',              7  ),
-    ('num_p_levels',          8  ),
-    ('num_wet_levels',        9  ),
-    ('num_field_types',       15 ),
-    ('height_algorithm',      17 ),
-    ('integer_mdi',           21 ),
-    ('first_constant_rho',    24 ),
+    ('num_times',              3),
+    ('num_cols',               6),
+    ('num_rows',               7),
+    ('num_p_levels',           8),
+    ('num_wet_levels',         9),
+    ('num_field_types',       15),
+    ('height_algorithm',      17),
+    ('integer_mdi',           21),
+    ('first_constant_rho',    24),
     ]
 
 # Similarly, the level dependent constants in an LBC file have less columns
 # than a FieldsFile
 _LBC_LEVEL_DEPENDENT_CONSTANTS = [
-    ('eta_at_theta',      (slice(None), 1) ),
-    ('eta_at_rho',        (slice(None), 2) ),
-    ('rhcrit',            (slice(None), 3) ),
-    ('soil_thickness',    (slice(None), 4) ),    
+    ('eta_at_theta',      (slice(None), 1)),
+    ('eta_at_rho',        (slice(None), 2)),
+    ('rhcrit',            (slice(None), 3)),
+    ('soil_thickness',    (slice(None), 4)),
     ]
 
-class LBC_IntegerConstants(IntegerConstants):
+
+class LBC_IntegerConstants(mule.IntegerConstants):
+    """The integer constants component of a UM LBC File."""
     HEADER_MAPPING = _LBC_INTEGER_CONSTANTS
     CREATE_DIMS = (46,)
 
-class LBC_RealConstants(RealConstants):
-    HEADER_MAPPING = _FF_REAL_CONSTANTS
+
+class LBC_RealConstants(mule.RealConstants):
+    """The real constants component of a UM LBC File."""
+    HEADER_MAPPING = mule.ff._FF_REAL_CONSTANTS
     CREATE_DIMS = (38,)
 
-class LBC_LevelDependentConstants(LevelDependentConstants):
+
+class LBC_LevelDependentConstants(mule.LevelDependentConstants):
+    """The level dependent constants component of a UM LBC File."""
     HEADER_MAPPING = _LBC_LEVEL_DEPENDENT_CONSTANTS
     CREATE_DIMS = (None, 4)
 
-class LBC_RowDependentConstants(RowDependentConstants):
-    HEADER_MAPPING = _FF_ROW_DEPENDENT_CONSTANTS
+
+class LBC_RowDependentConstants(mule.RowDependentConstants):
+    """The row dependent constants component of a UM LBC File."""
+    HEADER_MAPPING = mule.ff._FF_ROW_DEPENDENT_CONSTANTS
     CREATE_DIMS = (None, 2)
 
-class LBC_ColumnDependentConstants(ColumnDependentConstants):
-    HEADER_MAPPING = _FF_COLUMN_DEPENDENT_CONSTANTS
-    CREATE_DIMS = (None, 2)    
+
+class LBC_ColumnDependentConstants(mule.ColumnDependentConstants):
+    """The column dependent constants component of a UM LBC File."""
+    HEADER_MAPPING = mule.ff._FF_COLUMN_DEPENDENT_CONSTANTS
+    CREATE_DIMS = (None, 2)
+
 
 # Setup the providers for the LBC file packing types
-class _ReadLBCProviderUnpacked(_RawReadProvider):
-    """
-    A _DataProvider which extends the _RawReadProvider to read an LBC file
-    which has not been packed.
-    
-    """
-    WORD_SIZE = DEFAULT_WORD_SIZE    
+class _ReadLBCProviderUnpacked(mule.RawReadProvider):
+    """A :class:`mule.RawReadProvider` which reads an unpacked field."""
+    WORD_SIZE = mule._DEFAULT_WORD_SIZE
+
     @property
     def data(self):
         field = self.source
         data_bytes = self._read_bytes()
-        dtype = _DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
+        dtype = mule.ff._DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
         data = np.fromstring(data_bytes, dtype, count=field.lblrec)
         data = data.reshape(field.lbhem - 100, -1)
         return data
-    
+
+
 class _ReadLBCProviderCray32Packed(_ReadLBCProviderUnpacked):
     """
-    A _DataProvider which extends the _RawReadProvider to read and then unpack
-    an LBC file which has been packed using the Cray 32-bit packing method -
-    note that this is similar to the Unpacked case but with a different word
-    size.
-    
+    A :class:`mule.RawReadProvider` which reads a Cray32-bit packed field.
+
     """
-    WORD_SIZE = _CRAY32_SIZE
+    WORD_SIZE = mule.ff._CRAY32_SIZE
+
 
 # Write operators - these handle writing out of the data components
 class _WriteLBCOperatorUnpacked(object):
     """
     Formats the data array from a field into bytes suitable to be written into
-    the output file, as unpacked LBC data
-    """    
-    WORD_SIZE = DEFAULT_WORD_SIZE
+    the output file, as unpacked LBC data.
+
+    """
+    WORD_SIZE = mule._DEFAULT_WORD_SIZE
+
     def __init__(self, file_obj):
         self.file = file_obj
-        
+
     def to_bytes(self, field):
         data = field.get_data()
-        kind = {1: 'f', 2: 'i', 3: 'i'}.get(field.lbuser1, data.dtype.kind)        
-        data = data.astype('>{0}{1}'.format(kind, self.WORD_SIZE))
+        dtype = mule.ff._DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
+        data = data.astype(dtype)
         return data.tostring(), data.size
-    
+
+
 class _WriteLBCOperatorCray32Packed(_WriteLBCOperatorUnpacked):
     """
     Formats the data array from a field into bytes suitable to be written into
-    the output file, as Cray32 packed LBC data
-    """    
-    WORD_SIZE = _CRAY32_SIZE
+    the output file, as Cray32-bit packed LBC data.
+
+    """
+    WORD_SIZE = mule.ff._CRAY32_SIZE
+
 
 # Additional operators
-class LBCToMaskedArrayOperator(DataOperator):
+class LBCToMaskedArrayOperator(mule.DataOperator):
     """
-    A special _DataOperator provided with the LBC class - this will transform
-    the 1-dimensional LBC array into a masked 3-d array where the points in the
-    center of the domain are missing.  Note that in order to write this back
-    out as an LBC it will need to additionally pass through the converse
-    MaskedArrayToLBCOperator.
+    A special :class:`mule.DataOperator` provided with the LBC class - this
+    will transform the 1-dimensional LBC array into a masked 3-d array where
+    the points in the center of the domain are missing.
+
+    .. Note::
+        In order to write this back out as an LBC it will need to additionally
+        pass through the converse :class:`MaskedArrayToLBCOperator`.
 
     """
     def __init__(self):
+        """Initialise the operator object."""
         pass
 
-    def __call__(self, field):
+    def new_field(self, field):
+        """
+        Create a copy of the source field object.
+
+        Args:
+            * field:
+                The :class:`mule.Field` object to attach the operator to
+                when it is called.
+
+        """
         new_field = field.copy()
-        self.bind_operator(new_field, field)
         return new_field
 
     def transform(self, field):
+        """
+        Retrieve the data from the original :class:`mule.Field` object,
+        and construct a masked 3-d data array to return.
+
+        Args:
+            * field:
+                The :class:`mule.Field` object which contains the means
+                to extract the original data.
+
+        .. Note::
+            This method should not be called directly; it will be called
+            by the "get_data" method of the :class:`mule.Field` object
+            this operator has been attached to.
+
+        """
         # Basic properties
         ncols = field.lbnpt
         nrows = field.lbrow
@@ -154,8 +185,8 @@ class LBCToMaskedArrayOperator(DataOperator):
         halo_code = field.lbuser3
 
         # Rim and halo widths
-        rimwidth = int(halo_code / 10000)
-        halo_ns = int(halo_code - rimwidth * 10000) / 100
+        rimwidth = int(halo_code // 10000)
+        halo_ns = int(halo_code - rimwidth * 10000) // 100
         halo_ew = int(halo_code - rimwidth * 10000 - halo_ns * 100)
 
         # Sizes for the sub-regions
@@ -172,7 +203,7 @@ class LBCToMaskedArrayOperator(DataOperator):
 
         # Shapes for the regions
         ns_region_shape = (halo_ns + rimwidth, halo_ew*2 + ncols)
-        ew_region_shape = (nrows -2*rimwidth, halo_ew + rimwidth)
+        ew_region_shape = (nrows - 2*rimwidth, halo_ew + rimwidth)
 
         # Get the existing data and create the 3d-array (fill it with
         # mdi initially)
@@ -213,24 +244,51 @@ class LBCToMaskedArrayOperator(DataOperator):
         return masked_array
 
 
-class MaskedArrayToLBCOperator(DataOperator):
+class MaskedArrayToLBCOperator(mule.DataOperator):
     """
-    A special _DataOperator provided with the LBC class - this will transform
-    the 1-dimensional LBC array into a masked 3-d array where the points in the
-    center of the domain are missing.  Note that in order to write this back
-    out as an LBC it will need to additionally pass through the converse
-    MaskedArrayToLBCOperator.
+    A special :class:`mule.DataOperator` provided with the LBC class - this
+    will transform the masked 3-d array produced by wrapping an LBC field in
+    the :class:`LBCToMaskedArrayOperator` class back into a 1-d LBC array.
 
     """
     def __init__(self):
+        """Initialise the operator object."""
         pass
 
-    def __call__(self, field):
+    def new_field(self, field):
+        """
+        Create a copy of the source field object.
+
+        Args:
+            * field:
+                The :class:`mule.Field` object to attach the operator to
+                when it is called.
+
+                This object is assumed to be the result of applying the
+                :class:`LBCToMaskedArrayOperator` to an LBC field.  It will
+                return a field object which reverts the transformation
+                provided by that operator.
+
+        """
         new_field = field.copy()
-        self.bind_operator(new_field, field)
         return new_field
 
     def transform(self, field):
+        """
+        Retrieve the masked 3-d array from the :class:`mule.Field` object
+        and revert it to a sequential 1-d LBC array.
+
+        Args:
+            * field:
+                The :class:`mule.Field` object which returns the masked
+                3-d array.
+
+        .. Note::
+            This method should not be called directly; it will be called
+            by the "get_data" method of the :class:`mule.Field` object
+            this operator has been attached to.
+
+        """
         # Basic properties
         ncols = field.lbnpt
         nrows = field.lbrow
@@ -238,8 +296,8 @@ class MaskedArrayToLBCOperator(DataOperator):
         halo_code = field.lbuser3
 
         # Rim and halo widths
-        rimwidth = int(halo_code / 10000)
-        halo_ns = int(halo_code - rimwidth * 10000) / 100
+        rimwidth = int(halo_code // 10000)
+        halo_ns = int(halo_code - rimwidth * 10000) // 100
         halo_ew = int(halo_code - rimwidth * 10000 - halo_ns * 100)
 
         # Sizes for the sub-regions
@@ -282,7 +340,7 @@ class MaskedArrayToLBCOperator(DataOperator):
         data = np.ones((num_levels, total_size))*mdi
 
         for z in range(0, num_levels):
-            # Extract each region from the 3-d array 
+            # Extract each region from the 3-d array
             northern_region = data_3d[z,
                                       north_start_y:north_end_y,
                                       north_start_x:north_end_x]
@@ -290,20 +348,20 @@ class MaskedArrayToLBCOperator(DataOperator):
                                      east_start_y:east_end_y,
                                      east_start_x:east_end_x]
             southern_region = data_3d[z,
-                                     south_start_y:south_end_y,
-                                     south_start_x:south_end_x]
+                                      south_start_y:south_end_y,
+                                      south_start_x:south_end_x]
             western_region = data_3d[z,
                                      west_start_y:west_end_y,
-                                     west_start_x:west_end_x]            
+                                     west_start_x:west_end_x]
 
             # Place the extracted regions into the output array
             data[z, north_start: east_start] = northern_region.ravel()
 
             data[z, east_start: south_start] = eastern_region.ravel()
 
-            data[z, south_start: west_start] = southern_region.ravel()            
+            data[z, south_start: west_start] = southern_region.ravel()
 
-            data[z, west_start: ] = western_region.ravel()            
+            data[z, west_start:] = western_region.ravel()
 
         return data
 
@@ -313,34 +371,33 @@ class ValidateError(ValueError):
     def __init__(self, message):
         message = "LBCFile failed to validate: " + message
         super(ValidateError, self).__init__(message)
-    
+
+
 # Otherwise and LBC file is fairly similar to a FieldsFile
-class LBCFile(UMFile):
-    """
-    Represents a single UM LBC File
-    
-    """
+class LBCFile(mule.UMFile):
+    """Represents a single UM LBC File."""
     # The components of the file
-    _COMPONENTS = (('integer_constants', LBC_IntegerConstants),
-                   ('real_constants', LBC_RealConstants),
-                   ('level_dependent_constants', LBC_LevelDependentConstants),
-                   ('row_dependent_constants', LBC_RowDependentConstants),
-                   ('column_dependent_constants', LBC_ColumnDependentConstants),
-                   ('fields_of_constants', UnsupportedHeaderItem2D),
-                   ('extra_constants', UnsupportedHeaderItem1D),
-                   ('temp_historyfile', UnsupportedHeaderItem1D),
-                   ('compressed_field_index1', UnsupportedHeaderItem1D),
-                   ('compressed_field_index2', UnsupportedHeaderItem1D),
-                   ('compressed_field_index3', UnsupportedHeaderItem1D),
-                   )
-    
+    COMPONENTS = (
+        ('integer_constants', LBC_IntegerConstants),
+        ('real_constants', LBC_RealConstants),
+        ('level_dependent_constants', LBC_LevelDependentConstants),
+        ('row_dependent_constants', LBC_RowDependentConstants),
+        ('column_dependent_constants', LBC_ColumnDependentConstants),
+        ('fields_of_constants', mule.UnsupportedHeaderItem2D),
+        ('extra_constants', mule.UnsupportedHeaderItem1D),
+        ('temp_historyfile', mule.UnsupportedHeaderItem1D),
+        ('compressed_field_index1', mule.UnsupportedHeaderItem1D),
+        ('compressed_field_index2', mule.UnsupportedHeaderItem1D),
+        ('compressed_field_index3', mule.UnsupportedHeaderItem1D),
+        )
+
     # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
     # equivalent _DataProvider to use for the reading, for LBC Files
-    _READ_PROVIDERS = {000: _ReadLBCProviderUnpacked,
-                       002: _ReadLBCProviderCray32Packed}
+    READ_PROVIDERS = {000: _ReadLBCProviderUnpacked,
+                      002: _ReadLBCProviderCray32Packed}
 
-    _WRITE_OPERATORS = {000: _WriteLBCOperatorUnpacked,
-                        002: _WriteLBCOperatorCray32Packed}
+    WRITE_OPERATORS = {000: _WriteLBCOperatorUnpacked,
+                       002: _WriteLBCOperatorCray32Packed}
 
     # The only other difference is that LBC files do not set the data shape
     def _write_to_file(self, output_file):
@@ -357,7 +414,7 @@ class LBCFile(UMFile):
         """
         LBCFile validation method, ensures that certain quantities are the
         expected sizes and different header quantities are self-consistent.
-        
+
         """
         # File must have its dataset_type set correctly
         dt_found = self.fixed_length_header.dataset_type
@@ -374,7 +431,7 @@ class LBCFile(UMFile):
             raise ValidateError(
                 "Unsupported grid_staggering (found {0}, can support one of"
                 "{1})".format(gs_found, gs_valid))
-        
+
         # Integer, real and level dependent constants are mandatory
         if self.integer_constants is None:
             raise ValidateError(
@@ -401,7 +458,7 @@ class LBCFile(UMFile):
             raise ValidateError(
                 "Incorrect number of real constants, "
                 "(found {0}, should be {1})".format(rc_length, rc_valid))
-                                        
+
         # Shape of level dependent constants
         ldc_shape = self.level_dependent_constants.shape
         ldc_valid = (self.integer_constants.num_p_levels + 1, 4)
@@ -409,13 +466,13 @@ class LBCFile(UMFile):
             raise ValidateError(
                 "Incorrectly shaped level dependent constants based on "
                 "file type and number of levels in integer_constants "
-                "(found {0}, should be {1})".format(ldc_length, ldc_valid))
-        
+                "(found {0}, should be {1})".format(ldc_shape, ldc_valid))
+
         # Sizes for row and column dependent constants
         if self.row_dependent_constants is not None:
             rdc_shape = self.row_dependent_constants.shape
             # ENDGame row dependent constants have an extra point
-            if self.fixed_length_header.grid_staggering == 6:            
+            if self.fixed_length_header.grid_staggering == 6:
                 rdc_valid = (self.integer_constants.num_rows + 1, 2)
             else:
                 rdc_valid = (self.integer_constants.num_rows, 2)
@@ -423,7 +480,7 @@ class LBCFile(UMFile):
                 raise ValidateError(
                     "Incorrectly shaped row dependent constants based on "
                     "file type and number of rows in integer_constants "
-                    "(found {0}, should be {1})".format(rdc_length, rdc_valid))
+                    "(found {0}, should be {1})".format(rdc_shape, rdc_valid))
 
         if self.column_dependent_constants is not None:
             cdc_shape = self.column_dependent_constants.shape
@@ -432,16 +489,16 @@ class LBCFile(UMFile):
                 raise ValidateError(
                     "Incorrectly shaped column dependent constants based on "
                     "file type and number of columns in integer_constants "
-                    "(found {0}, should be {1})".format(cdc_length, cdc_valid))
+                    "(found {0}, should be {1})".format(cdc_shape, cdc_valid))
 
         # Since we don't have access to the STASHmaster (which would
         # be strictly necessary to exmaine this in full detail) we will
         # make a few assumptions when checking the grid
         for ifield, field in enumerate(self.fields):
-            if hasattr(field, "HEADER_MAPPING"):
+            if field.lbrel != -99:
 
                 if (self.row_dependent_constants is not None and
-                      self.column_dependent_constants is not None):
+                        self.column_dependent_constants is not None):
                     # Fields on a variable resolution grid should simply
                     # contain the correct number of rows/columns (actually
                     # these can be within +/- 1 of the header value to account
@@ -450,8 +507,8 @@ class LBCFile(UMFile):
                                       self.integer_constants.num_cols)
                     if col_diff > 1:
                         raise ValidateError(
-                            "Field {0} column count inconsistent with variable "
-                            "resolution grid constants".format(ifield))
+                            "Field {0} column count inconsistent with variable"
+                            " resolution grid constants".format(ifield))
                     row_diff = np.abs(field.lbrow -
                                       self.integer_constants.num_rows)
                     if row_diff > 1:
@@ -488,7 +545,7 @@ class LBCFile(UMFile):
                                     self.real_constants.col_spacing)
                     lon_diff = np.abs(field_end_lon - file_end_lon)
 
-                    # For the longitude the field's result must be within 1 
+                    # For the longitude the field's result must be within 1
                     # grid-spacing of the P grid in the header
                     if lon_diff > self.real_constants.col_spacing:
                         raise ValidateError(
@@ -505,4 +562,4 @@ class LBCFile(UMFile):
                     if lat_diff > 1.5*self.real_constants.row_spacing:
                         raise ValidateError(
                             "Field {0} grid latitudes inconsistent"
-                            .format(ifield))            
+                            .format(ifield))

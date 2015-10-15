@@ -19,7 +19,7 @@ from setuptools import setup
 setup(name='mule',
       version='1.0',
       description='Unified Model Fields File interface',
-      authors='UM Systems Team',
+      author='UM Systems Team',
       url='https://code.metoffice.gov.uk/trac/um',
       package_dir = {'': 'lib'},
       packages=['mule',

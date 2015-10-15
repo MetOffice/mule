@@ -82,7 +82,14 @@ class Test_from_template(tests.MuleTest):
     def test_component_nodims__error(self):
         test_template = {"row_dependent_constants": {}}
         with self.assertRaisesRegexp(ValueError,
-                                     '"num_rows" has no valid default'):
+                                     '"dim1" has no valid default'):
+            _ = FieldsFile.from_template(test_template)
+
+    def test_unknown_element__fail(self):
+        test_template = {"integer_constants": {'whatsthis': 3}}
+        with self.assertRaisesRegexp(
+                ValueError,
+                '"integer_constants".*no element.*"whatsthis"'):
             _ = FieldsFile.from_template(test_template)
 
     def test_component_baddims__error(self):
@@ -132,7 +139,7 @@ class Test_from_template(tests.MuleTest):
                  "top_theta_height":80000.0,
                 },
              "level_dependent_constants":
-                {'dims':(70,),  # this one absolutely *is* needed
+                {'dims':(71,),  # this one absolutely *is* needed
                  },
             }
         ff_new = FieldsFile.from_template(test_template)
@@ -142,7 +149,7 @@ class Test_from_template(tests.MuleTest):
         self.assertIsNone(ffv_reload.row_dependent_constants)
         self.assertIsNone(ffv_reload.column_dependent_constants)
         self.assertEqual(ffv_reload.level_dependent_constants.raw.shape,
-                         (70, 9))
+                         (71, 9))
 
 
 if __name__ == '__main__':

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # *****************************COPYRIGHT******************************
 # (C) Crown copyright Met Office. All rights reserved.
 # For further details please refer to the file LICENCE.txt
@@ -21,173 +20,209 @@
 
 """
 This module provides a series of classes to allow interaction with various
-file formats from the UM system
+file formats produced and used by the UM (Unified Model) system.
+
+The top-level :class:`UMFile` class provides an object representing a generic
+UM file of the fieldsfile-like type, as covered in document UMDP F03.
+This enables any file of this general form to be handled.
+
+In practice, most files will be of a specific known subtype and it is then
+simpler and safer to use the approriate subclass, :class:`~mule.ff.FieldsFile`
+or :class:`~mule.lbc.LBCFile` :  These perform type-specific sanity checking,
+and provide named attributes to access all of the header elements.
+
+for example:
+
+>>> ff = mule.FieldsFile.from_file(in_path)
+>>> print 'model = ', ff.fixed_length_header.model_version
+>>> ff.integer_constants.num_soil_levels = 0
+>>> ff.fields = [fld for fld in ff.fields
+...              if (fld.lbuser7 == 1 and fld.lbuser4 in (204, 207)
+                     and 1990 <= fld.lbyr < 2000)]
+>>> ff.to_file(out_path)
+
+The more general :class:`UMFile` class is provided to handle files of other
+types, and can also be used to correct or adjust files of recognised types that
+are invalid because of unexpected or inconsistent header information.
 
 """
+
 from __future__ import (absolute_import, division, print_function)
 
 import os
-import tempfile
 import numpy as np
 from contextlib import contextmanager
 
 # UM fixed length header names and positions
 _UM_FIXED_LENGTH_HEADER = [
-    ('data_set_format_version',          1   ),
-    ('sub_model',                        2   ),
-    ('vert_coord_type',                  3   ),
-    ('horiz_grid_type',                  4   ),
-    ('dataset_type',                     5   ),
-    ('run_identifier',                   6   ),
-    ('experiment_number',                7   ),
-    ('calendar',                         8   ),
-    ('grid_staggering',                  9   ),
-    ('time_type',                        10  ),
-    ('projection_number',                11  ),
-    ('model_version',                    12  ),
-    ('obs_file_type',                    14  ),
-    ('last_fieldop_type',                15  ),
-    ('integer_constants_start',          100 ),    
-    ('integer_constants_length',         101 ),
-    ('real_constants_start',             105 ),    
-    ('real_constants_length',            106 ),
-    ('level_dependent_constants_start',  110 ),
-    ('level_dependent_constants_dim1',   111 ),
-    ('level_dependent_constants_dim2',   112 ),
-    ('row_dependent_constants_start',    115 ),
-    ('row_dependent_constants_dim1',     116 ),
-    ('row_dependent_constants_dim2',     117 ),
-    ('column_dependent_constants_start', 120 ),
-    ('column_dependent_constants_dim1',  121 ),
-    ('column_dependent_constants_dim2',  122 ),    
-    ('fields_of_constants_start',        125 ),
-    ('fields_of_constants_dim1',         126 ),
-    ('fields_of_constants_dim2',         127 ),    
-    ('extra_constants_start',            130 ),
-    ('extra_constants_length',           131 ),    
-    ('temp_historyfile_start',           135 ),
-    ('temp_historyfile_length',          136 ),    
-    ('compressed_field_index1_start',    140 ),
-    ('compressed_field_index1_length',   141 ),    
-    ('compressed_field_index2_start',    142 ),
-    ('compressed_field_index2_length',   143 ),    
-    ('compressed_field_index3_start',    144 ),
-    ('compressed_field_index3_length',   145 ),    
-    ('lookup_start',                     150 ),
-    ('lookup_dim1',                      151 ),
-    ('lookup_dim2',                      152 ),    
-    ('total_prognostic_fields',          153 ),
-    ('data_start',                       160 ),
-    ('data_dim1',                        161 ), 
-    ('data_dim2',                        162 ),
+    ('data_set_format_version',            1),
+    ('sub_model',                          2),
+    ('vert_coord_type',                    3),
+    ('horiz_grid_type',                    4),
+    ('dataset_type',                       5),
+    ('run_identifier',                     6),
+    ('experiment_number',                  7),
+    ('calendar',                           8),
+    ('grid_staggering',                    9),
+    ('time_type',                         10),
+    ('projection_number',                 11),
+    ('model_version',                     12),
+    ('obs_file_type',                     14),
+    ('last_fieldop_type',                 15),
+    ('integer_constants_start',          100),
+    ('integer_constants_length',         101),
+    ('real_constants_start',             105),
+    ('real_constants_length',            106),
+    ('level_dependent_constants_start',  110),
+    ('level_dependent_constants_dim1',   111),
+    ('level_dependent_constants_dim2',   112),
+    ('row_dependent_constants_start',    115),
+    ('row_dependent_constants_dim1',     116),
+    ('row_dependent_constants_dim2',     117),
+    ('column_dependent_constants_start', 120),
+    ('column_dependent_constants_dim1',  121),
+    ('column_dependent_constants_dim2',  122),
+    ('fields_of_constants_start',        125),
+    ('fields_of_constants_dim1',         126),
+    ('fields_of_constants_dim2',         127),
+    ('extra_constants_start',            130),
+    ('extra_constants_length',           131),
+    ('temp_historyfile_start',           135),
+    ('temp_historyfile_length',          136),
+    ('compressed_field_index1_start',    140),
+    ('compressed_field_index1_length',   141),
+    ('compressed_field_index2_start',    142),
+    ('compressed_field_index2_length',   143),
+    ('compressed_field_index3_start',    144),
+    ('compressed_field_index3_length',   145),
+    ('lookup_start',                     150),
+    ('lookup_dim1',                      151),
+    ('lookup_dim2',                      152),
+    ('total_prognostic_fields',          153),
+    ('data_start',                       160),
+    ('data_dim1',                        161),
+    ('data_dim2',                        162),
     ]
-    
+
+
+# UM FieldsFile/PP LOOKUP header default class (contains the bare-minumum
+# assumed elements for the purposes of associating the data and identifying
+# the exact type of field).
+_LOOKUP_HEADER_DEFAULT = [
+    ('lblrec',  15),
+    ('lbpack',  21),
+    ('lbrel',   22),
+    ('lbegin',  29),
+    ('lbnrec',  30),
+    ]
 
 # UM FieldsFile/PP LOOKUP header names and positions for header release vn.2
 _LOOKUP_HEADER_2 = [
-        ('lbyr',    1  ),
-        ('lbmon',   2  ),
-        ('lbdat',   3  ),
-        ('lbhr',    4  ),
-        ('lbmin',   5  ),
-        ('lbday',   6  ),
-        ('lbyrd',   7  ),
-        ('lbmond',  8  ),
-        ('lbdatd',  9  ),
-        ('lbhrd',   10 ),
-        ('lbmind',  11 ),
-        ('lbdayd',  12 ),
-        ('lbtim',   13 ),
-        ('lbft',    14 ),
-        ('lblrec',  15 ),
-        ('lbcode',  16 ),
-        ('lbhem',   17 ),
-        ('lbrow',   18 ),
-        ('lbnpt',   19 ),
-        ('lbext',   20 ),
-        ('lbpack',  21 ),
-        ('lbrel',   22 ),
-        ('lbfc',    23 ),
-        ('lbcfc',   24 ),
-        ('lbproc',  25 ),
-        ('lbvc',    26 ),
-        ('lbrvc',   27 ),
-        ('lbexp',   28 ),
-        ('lbegin',  29 ),
-        ('lbnrec',  30 ),
-        ('lbproj',  31 ),
-        ('lbtyp',   32 ),
-        ('lblev',   33 ),
-        ('lbrsvd1', 34 ),
-        ('lbrsvd2', 35 ),
-        ('lbrsvd3', 36 ),
-        ('lbrsvd4', 37 ),        
-        ('lbsrce',  38 ),
-        ('lbuser1', 39 ),
-        ('lbuser2', 40 ),
-        ('lbuser3', 41 ),
-        ('lbuser4', 42 ),
-        ('lbuser5', 43 ),
-        ('lbuser6', 44 ),
-        ('lbuser7', 45 ),                
-        ('brsvd1',  46 ),
-        ('brsvd2',  47 ),
-        ('brsvd3',  48 ),
-        ('brsvd4',  49 ),        
-        ('bdatum',  50 ),
-        ('bacc',    51 ),
-        ('blev',    52 ),
-        ('brlev',   53 ),
-        ('bhlev',   54 ),
-        ('bhrlev',  55 ),
-        ('bplat',   56 ),
-        ('bplon',   57 ),
-        ('bgor',    58 ),
-        ('bzy',     59 ),
-        ('bdy',     60 ),
-        ('bzx',     61 ),
-        ('bdx',     62 ),
-        ('bmdi',    63 ),
-        ('bmks',    64 ),
+    ('lbyr',     1),
+    ('lbmon',    2),
+    ('lbdat',    3),
+    ('lbhr',     4),
+    ('lbmin',    5),
+    ('lbday',    6),
+    ('lbyrd',    7),
+    ('lbmond',   8),
+    ('lbdatd',   9),
+    ('lbhrd',   10),
+    ('lbmind',  11),
+    ('lbdayd',  12),
+    ('lbtim',   13),
+    ('lbft',    14),
+    ('lblrec',  15),
+    ('lbcode',  16),
+    ('lbhem',   17),
+    ('lbrow',   18),
+    ('lbnpt',   19),
+    ('lbext',   20),
+    ('lbpack',  21),
+    ('lbrel',   22),
+    ('lbfc',    23),
+    ('lbcfc',   24),
+    ('lbproc',  25),
+    ('lbvc',    26),
+    ('lbrvc',   27),
+    ('lbexp',   28),
+    ('lbegin',  29),
+    ('lbnrec',  30),
+    ('lbproj',  31),
+    ('lbtyp',   32),
+    ('lblev',   33),
+    ('lbrsvd1', 34),
+    ('lbrsvd2', 35),
+    ('lbrsvd3', 36),
+    ('lbrsvd4', 37),
+    ('lbsrce',  38),
+    ('lbuser1', 39),
+    ('lbuser2', 40),
+    ('lbuser3', 41),
+    ('lbuser4', 42),
+    ('lbuser5', 43),
+    ('lbuser6', 44),
+    ('lbuser7', 45),
+    ('brsvd1',  46),
+    ('brsvd2',  47),
+    ('brsvd3',  48),
+    ('brsvd4',  49),
+    ('bdatum',  50),
+    ('bacc',    51),
+    ('blev',    52),
+    ('brlev',   53),
+    ('bhlev',   54),
+    ('bhrlev',  55),
+    ('bplat',   56),
+    ('bplon',   57),
+    ('bgor',    58),
+    ('bzy',     59),
+    ('bdy',     60),
+    ('bzx',     61),
+    ('bdx',     62),
+    ('bmdi',    63),
+    ('bmks',    64),
     ]
 
 # UM FieldsFile/PP LOOKUP header names and positions for header release vn.3
 # These are identical to header release vn.2 above apart from the 6th and 12th
 # elements, which had their meanings changed from "day of year" to "second"
 _LOOKUP_HEADER_3 = [(name, position) for name, position in _LOOKUP_HEADER_2]
-_LOOKUP_HEADER_3[5] = ('lbsec', 6 )
-_LOOKUP_HEADER_3[11] = ('lbsecd', 12 )
-
-# A mapping from header-release-number to header definition
-_LOOKUP_HEADERS = {2: _LOOKUP_HEADER_2, 3: _LOOKUP_HEADER_3}
+_LOOKUP_HEADER_3[5] = ('lbsec', 6)
+_LOOKUP_HEADER_3[11] = ('lbsecd', 12)
 
 # Global default word (record) size (in bytes)
-DEFAULT_WORD_SIZE = 8
+_DEFAULT_WORD_SIZE = 8
 
 # Default missing values for **header** objects (not values in data!)
 _INTEGER_MDI = -32768
 _REAL_MDI = -1073741824.0
 
-# Metaclass for header objects
+
 class _HeaderMetaclass(type):
     """
+    Metaclass used to give named attributes to other classes.
+
     This metaclass is used in the construction of several header-like classes
-    in this module; note that it is applied on *defining* the classes (i.e.
-    when this module is imported), *not* later when a specific instance of the
-    classes is initialised.
+    in this API; note that it is applied on *defining* the classes (i.e. when
+    the module is imported), *not* later when a specific instance of the
+    classes are initialised.
 
     The purpose of this class is to attach a set of named attributes to the
     header object and associate these with specific indices of the underlying
     array of header values.  The target class defines this "mapping" itself,
     allowing this metaclass to be used for multiple header-like objects.
-    
+
     """
     def __new__(cls, classname, bases, class_dict):
         """
         Called upon definition of the target class to add the named attributes.
         The target class should define a HEADER_MAPPING attribute to specify
         the mapping to be used for the attributes.
-        
+
+        The metaclass will assume the actual data values exist in an attribute
+        of the target class called "_values".
+
         """
         # This method will return a new "getter"; which retrieves a set of
         # indices from the named attribute containing the actual value array
@@ -203,7 +238,7 @@ class _HeaderMetaclass(type):
             def setter(self, values):
                 getattr(self, array_attribute)[indices] = values
             return setter
-        
+
         # Retrieve the desired mapping defined by the target class
         mapping = class_dict.get("HEADER_MAPPING")
         if mapping is not None:
@@ -218,60 +253,80 @@ class _HeaderMetaclass(type):
         return super(_HeaderMetaclass, cls).__new__(cls, classname,
                                                     bases, class_dict)
 
-class _BaseHeaderClass(object):
-    """
-    A UM header component.
 
-    Attributes:
-        * MDI:
-            The value to use to indicate missing header values.
-        * DTYPE:
-            The data-type of the words in the header.
-        * CREATE_DIMS:
-            A tuple containing the shape of the header when the class
-            creates it from-scratch and the user does not provide a shape.
-            If any element is set to "None" this indicates the user *must*
-            provide the size for the corresponding dimension.
-    
+class BaseHeaderComponent(object):
+    """
+    Base class for a UM header component.
+
+    .. Note::
+        This class is not intended to be used directly; it acts only to
+        group together the common parts of the :class:`BaseHeaderComponent1D`
+        and :class:`BaseHeaderComponent2D` classes.
+
     """
     __metaclass__ = _HeaderMetaclass
 
     # The values in this base class should be overidden as they will
     # not do anything useful if left set to None.
     MDI = None
+    """The value to use to indicate missing header values."""
+
     DTYPE = None
+    """The data-type of the words in the header."""
+
     CREATE_DIMS = None
+    """
+    A tuple defining the default dimensions of the header to be produced
+    by the :meth:`~BaseHeaderComponent.empty` method, when the caller provides
+    incomplete shape information.
+    Where an element of the tuple is "None", the arguments to the empty
+    method *must* specify a size for the corresponding dimension.
+
+    """
+
+    HEADER_MAPPING = None
+    """
+    A list containing a series of tuple-pairs; the raw value of an index
+    in the header, and a named-attribute to associate with it (see the help
+    for the :class:`_HeaderMetaclass` for further details).
+
+    """
 
     @property
     def shape(self):
-        """
-        Return the shape of the header object.
-        
-        """
+        """Return the shape of the header object."""
         return self._values[..., 1:].shape
 
     @property
     def raw(self):
-        """
-        Return the raw values of the header object.
-        
-        """
-        return self._values.view()        
+        """Return the raw values of the header object."""
+        return self._values.view()
 
     def copy(self):
-        """
-        Create a copy of the header object.
-        
-        """
-        return type(self)(self.raw[..., 1:])     
+        """Create a copy of the header object."""
+        return type(self)(self.raw[..., 1:])
 
 
-class BaseHeaderClass1D(_BaseHeaderClass):
-    """
-    1-Dimensional UM header component.
-                 
-    """
+class BaseHeaderComponent1D(BaseHeaderComponent):
+    """1-Dimensional UM header component."""
     CREATE_DIMS = (None,)
+
+    def __init__(self, values):
+        """
+        Initialise the object from a series of values.
+
+        Args:
+            * values:
+                array-like object containing values in this header.
+
+        .. Note::
+            The values are internally stored offset by 1 element (so that
+            when the raw values are accessed their indexing is 1-based, to
+            match up with their definitions in UMDP F03).
+
+        """
+        self._values = np.empty(len(values) + 1, dtype=object)
+        self._values[1:] = np.asarray(values, dtype=self.DTYPE)
 
     @classmethod
     def empty(cls, num_words=None):
@@ -281,9 +336,11 @@ class BaseHeaderClass1D(_BaseHeaderClass):
         Kwargs:
             * num_words:
                 The number of words to use to create the header.
-                Note: this may be optional or mandatory depending on
-                the value of the class's CREATE_DIMS attribute.
-        
+
+        .. Note::
+            Passing "num_words" may be optional or mandatory depending
+            on the value of the class's CREATE_DIMS attribute.
+
         """
         if num_words is None:
             num_words = cls.CREATE_DIMS[0]
@@ -298,31 +355,15 @@ class BaseHeaderClass1D(_BaseHeaderClass):
 
         Args:
             * source:
-                The (opened) file object containing the header value, with
+                The (open) file object containing the header value, with
                 its file pointer positioned at the start of this header.
             * num_words:
                 The number of words to read in from the file to populate
                 the header.
-        
+
         """
         values = np.fromfile(source, dtype=cls.DTYPE, count=num_words)
         return cls(values)
-
-    def __init__(self, values):
-        """
-        Initialise the object from a series of values.
-        
-        Note that the values are internally stored offset by 1 element (so
-        that when the raw values are accessed their indexing is 1-based, to
-        match up more closely with the definitions used in Fortran/UMDP F03).
-
-        Args:
-            * values:
-                array-like object containing values in this header.
-                
-        """
-        self._values = np.empty(len(values) + 1, dtype=object)
-        self._values[1:] = np.asarray(values, dtype=self.DTYPE)
 
     def to_file(self, output_file):
         """
@@ -330,18 +371,34 @@ class BaseHeaderClass1D(_BaseHeaderClass):
 
         Args:
             * output_file:
-                The (opened) file object for the header to be written to.
-                
+                The (open) file object for the header to be written to.
+
         """
         output_file.write(self._values[1:].astype(self.DTYPE))
 
 
-class BaseHeaderClass2D(_BaseHeaderClass):
-    """
-    2-Dimensional UM header component.
-
-    """
+class BaseHeaderComponent2D(BaseHeaderComponent):
+    """2-Dimensional UM header component."""
     CREATE_DIMS = (None, None)
+
+    def __init__(self, values):
+        """
+        Initialise the object from a series of values.
+
+        Args:
+            * values:
+                2-dimensional array-like object containing values in
+                this header.
+
+        .. Note::
+            The values are internally stored offset by 1 element in their
+            second dimension (so that when the raw values are accessed their
+            indexing is 1-based, to match up with the definitions in UMDP F03).
+
+        """
+        self._values = np.empty((values.shape[0], values.shape[1] + 1),
+                                dtype=object)
+        self._values[:, 1:] = values
 
     @classmethod
     def empty(cls, dim1=None, dim2=None):
@@ -351,13 +408,13 @@ class BaseHeaderClass2D(_BaseHeaderClass):
         Kwargs:
             * dim1:
                 The number of words to use for the header's first dimension.
-                Note: this may be optional or mandatory depending on
-                the values of the class's CREATE_DIMS attribute.
             * dim2:
                 The number of words to use for the header's second dimension.
-                Note: this may be optional or mandatory depending on
-                the values of the class's CREATE_DIMS attribute.                
-        
+
+        .. Note::
+            Setting "dim1" and/or "dim2" may be optional or mandatory
+            depending on the values of the class's CREATE_DIMS attribute.
+
         """
         if dim1 is None:
             dim1 = cls.CREATE_DIMS[0]
@@ -368,7 +425,7 @@ class BaseHeaderClass2D(_BaseHeaderClass):
         if dim2 is None:
             raise(ValueError('"dim2" has no valid default'))
         values = np.empty((dim1, dim2), dtype=cls.DTYPE)
-        values[:,:] = cls.MDI
+        values[:, :] = cls.MDI
         return cls(values)
 
     @classmethod
@@ -378,7 +435,7 @@ class BaseHeaderClass2D(_BaseHeaderClass):
 
         Args:
             * source:
-                The (opened) file object containing the header value, with
+                The (open) file object containing the header value, with
                 its file pointer positioned at the start of this header.
             * dim1:
                 The number of words to read in from the file to populate
@@ -386,31 +443,12 @@ class BaseHeaderClass2D(_BaseHeaderClass):
             * dim2:
                 The number of the above rows to read in from the file to
                 populate the header.
-        
-        """        
+
+        """
         values = np.fromfile(source, dtype=cls.DTYPE,
-                            count=np.product((dim1, dim2)))
+                             count=np.product((dim1, dim2)))
         values = values.reshape((dim1, dim2), order="F")
         return cls(values)
-
-    def __init__(self, values):
-        """
-        Initialise the object from a series of values.
-
-        Note that the values are internally stored offset by 1 element in
-        their second dimension only (so that when the raw values are accessed
-        their indexing is 1-based in this dimension, to match up more closely
-        with the definitions used in Fortran/UMDP F03).        
-        
-        Args:
-            * values:
-                2-dimensional array-like object containing values in
-                this header.
-                
-        """
-        self._values = np.empty((values.shape[0], values.shape[1] + 1),
-                                 dtype=object)
-        self._values[:,1:] = values
 
     def to_file(self, output_file):
         """
@@ -418,14 +456,14 @@ class BaseHeaderClass2D(_BaseHeaderClass):
 
         Args:
             * output_file:
-                The (opened) file object for the header to be written to.
-                
-        """        
-        output_file.write(np.ravel(
-            self._values[:,1:].astype(self.DTYPE), order="F"))
-        
+                The (open) file object for the header to be written to.
 
-class FixedLengthHeader(BaseHeaderClass1D):
+        """
+        output_file.write(np.ravel(
+            self._values[:, 1:].astype(self.DTYPE), order="F"))
+
+
+class FixedLengthHeader(BaseHeaderComponent1D):
     """
     The fixed length header component of a UM file.
 
@@ -433,19 +471,34 @@ class FixedLengthHeader(BaseHeaderClass1D):
     able to be altered at creation-time; the fixed length header is
     always a specific number of words in length.
 
-    Attributes:
-        * HEADER_MAPPING:
-            List of tuples which maps indices of the raw header values
-            onto attribute names to be attached to the class.
-        * NUM_WORDS:
-            The (fixed) number of words in a fixed length header.
-    
     """
     HEADER_MAPPING = _UM_FIXED_LENGTH_HEADER
     MDI = _INTEGER_MDI
     DTYPE = ">i8"
 
-    NUM_WORDS = 256
+    _NUM_WORDS = 256
+    """The (fixed) number of words in a UM fixed length header."""
+
+    def __init__(self, values):
+        """
+        Initialise the object from a series of values.
+
+        Args:
+            * values:
+                array-like object containing values contained in this header.
+                Must be the exact length specified by _NUM_WORDS.
+
+        .. Note::
+            The values are internally stored offset by 1 element (so that
+            when the raw values are accessed their indexing is 1-based, to
+            match up with their definitions in UMDP F03).
+
+        """
+        if len(values) != self._NUM_WORDS:
+            _msg = ('Incorrect size for fixed length header; given {0} words '
+                    'but should be {1}.'.format(len(values), self._NUM_WORDS))
+            raise ValueError(_msg)
+        super(FixedLengthHeader, self).__init__(values)
 
     @classmethod
     def empty(cls):
@@ -453,10 +506,10 @@ class FixedLengthHeader(BaseHeaderClass1D):
         Create an instance of the class from-scratch.
 
         Unlike the other header components the fixed length header always
-        creates a class of a fixed size (based on its NUM_WORDS attribute).
-        
+        creates a class of a fixed size (based on its _NUM_WORDS attribute).
+
         """
-        return super(FixedLengthHeader, cls).empty(cls.NUM_WORDS)
+        return super(FixedLengthHeader, cls).empty(cls._NUM_WORDS)
 
     @classmethod
     def from_file(cls, source):
@@ -464,98 +517,57 @@ class FixedLengthHeader(BaseHeaderClass1D):
         Create an instance of the class populated by values from a file.
 
         Unlike the other header components the fixed length header always
-        reads in a specific number of values (based on its NUM_WORDS attribute).
+        reads a specific number of values (based on its _NUM_WORDS attribute).
 
         Args:
             * source:
-                The (opened) file object containing the header value, with
-                its file pointer positioned at the start of this header.                
-        
+                The (open) file object containing the header value, with
+                its file pointer positioned at the start of this header.
+
         """
-        return super(FixedLengthHeader, cls).from_file(source, cls.NUM_WORDS)
-
-    def __init__(self, values):
-        """
-        Initialise the object from a series of values.
-        
-        Note that the values are internally stored offset by 1 element (so
-        that when the raw values are accessed their indexing is 1-based, to
-        match up more closely with the definitions used in Fortran/UMDP F03).
-
-        Args:
-            * values:
-                array-like object containing values contained in this header.
-                Must be the exact length specified by NUM_WORDS.            
-                
-        """
-        if len(values) != self.NUM_WORDS:
-            _msg = ('Incorrect size for fixed length header; given {0} words '
-                    'but should be {1}.'.format(len(values), self.NUM_WORDS))
-            raise ValueError(_msg)
-        super(FixedLengthHeader, self).__init__(values)
+        return super(FixedLengthHeader, cls).from_file(source, cls._NUM_WORDS)
 
 
-class IntegerConstants(BaseHeaderClass1D):
-    """
-    The integer constants component of a UM file.
-    
-    """
+class IntegerConstants(BaseHeaderComponent1D):
+    """The integer constants component of a UM file."""
     MDI = _INTEGER_MDI
     DTYPE = ">i8"
 
 
-class RealConstants(BaseHeaderClass1D):
-    """
-    The real constants component of a UM file.
-    
-    """
+class RealConstants(BaseHeaderComponent1D):
+    """The real constants component of a UM file."""
     MDI = _REAL_MDI
     DTYPE = ">f8"
 
 
-class LevelDependentConstants(BaseHeaderClass2D):
-    """
-    The level dependent constants component of a UM file.
-    
-    """
+class LevelDependentConstants(BaseHeaderComponent2D):
+    """The level dependent constants component of a UM file."""
     MDI = _REAL_MDI
     DTYPE = ">f8"
 
 
-class RowDependentConstants(BaseHeaderClass2D):
-    """
-    The row dependent constants component of a UM file.
-
-    """
-    MDI = _REAL_MDI
-    DTYPE = ">f8"    
-
-    
-class ColumnDependentConstants(BaseHeaderClass2D):
-    """
-    The column dependent constants component of a UM file.
-    
-    """
+class RowDependentConstants(BaseHeaderComponent2D):
+    """The row dependent constants component of a UM file."""
     MDI = _REAL_MDI
     DTYPE = ">f8"
 
 
-class UnsupportedHeaderItem1D(BaseHeaderClass1D):
-    """
-    An unsupported 1-dimensional component of a UM file.
-    
-    """
+class ColumnDependentConstants(BaseHeaderComponent2D):
+    """The column dependent constants component of a UM file."""
+    MDI = _REAL_MDI
+    DTYPE = ">f8"
+
+
+class UnsupportedHeaderItem1D(BaseHeaderComponent1D):
+    """An unsupported 1-dimensional component of a UM file."""
     __metaclass__ = type
 
     MDI = _INTEGER_MDI
     DTYPE = ">i8"
 
 
-class UnsupportedHeaderItem2D(BaseHeaderClass2D):
-    """
-    An unsupported 2-dimensional component of a UM file.
-    
-    """
+class UnsupportedHeaderItem2D(BaseHeaderComponent2D):
+    """An unsupported 2-dimensional component of a UM file."""
     __metaclass__ = type
 
     MDI = _INTEGER_MDI
@@ -564,63 +576,49 @@ class UnsupportedHeaderItem2D(BaseHeaderClass2D):
 
 class Field(object):
     """
-    Represents a single entry in the LOOKUP component and its
-    corresponding section of the DATA component.
-    
+    Represents a single entry in the lookup table, and provides access to
+    the data referenced by it.
+
+    .. Note::
+        This class assumes the (common) UM lookup header comprising of
+        64 words split between 45 integer and 19 real values.
+
     """
-    # Preset the mappings into the array via the metaclass, using
-    # the mapping specified below
+    # Use the header object metaclass to allow a named attributes mapping to
+    # be used in subclasses of this class (note that this base class does not
+    # specify a mapping, as it is designed to represent a generic field).
     __metaclass__ = _HeaderMetaclass
 
-    # The number of lookup entries which are integers and reals
+    HEADER_MAPPING = _LOOKUP_HEADER_DEFAULT
+
+    # The expected number of lookup entries which are integers and reals.
     NUM_LOOKUP_INTS = 45
     NUM_LOOKUP_REALS = 19
 
+    # The types of the integers and reals.
     DTYPE_INT = ">i8"
     DTYPE_REAL = ">f8"
 
-    # Zero-based index for lblrec.
-    LBLREC_OFFSET = 14
-    # Zero-based index for lbrel.
-    LBREL_OFFSET = 21
-    # Zero-based index for lbegin.
-    LBEGIN_OFFSET = 28
-    # Zero-based index for lbnrec.
-    LBNREC_OFFSET = 29
-
-    # The empty classmethod always produces a blank version of the object
-    # of the correct (expected) size, filled with missing data indicators    
-    @classmethod
-    def empty(cls):
-        integers = np.empty(cls.NUM_LOOKUP_INTS, cls.DTYPE_INT)
-        integers[:] = -99
-        reals = np.empty(cls.NUM_LOOKUP_REALS, cls.DTYPE_REAL)
-        reals[:] = 0.0
-        
-        return cls(integers, reals, None)
-
     def __init__(self, int_headers, real_headers, data_provider):
         """
-        Create a Field from the integer headers, the floating-point
-        headers, and an object which provides access to the
-        corresponding data.
+        Initialise the Field object.
 
         Args:
-
-        * int_headers:
-            A sequence of integer header values.
-        * real_headers:
-            A sequence of floating-point header values.
-        * data_provider:
-            A subclass of _DataProvider which returns the data
-            referred to by this field object
+            * int_headers:
+                A sequence of integer header values.
+            * real_headers:
+                A sequence of floating-point header values.
+            * data_provider:
+                A subclass of :class:`_DataProvider` which returns the data
+                referred to by this field object
 
         """
         # Create a numpy object array to hold the entire lookup, leaving a
         # space for the zeroth index so that it behaves like the 1-based
         # indexing referred to in UMDP F03
-        self._values = np.ndarray( len(int_headers) + len(real_headers) + 1,
+        self._values = np.ndarray(len(int_headers) + len(real_headers) + 1,
                                   dtype=object)
+
         # Populate the first half with the integers
         self._values[1:len(int_headers)+1] = (
             np.asarray(int_headers, dtype=self.DTYPE_INT))
@@ -636,58 +634,56 @@ class Field(object):
         # Save the reference to the given _DataProvider
         self.data_provider = data_provider
 
-    def to_file(self, output_file):
-        output_file.write(self._values[1:self.NUM_LOOKUP_INTS+1]
-                          .astype(self.DTYPE_INT))
-        output_file.write(self._values[self.NUM_LOOKUP_INTS+1:]
-                          .astype(self.DTYPE_REAL))
+    @classmethod
+    def empty(cls):
+        """
+        Create an instance of the class from-scratch.
 
-    def __eq__(self, other):
-        try:
-            is_eq = (np.all(self._values == other._values) and
-                     np.all(self.get_data() == other.get_data()))
-        except AttributeError:
-            is_eq = NotImplemented
-        return is_eq
+        The instance will be filled with empty values (-99 for integers,
+        and 0.0 for reals), and will have no :class:`_DataProvider` set.
 
-    def __ne__(self, other):
-        result = self.__eq__(other)
-        if result is not NotImplemented:
-            result = not result
-        return result
+        """
+        integers = np.empty(cls.NUM_LOOKUP_INTS, cls.DTYPE_INT)
+        integers[:] = -99
+        reals = np.empty(cls.NUM_LOOKUP_REALS, cls.DTYPE_REAL)
+        reals[:] = 0.0
 
-    # This property enables access to the raw values in the array, in case
-    # a user wishes to access them by index rather than by named attribute
+        return cls(integers, reals, None)
+
     @property
     def raw(self):
+        """Return the raw values in the lookup array."""
         return self._values.view()
+
+    def to_file(self, output_file):
+        """
+        Write the lookup header to a file object.
+
+        Args:
+            * output_file:
+                The (open) file object for the lookup to be written to.
+
+        """
+        output_file.write(self._lookup_ints.astype(self.DTYPE_INT))
+        output_file.write(self._lookup_reals.astype(self.DTYPE_REAL))
 
     def copy(self):
         """
-        Create a Field which copies its header information from this one.
-        
+        Create a Field which copies its header information from this one, and
+        takes its data from the same data provider.
+
         """
-        new_field = type(self) (self._lookup_ints.copy(),
-                                self._lookup_reals.copy(),
-                                self.data_provider)
+        new_field = type(self)(self._lookup_ints.copy(),
+                               self._lookup_reals.copy(),
+                               self.data_provider)
         return new_field
 
     def num_values(self):
-        """
-        Return the number of values defined by this header.
-        
-        """
+        """Return the number of values defined by this header."""
         return len(self._values) - 1
 
     def get_data(self):
-        """
-        Return a NumPy array containing the data for this field.
-
-        The field's data_provider is a flexible object which a user
-        may extend and override to perform various manipulations and
-        transformations of the data using a DataOperator subclass.
-        
-        """
+        """Return a the data for this field as an array."""
         data = None
         if self.data_provider is not None:
             data = self.data_provider.data
@@ -700,9 +696,9 @@ class Field(object):
         The field data must be unmodified and using the same packing
         code as the original data (this can be tested by calling
         _can_copy_deferred_data).
-        
+
         """
-        if issubclass(type(self.data_provider), _RawReadProvider):
+        if hasattr(self.data_provider, "_read_bytes"):
             return self.data_provider._read_bytes()
         else:
             return None
@@ -713,11 +709,11 @@ class Field(object):
         making up the field; for this to be possible the data must be
         unmodified, and the requested output packing must be the same
         as the input packing.
-        
+
         """
-        # Whether or not this is possible depends on if the Fields
+        # Whether or not this is possible depends on if the Field's
         # data provider has been wrapped in any operations
-        compatible = issubclass(type(self.data_provider), _RawReadProvider)
+        compatible = hasattr(self.data_provider, "_read_bytes")
         if compatible:
             src_lbpack = self.data_provider.source.lbpack
             src_bacc = self.data_provider.source.bacc
@@ -734,7 +730,7 @@ class Field2(Field):
     number of 2.
 
     """
-    HEADER_MAPPING = _LOOKUP_HEADERS[2]
+    HEADER_MAPPING = _LOOKUP_HEADER_2
 
 
 class Field3(Field):
@@ -743,7 +739,7 @@ class Field3(Field):
     number of 3.
 
     """
-    HEADER_MAPPING = _LOOKUP_HEADERS[3]
+    HEADER_MAPPING = _LOOKUP_HEADER_3
 
 
 class _DataProvider(object):
@@ -751,42 +747,72 @@ class _DataProvider(object):
     This class provides the means to wrap a Field object's existing data
     provider with a new one; consisting of the product of the field and
     a data operator capable of returning the data array.
-    
+
     """
     def __init__(self, operator, source):
         """
         Initialise the wrapper, saving a reference to the data operator
         and the field/s it will be applied to.
-        
+
         """
         self.operator = operator
         self.source = source
+
     @property
     def data(self):
-        """
-        Return the data using the provided operator.
-        
-        """
+        """Return the data using the provided operator."""
         return self.operator.transform(self.source)
 
-    
+
 class DataOperator(object):
     """
     Base class which should be sub-classed to perform manipulations on the
-    data of a field.  The Field classes never store any data directly in
-    memory; only the means to retrieve it from disk and perform any required
+    data of a field.  The :class:`Field` classes never store any data directly
+    in memory; only the means to retrieve it from disk and perform any required
     operations (which will only be executed when explicitly requested - this
     would normally be at the point the file is being written/closed).
 
-    Note: the user must override the __init__, __call__ and transform methods
-          of this baseclass to create a valid operator.
-          
+    .. Note::
+        the user must override the "__init__", "new_field" and "transform"
+        methods of this baseclass to create a valid operator.
+
+    A DataOperator is used to produce a new :class:`Field`, which is calculated
+    from an existing source Field and can also perform the required calculation
+    on the source data at a subsequent time.
+
+    The normal usage occurs in 3 separate stages:
+
+      * :meth:`__init__` creates a new operator with any instance-specific
+        parameters.
+      * :meth:`__call__` produces a new :class:`Field` object from an existing
+        one, calling the user :meth:`new_field` method.
+      * :meth:`transform` is called by the output Field to calculate its data
+        payload.
+
+    For example:
+
+    >>> class XSampler(DataOperator):
+    ...     def __init__(self, factor):
+    ...         self.factor = factor
+    ...     def new_field(self, source_field):
+    ...         fld = source_field.copy()
+    ...         fld.lbnpt /= self.factor
+    ...         fld.bdx *= self.factor
+    ...         return fld
+    ...     def transform(self, source_field):
+    ...         data = source_field.get_data()
+    ...         return data[:, ::self.factor]
+    ...
+    >>> XStep4 = XSampler(factor=4)
+    >>> ff.fields = [XStep4(fld) for fld in ff.fields]
+    >>> ff.to_file(out_path)
+
     """
 
     def __init__(self, *args, **kwargs):
         """
         Initialise the operator object - this should be overidden by the user.
-        
+
         This method should accept any user arguments to be "baked" into the
         operator or to otherwise initialise it as-per the user's requirements;
         for example an operator which scales the values in fields by a
@@ -799,33 +825,65 @@ class DataOperator(object):
 
     def __call__(self, source, *args, **kwargs):
         """
-        Wrap the operator around a source object - this should be overidden
-        by the user.
+        Wrap the operator around a source object.
 
-        This method should return a new Field instance, whose lookup attributes
-        reflect the final state of the field (e.g. if this operator affects the
-        number of rows in the field, the Field instance output here should have
-        its row settings set accordingly).
-
-        The method *must* call the bind_operator method, passing the new Field
-        instance and the source object to it.
+        This calls the user-supplied :meth:`new_field` method, and configures
+        the resulting field to return its data from the :meth:`transform`
+        method of this data operator.
 
         Args:
             * source:
                 This can be an object of any type; it is what will be passed
                 to this operator's transform method when the field data is
-                requested (typically source will be a Field object).  Note
-                that this should not be modified in any way.
-                
+                requested (typically source will be a :class:`Field` object).
+
+        Returns:
+
+            new_field (:class:`Field`):
+                A new Field instance, which returns data generated via the
+                :meth:`transform` method.
+
         """
-        msg = ("The __call__ method of the DataOperator baseclass should be "
+        new_field = self.new_field(source, *args, **kwargs)
+        new_field.data_provider = _DataProvider(self, source)
+        return new_field
+
+    def new_field(self, source, *args, **kwargs):
+        """
+        Produce a new output :class:`Field` from a source object
+        - this should be overidden by the user.
+
+        This call encodes how to produce a new field, which is typically
+        based on a calculation from an existing source field or fields.
+        It is called by the :meth:`DataOperator.__call__` call.
+
+        Args:
+            * source:
+                This can be an object of any type; it is what will be passed
+                to this operator's transform method when the field data is
+                requested (typically source will be a :class:`Field` object).
+
+        Returns:
+
+            new_field (:class:`Field`):
+                A new Field instance, whose lookup attributes reflect the final
+                state of the result:  e.g. if the operator affects the number
+                of rows in the field, 'new_field' will have its row settings
+                adjusted accordingly.
+
+        .. Note::
+            It is advisable not to modify the "source" object inside this
+            method; modifications should be confined to the new field object.
+
+        """
+        msg = ("The new_field method of the DataOperator baseclass should be "
                "overidden by the user")
-        raise NotImplementedError(msg)        
+        raise NotImplementedError(msg)
 
     def transform(self, source):
         """
-        Called by the bound DataProvider at the point the field data is
-        requested - this should be overidden by the user.
+        Called by the bound :class:`_DataProvider` at the point the field data
+        is requested - this should be overidden by the user.
 
         This method should return a 2d numpy array containing the field data,
         typically it will first extract existing data from its source object
@@ -834,48 +892,37 @@ class DataOperator(object):
         Args:
             * source:
                 This will be whatever was provided to the __call__ method.
-        
+
         """
         msg = ("The transform method of the DataOperator baseclass should be "
                "overidden by the user")
-        raise NotImplementedError(msg)          
-    
-    def bind_operator(self, new_field, source):
-        """
-        Use the _DataProvider class to bind the action of this operator to
-        the field's data_provider.
-        
-        """
-        new_field.data_provider = _DataProvider(self, source)
+        raise NotImplementedError(msg)
 
-        
-class _RawReadProvider(_DataProvider):
+
+class RawReadProvider(_DataProvider):
     """
-    A special _DataProvider subclass, which deals with the most basic/common
-    data-provision operation of reading in Field data from a file.  This class
-    should not be used directly - since it does not define a "data" property
-    and so cannot return any data.  A series of subclasses of this class are
-    provided which define the property for the different packing types found
-    in FieldsFileVariants
-        
+    A special :class:`_DataProvider` subclass, which deals with the most
+    basic/common data-provision operation of reading in Field data from a file.
+    This class should not be used directly - since it does not define a "data"
+    property and so cannot return any data.  A series of subclasses of this
+    class are provided which define the property for the different packing
+    types found in :class:`UMFile` subclasses.
+
     """
-    DISK_RECORD_SIZE = DEFAULT_WORD_SIZE
+    DISK_RECORD_SIZE = _DEFAULT_WORD_SIZE
 
     def __init__(self, source, sourcefile, offset):
         """
-        Initialise the _RawReadOperator.
+        Initialise the read provider.
 
         Args:
-
-        * source:
-            Initial field object reference (populated with the lookup values
-            from the file specified in sourcefile.
-
-        * sourcefile:
-            Filename associated with source FieldsFileVariant.
-
-        * offset:
-            Starting position of Field data in sourcefile (in bytes).
+            * source:
+                Initial field object reference (populated with the lookup
+                values from the file specified in sourcefile.
+            * sourcefile:
+                Filename associated with source FieldsFileVariant.
+            * offset:
+                Starting position of Field data in sourcefile (in bytes).
 
         """
         self.source = source
@@ -907,144 +954,184 @@ class _RawReadProvider(_DataProvider):
             data_bytes = self.sourcefile.read(data_size)
         return data_bytes
 
-class _NullReadProvider(_RawReadProvider):
+
+class _NullReadProvider(RawReadProvider):
     """
-    A _DataProvider to use when a packing code is unrecognised - to allow
-    the headers to still be associated
+    A :class:`_DataProvider` to use when a packing code is unrecognised - to
+    be able to represent unknown-type data in a :class:`Field`.
+
     """
     @property
     def data(self):
         lbpack = self.source.raw[21]
-        raise NotImplementedError("Packing code {0} unsupported".format(lbpack))
+        msg = "Packing code {0} unsupported".format(lbpack)
+        raise NotImplementedError(msg)
 
 
 class UMFile(object):
+    """Represents the structure of a single UM file."""
+
+    # The base UMFile object uses the base versions of the standard components,
+    # these will allow any shape for each component, and do not have associated
+    # mappings for the values (so they will not have nicely named properties).
+    COMPONENTS = (('integer_constants', IntegerConstants),
+                  ('real_constants', RealConstants),
+                  ('level_dependent_constants', LevelDependentConstants),
+                  ('row_dependent_constants', RowDependentConstants),
+                  ('column_dependent_constants', ColumnDependentConstants),
+                  ('fields_of_constants', UnsupportedHeaderItem2D),
+                  ('extra_constants', UnsupportedHeaderItem1D),
+                  ('temp_historyfile', UnsupportedHeaderItem1D),
+                  ('compressed_field_index1', UnsupportedHeaderItem1D),
+                  ('compressed_field_index2', UnsupportedHeaderItem1D),
+                  ('compressed_field_index3', UnsupportedHeaderItem1D),
+                  )
     """
-    Represents a single UM file with a structure similar to what is described
-    In UMDP F03
+    A series of tuples containing the name of a header component, and the
+    class which should be used to represent it.  The name  will become the
+    final attribute name to store the component, but it must also correspond
+    to a name in the HEADER_MAPPING of the fixed length header.
 
     """
-    # The dataset types for any UM File variant
-    _DATASET_TYPES = []
 
-    # The components found in the file header (after the initial fixed-length
-    # header), and their types
-    _COMPONENTS = (('integer_constants', IntegerConstants),
-                   ('real_constants', RealConstants),
-                   ('level_dependent_constants', LevelDependentConstants),
-                   ('row_dependent_constants', RowDependentConstants),
-                   ('column_dependent_constants', ColumnDependentConstants),
-                   ('fields_of_constants', UnsupportedHeaderItem2D),
-                   ('extra_constants', UnsupportedHeaderItem1D),
-                   ('temp_historyfile', UnsupportedHeaderItem1D),
-                   ('compressed_field_index1', UnsupportedHeaderItem1D),
-                   ('compressed_field_index2', UnsupportedHeaderItem1D),
-                   ('compressed_field_index3', UnsupportedHeaderItem1D),
-                   )  
+    # The base UMFile object does not provide any read or write operators,
+    # since these depend on the specific type of file.  Therefore this base
+    # class can only "pass-through" field data; it can't change the values or
+    # the packing used for any of the fields.
+    READ_PROVIDERS = {}
+    """
+    A dictionary which maps the trailing 3 digits (n3 - n1) of a field's
+    lbpack (packing code) onto a suitable :class:`_DataProvider` object to
+    read the field.  Any packing code not in this list will default to using
+    a :class:`_NullReadProvider` object (which can only be used to copy the
+    raw byte-data of the field - not to unpack it or access the data).
 
-    # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
-    # equivalent _DataProvider to use for the reading, for FieldsFiles
-    _READ_PROVIDERS = {}
+    """
 
-    # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
-    # equivalent _WriteFFOperator to use for writing, for FieldsFiles
-    _WRITE_OPERATORS = {}
+    WRITE_OPERATORS = {}
+    """
+    A dictionary which maps the trailing 3 digits (n3 - n1) of a field's
+    lbpack (packing code) onto a suitable :class:`DataOperator` object to
+    write the field.  Any packing code found in a field from this object's
+    field list but not found here will cause an exception when trying to
+    write to a file.
 
-    WORD_SIZE = DEFAULT_WORD_SIZE
-        
-    # Maps lbrel to a Field class.
-    # Maps lbrel to a Field class.
-    _FIELD_CLASSES = {2: Field2, 3: Field3, -99: Field}
-    _FIELD = _FIELD_CLASSES[-99]
+    """
 
-    # Data alignment values (to match with UM definitions)
-    _WORDS_PER_SECTOR = 512        # Padding for each field (in words)
-    _DATA_START_ALIGNMENT = 524288 # Padding to start of data (in bytes)
+    WORD_SIZE = _DEFAULT_WORD_SIZE
+    """
+    The word/record size for the file, for all supported UM file types this
+    should be left as the default - 8 (i.e. 64-bit words).
 
-    def copy(self, include_fields=False):
-        """
-        Make a copy of a UMFile object including all of its headers,
-        and optionally also including copies of all of its fields.
+    """
 
-        Kwargs:
+    # As well as setting the default release Field classes to use, a reference
+    # is required to an unknown version of the Field class - to assist in the
+    # initial reading of an unknown field.
+    FIELD_CLASSES = {2: Field2, 3: Field3, -99: Field}
+    """
+    Maps the lblrel (header release number) of each field onto an appropriate
+    :class:`Field` subclass to represent it.
 
-        * include_fields:
-            If True, the field list in the copied object will be populated
-            with copies of the fields from the source object, otherwise the
-            fields list in the new object will be empty
+    .. Note::
+        This mapping *must* contain an entry for -99, and the :class:`Field`
+        object it returns *must* at a minimum contain attribute mappings for
+        the 5 key elements (lbrel, lblrec, lbnrec, lbegin and lbpack - see
+        UMDP F03), as well as suitable shape information.
 
-        """
-        # Create a new object, with the same word size
-        new_ffv = self.__class__()
+    """
 
-        # Copy the fixed length header from the source FieldsFile
-        new_ffv.fixed_length_header = self.fixed_length_header.copy()
-
-        # Copy each other header component from the source FieldsFile
-        for name, _ in self._COMPONENTS:
-            component = getattr(self, name)
-            if component is not None:
-                setattr(new_ffv, name, component.copy())
-            else:
-                setattr(new_ffv, name, component)
-
-        # Add a copy of the fields list if requested.
-        if include_fields:
-            new_ffv.fields = [field.copy() for field in self.fields]
-
-        return new_ffv
+    # Data alignment values (to match with UM definitions).
+    _WORDS_PER_SECTOR = 512         # Padding for each field (in words).
+    _DATA_START_ALIGNMENT = 524288  # Padding to start of data (in bytes).
 
     def __init__(self):
         """
-        Create a UMFile instance.
+        Create a blank UMFile instance.
 
-        The initial creation contains an empty fixed-length-header, and
-        any defined components for which the dimensions are fixed.
+        The initial creation contains only an empty :class:`FixedLengthHeader`
+        object, plus an empty (None) named attribute for each component in
+        the COMPONENTS attribute.
+
+        In most cases this __init__ should not be called directly, but
+        indirectly via the from_file or from_template classmethods.
 
         """
         self._source = None
-        # source file
         self._source_path = None
-        # source file path
 
         # Always create the output writing operators - these need to be
         # instantiated  and passed a reference to this object.
         # This is so the writers can access precalculated per-file information
         # (currently used for land and sea masks).
         self._write_operators = {}
-        for lbpack_write in self._WRITE_OPERATORS.keys():
+        for lbpack_write in self.WRITE_OPERATORS.keys():
             self._write_operators[lbpack_write] = (
-                self._WRITE_OPERATORS[lbpack_write](self))
+                self.WRITE_OPERATORS[lbpack_write](self))
 
-        # Create an empty fixed length header.
+        # Attach an empty fixed length header
         self.fixed_length_header = FixedLengthHeader.empty()
 
-        # Add 'missing' components for all the required ones.
-        for name, _ in self._COMPONENTS:
+        # Add a blank entry for each required component.
+        for name, _ in self.COMPONENTS:
             setattr(self, name, None)
 
-        # Note: initially has no no fields, no lookup.
+        # Initialise the field list.
         self.fields = []
 
-    @classmethod
-    def from_file(cls, file_or_filepath):
+    def __del__(self):
         """
-        Initialise a UMFile, populated using the contents of a file
+        Ensure any associated file is closed if this object goes out of scope.
+
+        """
+        if self._source and not self._source.closed:
+            self._source.close()
+
+    def __str__(self):
+        items = []
+        for name, kind in self.COMPONENTS:
+            value = getattr(self, name)
+            if value is not None:
+                items.append('{0}={1}'.format(name, value.shape))
+        if self.fields:
+            items.append('fields={0}'.format(len(self.fields)))
+        return '<{0}: {1}>'.format(type(self).__name__, ', '.join(items))
+
+    def __repr__(self):
+        fmt = '<{0}: fields={1}>'
+        return fmt.format(type(self).__name__, len(self.fields))
+
+    @classmethod
+    def from_file(cls, file_or_filepath, remove_empty_lookups=False):
+        """
+        Initialise a UMFile, populated using the contents of a file.
 
         Kwargs:
+            * file_or_filepath:
+                An open file-like object, or file path.
+                A path is opened for read; a 'file-like' must support seeks.
+            * remove_empty_lookups:
+                If set to True, will remove any "empty" lookup headers from
+                the field-list (UM files often have pre-allocated numbers
+                of lookup entries, some of which are left unused).
 
-        * file_or_filepath:
-            An open file-like object, or file path.
-            A path is opened for read; a 'file-like' must support seeks.
+        .. Note::
+            As part of this the "validate" method will be called. For the
+            base :class:`UMFile` class this does nothing, but sub-classes
+            may override it to provide specific validation checks.
 
         """
-        new_ffv = cls()
-        new_ffv._read_file(file_or_filepath)
+        # First create the class and then populate it from the file.
+        new_umf = cls()
+        new_umf._read_file(file_or_filepath)
+
+        if remove_empty_lookups:
+            new_umf.remove_empty_lookups()
 
         # Validate the new object, to check it has been created properly
-        new_ffv.validate()
-        
-        return new_ffv
+        new_umf.validate()
+
+        return new_umf
 
     @classmethod
     def from_template(cls, template=None):
@@ -1063,25 +1150,109 @@ class UMFile(object):
         If a component dictionary contains the special key 'dims', the
         associated value is a tuple of dimensions, which is passed to a
         component.empty() call to produce a new component of that type.
+        Note that in some cases "None" may be used to indicate a dimension
+        which the file-type fixes (e.g. the number of level types).
 
         .. for example::
-            ffv = FieldsFile.from_template(
+            ff = FieldsFile.from_template(
                 'fixed_length_header':
                     {'dataset_type':3},  # set a particular header word
                 'real_constants':
                     {},  # Add a standard-size 'real_constants' array
                 'level_dependent_constants':
-                    {'dims':(20,9)})  # add level-constants for 20 levels
+                    {'dims':(20, None)})  # add level-constants for 20 levels
 
         The resulting file is usually incomplete, but can be used as a
         convenient starting-point for creating files with a given structure.
 
+        .. Note::
+            When a particular component contains known values in any position
+            of its "CREATE_DIMS" attribute (i.e. not "None"), the template
+            may omit this dimension (as is done in the example above for the
+            'level_dependent_constants' 2nd dimension.
+
         """
-        new_ffv = cls()
-        new_ffv._apply_template(template)
-        return new_ffv
+        # First create the class and then populate it from the template.
+        new_umf = cls()
+        new_umf._apply_template(template)
+        return new_umf
+
+    def copy(self, include_fields=False):
+        """
+        Make a copy of a UMFile object including all of its headers,
+        and optionally also including copies of all of its fields.
+
+        Kwargs:
+            * include_fields:
+                If True, the field list in the copied object will be populated
+                with copies of the fields from the source object, otherwise the
+                fields list in the new object will be empty
+
+        """
+        new_umf = self.__class__()
+        new_umf.fixed_length_header = self.fixed_length_header.copy()
+
+        for name, _ in self.COMPONENTS:
+            component = getattr(self, name)
+            if component is not None:
+                setattr(new_umf, name, component.copy())
+            else:
+                setattr(new_umf, name, component)
+
+        if include_fields:
+            new_umf.fields = [field.copy() for field in self.fields]
+
+        return new_umf
+
+    def validate(self):
+        """
+        Apply any consistency checks to check the file is "valid".
+
+        .. Note::
+            In the base :class:`UMFile` class this routine does nothing but
+            a format-specific subclass can override this method to do whatever
+            it considers appropriate to validate the file object.
+
+        """
+        pass
+
+    def remove_empty_lookups(self):
+        """
+        Calling this method will delete any fields from the field list
+        which are empty.
+
+        """
+        self.fields = [field for field in self.fields
+                       if field.raw[1] != -99]
+
+    def to_file(self, output_file_or_path):
+        """
+        Write to an output file or path.
+
+        Args:
+            * output_file_or_path (string or file-like):
+                An open file or filepath. If a path, it is opened and
+                closed again afterwards.
+
+        .. Note::
+            As part of this the "validate" method will be called. For the
+            base :class:`UMFile` class this does nothing, but sub-classes
+            may override it to provide specific validation checks.
+
+        """
+        # Call validate - to ensure the file about to be written out doesn't
+        # contain obvious errors.  This is done here before any new file is
+        # created so that we don't create a blank file if the validation fails
+        self.validate()
+
+        if isinstance(output_file_or_path, basestring):
+            with open(output_file_or_path, 'wb') as output_file:
+                self._write_to_file(output_file)
+        else:
+            self._write_to_file(output_file_or_path)
 
     def _read_file(self, file_or_filepath):
+        """Populate the class from an existing file object or file"""
         if isinstance(file_or_filepath, basestring):
             self._source_path = file_or_filepath
             # If a filename is provided, open the file and populate the
@@ -1093,13 +1264,13 @@ class UMFile(object):
             self._source_path = file_or_filepath.name
 
         source = self._source
-        
+
         # Attach the fixed length header to the class
         self.fixed_length_header = (
             FixedLengthHeader.from_file(source))
 
         # Apply the appropriate headerclass from each component
-        for name, headerclass in self._COMPONENTS:
+        for name, headerclass in self.COMPONENTS:
             start = getattr(self.fixed_length_header, name+'_start')
             if start <= 0:
                 continue
@@ -1110,11 +1281,11 @@ class UMFile(object):
                 dim1 = getattr(self.fixed_length_header, name+'_dim1')
                 dim2 = getattr(self.fixed_length_header, name+'_dim2')
                 header = headerclass.from_file(source, dim1, dim2)
-                
+
             # Attach the component to the class
             setattr(self, name, header)
 
-        # Now move onto reading in the lookup headers
+        # Now move onto reading in the lookup headers.
         lookup_start = self.fixed_length_header.lookup_start
         if lookup_start > 0:
             source.seek((lookup_start - 1) * self.WORD_SIZE)
@@ -1125,18 +1296,30 @@ class UMFile(object):
             lookup = np.fromfile(source,
                                  dtype='>i{0}'.format(self.WORD_SIZE),
                                  count=np.product(shape))
-            lookup = lookup.reshape(shape, order = "F")
+            lookup = lookup.reshape(shape, order="F")
         else:
             lookup = None
 
         # Read and add all the fields.
         self.fields = []
         if lookup is not None:
-            is_model_dump = lookup[self._FIELD.LBNREC_OFFSET, 0] == 0
-            if is_model_dump:
-                # A model dump has no direct addressing - only relative,
-                # so we need to update the offset as we create each
-                # Field.
+            # A quick helper function to create the default field class
+            # from a part of the raw array
+            default_field_class = self.FIELD_CLASSES[-99]
+
+            def default_from_raw(values):
+                ints = values[:default_field_class.NUM_LOOKUP_INTS]
+                reals = (values[default_field_class.NUM_LOOKUP_INTS:]
+                         .view(default_field_class.DTYPE_REAL))
+                return default_field_class(ints, reals, None)
+
+            # Setup the first field, and check if it is using well-formed
+            # records (i.e. the header defines the position of the field).
+            first_field = default_from_raw(lookup.T[0])
+            is_well_formed = (first_field.lbnrec != 0 and
+                              first_field.lbegin != 0)
+            if not is_well_formed:
+                # If the file is not well formed, keep a running offset.
                 running_offset = ((self.fixed_length_header.data_start - 1) *
                                   self.WORD_SIZE)
 
@@ -1146,52 +1329,60 @@ class UMFile(object):
             land_sea_mask = None
 
             for raw_headers in lookup.T:
-                ints = raw_headers[:self._FIELD.NUM_LOOKUP_INTS]
-                reals = (raw_headers[self._FIELD.NUM_LOOKUP_INTS:]
-                         .view(">f{0}".format(self.WORD_SIZE)))
-                field_class = self._FIELD_CLASSES.get(
-                    ints[self._FIELD.LBREL_OFFSET], self._FIELD)
+                # Populate the default field class first - for now we only
+                # need the minimum information about the field.
+                default_field = default_from_raw(raw_headers)
+
+                # Lookup what the final class for the field should be
+                # (based on its release version).
+                field_class = self.FIELD_CLASSES.get(
+                    default_field.lbrel, self.FIELD_CLASSES[-99])
+
+                # Update the field to the correct Field subclass.
+                field = field_class(default_field._lookup_ints,
+                                    default_field._lookup_reals,
+                                    None)
+
+                # Attach an appropriate data provider (unless the field is
+                # empty - in which case it doesn't need a provider).
                 if raw_headers[0] == -99:
                     provider = None
                 else:
-                    if is_model_dump:
+                    # Update the running offset if needed.
+                    if not is_well_formed:
                         offset = running_offset
                     else:
-                        offset = (raw_headers[self._FIELD.LBEGIN_OFFSET] *
-                                  self.WORD_SIZE)
-                    # Make a *copy* of field lookup data, as it was in the
-                    # untouched original file, as a context for data loading.
-                    lookup_reference = field_class(ints.copy(), reals.copy(),
-                                                   None)
+                        offset = field.lbegin*self.WORD_SIZE
 
                     # Now select which type of basic reading and unpacking
                     # provider is suitable for the type of file and data,
                     # starting by checking the number format (N4 position)
-                    lbpack = ints[20]
-                    num_format = (lbpack//1000) % 10
+                    num_format = (field.lbpack//1000) % 10
                     # Check number format is valid
-                    if  num_format not in (0, 2, 3):
+                    if num_format not in (0, 2, 3):
                         msg = 'Unsupported number format (lbpack N4): {0}'
                         raise ValueError(msg.format(format))
 
                     # With that check out of the way remove the N4 digit and
                     # proceed with the N1 - N3 digits
-                    lbpack321 = lbpack - num_format*1000
+                    lbpack321 = field.lbpack - num_format*1000
 
-                    # These will be the basic arguments to any of the providers
-                    # selected below, since they all inherit from the same
-                    # _RawReadProvider class
-                    args = (lookup_reference, source, offset)
+                    # Select an appropriate read provider for this packing
+                    # code if one is available, otherwise use the default
+                    # provider (which cannot actually decode the data)
+                    read_provider = (
+                        self.READ_PROVIDERS.get(lbpack321, _NullReadProvider))
 
-                    if self._READ_PROVIDERS.has_key(lbpack321):
-                        provider = (
-                            self._READ_PROVIDERS[lbpack321](*args))
-                    else:
-                        provider = _NullReadProvider(*args)
+                    # Create the provider, passing a reference to the field,
+                    # the file object and the start position to read the data
+                    # (Note that we pass a copy of the field, not the original
+                    # - this is because we *do not* want that reference to be
+                    # modified; since it will be needed to read the data).
+                    provider = read_provider(field.copy(), source, offset)
 
-                # Create the field object, with the _RawReadOperator subclass
-                # which is able to provide the data from the file
-                field = field_class(ints, reals, provider)
+                # Now attach the selected provider to the field object and
+                # add it to the field-list
+                field.data_provider = provider
                 self.fields.append(field)
 
                 # If this object was the Land-Sea mask, save a reference to it
@@ -1202,78 +1393,60 @@ class UMFile(object):
                 # If this object is using a form of Land/Sea packing, update
                 # its reference to the land_sea_mask (if available), otherwise
                 # save a reference to it for checking later
-                if hasattr(field.data_provider, "LAND"):
+                if hasattr(field.data_provider, "_LAND"):
                     if land_sea_mask is not None:
                         field.data_provider.lsm_source = land_sea_mask
                     else:
                         land_packed_fields.append(field)
 
                 # Update the running offset if required
-                if is_model_dump:
-                    running_offset += (raw_headers[self._FIELD.LBLREC_OFFSET] *
-                                       self.WORD_SIZE)
+                if not is_well_formed:
+                    running_offset += field.lblrec*self.WORD_SIZE
 
-            # If any fields were land-packed but encountered before the Land/Sea
-            # mask, update their references to it here
+            # If any fields were land-packed but encountered before the
+            # land/sea mask, update their references to it here
             for field in land_packed_fields:
                 if land_sea_mask is not None:
                     field.data_provider.lsm_source = land_sea_mask
 
     def _apply_template(self, template):
         """Apply the assignments specified in a template."""
-        for name, component_class in self._COMPONENTS:
-            settings_dict = template.get(name)
+        # Apply changes to fixed-length-header and components, *in that order*
+        # Note: flh *always* exists, so can safely add it to the list of
+        # components with a "None" class.
+        all_headers = [('fixed_length_header', None)] + list(self.COMPONENTS)
+
+        # Take a copy of the template and remove elements as they are set
+        template = template.copy()
+        for component_name, component_class in all_headers:
+            settings_dict = template.pop(component_name, None)
             if settings_dict is not None:
                 create_dims = settings_dict.pop('dims', [])
-                component = getattr(self, name, None)
+                component = getattr(self, component_name, None)
                 if create_dims or component is None:
                     # Create a new component, or replace with given dimensions.
                     component = component_class.empty(*create_dims)
 
                     # Install new component.
-                    setattr(self, name, component)
+                    setattr(self, component_name, component)
                 # Assign to specific properties of the component.
-                for name, value in settings_dict.iteritems():
-                    setattr(component, name, value)
+                for item_name, value in settings_dict.iteritems():
+                    if not hasattr(component, item_name):
+                        msg = ('File header component "{0}" '
+                               'has no element named "{1}"')
+                        raise ValueError(msg.format(component_name, item_name))
+                    setattr(component, item_name, value)
 
-    def __del__(self):
-        if self._source and not self._source.closed:
-            self._source.close()  
-
-    def __str__(self):
-        items = []
-        for name, kind in self._COMPONENTS:
-            value = getattr(self, name)
-            if value is not None:
-                items.append('{0}={1}'.format(name, value.shape))
-        if self.fields:
-            items.append('fields={0}'.format(len(self.fields)))
-        return '<{0}: {1}>'.format(type(self).__name__,', '.join(items))
-
-    def __repr__(self):
-        fmt = '<{0}: fields={1}>'
-        return fmt.format(type(self).__name__, len(self.fields))
-
-    def validate(self):
-        """
-        Apply any consistency checks, in the base class this routine does
-        nothing but a format-specific subclass can override this method to
-        do whatever it considers appropriate to validate the file object.
-        
-        """
-        pass
-
-    def purge_empty_lookups(self):
-        """
-        Calling this method will delete any fields from the field list
-        which are empty.
-        
-        """
-        self.fields = [field for field in self.fields
-                       if field.raw[1] != -99]
+        if template:
+            # Complain if there are any unhandled entries in the template
+            msg = "Template contains unrecognised header components: {0}"
+            names = template.keys()
+            names = ['"{0}"'.format(name) for name in names]
+            names = ", ".join(names)
+            raise ValueError(msg.format(names))
 
     def _calc_lookup_and_data_positions(self, lookup_start):
-        # Calculate the positional data for the lookup and data parts of the
+        """Sets the lookup and data positional information in the header"""
         header = self.fixed_length_header
         if self.fields:
             header.lookup_start = lookup_start
@@ -1295,7 +1468,7 @@ class UMFile(object):
 
     def _write_singular_headers(self, output_file):
         """
-        Write all 'components' to the file, _except_ the fixed header.
+        Write all components to the file, _except_ the fixed length header.
 
         Also updates all the component location and dimension records in the
         fixed-length header.
@@ -1304,7 +1477,7 @@ class UMFile(object):
 
         """
         # Go through each component defined for this file type
-        for name, component_class in self._COMPONENTS:
+        for name, component_class in self.COMPONENTS:
             component = getattr(self, name)
 
             # Construct component position and shape info (or missing-values).
@@ -1320,9 +1493,8 @@ class UMFile(object):
                 file_word_position = MDI
 
             if ndims not in (1, 2):
-                msg = 'Component type {} has {} dimensions, can not write.'
+                msg = 'Component type {0} has {1} dimensions, can not write.'
                 raise ValueError(msg.format(name, ndims))
-
 
             # Record the position of this component in the fixed-length header.
             flh = self.fixed_length_header
@@ -1339,35 +1511,13 @@ class UMFile(object):
             if component:
                 component.to_file(output_file)
 
-    def to_file(self, output_file_or_path):
-        """
-        Write to an output file or path.
-
-        Args:
-
-        * output_file_or_path (string or file-like):
-            an open file or filepath.
-            If a path, it is opened and closed afterwards.
-
-        """
-        # Call validate - to ensure the file about to be written out doesn't
-        # contain obvious errors.  This is done here before any new file is
-        # created so that we don't create a blank file if the validation fails
-        self.validate()
-        
-        if isinstance(output_file_or_path, basestring):
-            with open(output_file_or_path, 'wb') as output_file:
-                self._write_to_file(output_file)
-        else:
-            self._write_to_file(output_file_or_path)
-
     def _write_to_file(self, output_file):
         """Write out to an open output file."""
         # A reference to the header
         flh = self.fixed_length_header
 
         # Skip past the fixed length header for now
-        output_file.seek(flh.NUM_WORDS * self.WORD_SIZE)
+        output_file.seek(flh._NUM_WORDS * self.WORD_SIZE)
 
         # Write out the singular headers (i.e. all headers apart from the
         # lookups, which will be done below).
@@ -1377,7 +1527,7 @@ class UMFile(object):
 
         # Update the fixed length header position entries corresponding to
         # the data and lookup
-        single_headers_end =  output_file.tell() // self.WORD_SIZE
+        single_headers_end = output_file.tell() // self.WORD_SIZE
         self._calc_lookup_and_data_positions(single_headers_end + 1)
 
         # Reset the total field count (we don't have a way of calculating
@@ -1405,14 +1555,14 @@ class UMFile(object):
                         # which this file object understands
                         lbpack321 = (field.lbpack -
                                      ((field.lbpack//1000) % 10)*1000)
-                        if lbpack321 in self._WRITE_OPERATORS:
+                        if lbpack321 in self.WRITE_OPERATORS:
                             lsm = field.get_data().ravel()
                             self.land_mask = np.where(lsm == 1)[0]
                             self.sea_mask = np.where(lsm != 1)[0]
 
             # Write out all the field data payloads.
             for field in self.fields:
-                if hasattr(field, 'HEADER_MAPPING'):
+                if field.lbrel != -99.0:
 
                     # Output 'recognised' lookup types (not blank entries).
                     field.lbegin = output_file.tell() / self.WORD_SIZE
@@ -1438,7 +1588,7 @@ class UMFile(object):
                         lbpack321 = (field.lbpack -
                                      ((field.lbpack//1000) % 10)*1000)
 
-                        if lbpack321 not in self._WRITE_OPERATORS:
+                        if lbpack321 not in self.WRITE_OPERATORS:
                             msg = ('Cannot save data with lbpack={0} : '
                                    'packing not supported.')
                             raise ValueError(msg.format(field.lbpack))
@@ -1488,22 +1638,33 @@ DATASET_TYPE_MAPPING = {
     5: LBCFile,
 }
 
+
 def load_umfile(unknown_umfile):
     """
     Load a UM file of undetermined type, by checking its dataset type and
     attempting to load it as the correct class.
 
+    Args:
+        * unknown_umfile:
+            A file or file-like object containing an unknown file
+            to be loaded based on its dataset_type.
+
     """
     def _load_umfile(file_path, open_file):
+        # Read the fixed length header and use the dataset_type to obtain
+        # a suitable subclass
         flh = FixedLengthHeader.from_file(open_file)
         file_class = DATASET_TYPE_MAPPING.get(flh.dataset_type)
+
         if not file_class:
             msg = ("Unknown dataset_type {0}, supported types are {1}"
                    .format(flh.dataset_type, str(DATASET_TYPE_MAPPING.keys())))
             raise ValueError(msg)
-        ffv_new = file_class.from_file(file_path)
-        return ffv_new
+        umf_new = file_class.from_file(file_path)
+        return umf_new
 
+    # Handle the case of the file being either the path to a file to be opened
+    # (and closed again) or an existing open file object.
     if isinstance(unknown_umfile, basestring):
         file_path = unknown_umfile
         with open(file_path) as open_file:

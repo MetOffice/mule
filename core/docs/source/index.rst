@@ -3,19 +3,32 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Mule's documentation!
+Welcome to Mule's documentation
 ================================
 
-Contents:
+About Mule
+----------
+Mule is an API written in Python which allows you to access and manipulate
+files produced by the UM (Unified Model, of the Met Office (UK)).  
+
+**Contents:**
+
+Guides and Tutorials:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
+
+   user_guide
+
+API Documentation:
+
+.. toctree::
+   :maxdepth: 1
 
    mule
    mule/ff
    mule/lbc
    mule/packing
-
 
 Indices and tables
 ==================

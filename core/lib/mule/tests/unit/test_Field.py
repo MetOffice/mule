@@ -41,58 +41,6 @@ class Test_real_headers(tests.MuleTest):
         self.assertArrayEqual(field._lookup_reals, np.arange(19))
 
 
-class Test___eq__(tests.MuleTest):
-    def test_equal(self):
-        field1 = Field(list(range(45)), list(range(19)), None)
-        field2 = Field(np.arange(45), np.arange(19), None)
-        self.assertTrue(field1.__eq__(field2))
-
-    def test_not_equal_ints(self):
-        field1 = Field(list(range(45)), list(range(19)), None)
-        field2 = Field(np.arange(45, 90), np.arange(19), None)
-        self.assertFalse(field1.__eq__(field2))
-
-    def test_not_equal_reals(self):
-        field1 = Field(list(range(45)), list(range(19)), None)
-        field2 = Field(np.arange(45), np.arange(19, 38), None)
-        self.assertFalse(field1.__eq__(field2))
-
-    def test_not_equal_data(self):
-        field1 = Field(list(range(45)), list(range(19)), None)
-        field2 = Field(np.arange(45), np.arange(19), np.zeros(3))
-        self.assertFalse(field1.__eq__(field2))
-
-    def test_invalid(self):
-        field1 = Field(list(range(45)), list(range(19)), None)
-        self.assertIs(field1.__eq__('foo'), NotImplemented)
-
-
-class Test___ne__(tests.MuleTest):
-    def test_equal(self):
-        field1 = Field(list(range(45)), list(range(19)), None)
-        field2 = Field(np.arange(45), np.arange(19), None)
-        self.assertFalse(field1.__ne__(field2))
-
-    def test_not_equal_ints(self):
-        field1 = Field(list(range(45)), list(range(19)), None)
-        field2 = Field(np.arange(45, 90), np.arange(19), None)
-        self.assertTrue(field1.__ne__(field2))
-
-    def test_not_equal_reals(self):
-        field1 = Field(list(range(45)), list(range(19)), None)
-        field2 = Field(np.arange(45), np.arange(19, 38), None)
-        self.assertTrue(field1.__ne__(field2))
-
-    def test_not_equal_data(self):
-        field1 = Field(list(range(45)), list(range(19)), None)
-        field2 = Field(np.arange(45), np.arange(19), np.zeros(3))
-        self.assertTrue(field1.__ne__(field2))
-
-    def test_invalid(self):
-        field1 = Field(list(range(45)), list(range(19)), None)
-        self.assertIs(field1.__ne__('foo'), NotImplemented)
-
-
 class Test_num_values(tests.MuleTest):
     def test_64(self):
         field = Field(list(range(45)), list(range(19)), None)
