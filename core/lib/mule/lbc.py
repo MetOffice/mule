@@ -543,11 +543,13 @@ class LBCFile(mule.UMFile):
                     file_end_lon = (self.real_constants.start_lon +
                                     self.integer_constants.num_cols *
                                     self.real_constants.col_spacing)
-                    lon_diff = np.abs(field_end_lon - file_end_lon)
+                    lon_diff = (np.abs(field_end_lon - file_end_lon) /
+                                self.real_constants.col_spacing)
 
                     # For the longitude the field's result must be within 1
-                    # grid-spacing of the P grid in the header
-                    if lon_diff > self.real_constants.col_spacing:
+                    # grid-spacing of the P grid in the header (allow an
+                    # additional 1% tolerance for rounding errors)
+                    if lon_diff > 1.01:
                         raise ValidateError(
                             "Field {0} grid longitudes inconsistent"
                             .format(ifield))
@@ -556,10 +558,12 @@ class LBCFile(mule.UMFile):
                     file_end_lat = (self.real_constants.start_lat +
                                     self.integer_constants.num_rows *
                                     self.real_constants.row_spacing)
-                    lat_diff = np.abs(field_end_lat - file_end_lat)
+                    lat_diff = (np.abs(field_end_lat - file_end_lat) /
+                                self.real_constants.row_spacing)
 
-                    # For the latitudes allow an extra half a spacing
-                    if lat_diff > 1.5*self.real_constants.row_spacing:
+                    # For the latitudes allow an extra half a spacing (as well
+                    # as the 1% tolerance for rounding)
+                    if lat_diff > 1.51:
                         raise ValidateError(
                             "Field {0} grid latitudes inconsistent"
                             .format(ifield))

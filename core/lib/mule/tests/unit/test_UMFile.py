@@ -129,7 +129,7 @@ class Test_from_template(tests.MuleTest):
         _check_minimal_file(self, ffv)
 
     def test_component(self):
-        test_template = {"integer_constants": {'dims':(12,)}}
+        test_template = {"integer_constants": {'dims': (12,)}}
         ffv = UMFile.from_template(test_template)
         self.assertEqual(ffv.integer_constants.shape, (12,))
 
@@ -139,7 +139,6 @@ class Test_from_template(tests.MuleTest):
                 ValueError,
                 'unrecognised.*component.*("junk")'):
             _ = UMFile.from_template(test_template)
-                                     
 
     def test_unsized_component__fail(self):
         test_template = {"integer_constants": {}}

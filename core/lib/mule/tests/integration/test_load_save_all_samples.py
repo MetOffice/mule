@@ -35,6 +35,7 @@ TESTFILE_TYPES = [path.split('.')[-1] for path in TESTFILE_PATHS]
 TESTFILE_NAMES = [os.path.basename(path).split('.')[0]
                   for path in TESTFILE_PATHS]
 
+
 # Define some quick sanity checks specific to actual recognised files.
 def _check_n48_multi_field(testcase, ffv):
     testcase.assertEqual(ffv.level_dependent_constants.shape, (71, 8))
@@ -42,11 +43,13 @@ def _check_n48_multi_field(testcase, ffv):
     testcase.assertIsNone(ffv.row_dependent_constants)
     testcase.assertIsNone(ffv.column_dependent_constants)
 
+
 def _check_eg_boundary_sample(testcase, ffv):
     testcase.assertEqual(ffv.level_dependent_constants.shape, (39, 4))
     testcase.assertEqual(len(ffv.fields), 10)
     testcase.assertIsNone(ffv.row_dependent_constants)
     testcase.assertIsNone(ffv.column_dependent_constants)
+
 
 def _check_n48_eg_regular_sample(testcase, ffv):
     testcase.assertEqual(ffv.level_dependent_constants.shape, (71, 8))
@@ -54,11 +57,13 @@ def _check_n48_eg_regular_sample(testcase, ffv):
     testcase.assertIsNone(ffv.row_dependent_constants)
     testcase.assertIsNone(ffv.column_dependent_constants)
 
+
 def _check_ukv_eg_variable_sample(testcase, ffv):
     testcase.assertEqual(ffv.level_dependent_constants.shape, (71, 8))
     testcase.assertEqual(len(ffv.fields), 1)
     testcase.assertEqual(ffv.row_dependent_constants.shape, (929, 2))
     testcase.assertEqual(ffv.column_dependent_constants.shape, (744, 2))
+
 
 # Store the sanity-checks by datafile name
 KNOWN_EXPECTED_PROPERTIES = {
@@ -69,7 +74,7 @@ KNOWN_EXPECTED_PROPERTIES = {
 }
 
 # Map file extensions to UMFile subclasses.
-_UM_FILE_TYPES = {'ff': FieldsFile, 'lbc':LBCFile}
+_UM_FILE_TYPES = {'ff': FieldsFile, 'lbc': LBCFile}
 
 
 class Test_all_sample_data(tests.MuleTest):
@@ -77,7 +82,7 @@ class Test_all_sample_data(tests.MuleTest):
         # Call the file-specific tester function for this file (if known).
         if name not in KNOWN_EXPECTED_PROPERTIES:
             msg = 'unrecognised datafile ? : {}'
-            print( msg.format(name) )
+            print(msg.format(name))
         else:
             KNOWN_EXPECTED_PROPERTIES[name](self, ffv)
 
@@ -127,7 +132,7 @@ class Test_all_sample_data(tests.MuleTest):
                 msg = 'unrecognised file extension ? : {}'
                 raise ValueError(msg.format(filetype))
 
-            # Check you can then save it, and it loads back as the expected type.
+            # Check you can save it, and it loads back as the expected type.
             with self.temp_filename() as temp_filepath:
                 ffv.to_file(temp_filepath)
                 _ = typeclass.from_file(temp_filepath)

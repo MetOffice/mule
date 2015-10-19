@@ -38,6 +38,7 @@ skip_mo_pack = tests.skipIf(mo_pack is None,
                             'Test(s) require "mo_pack", '
                             'which is not available.')
 
+
 def _testdata_path():
     """Define the path to the directory containing testing datafiles."""
     # Get the path to directory containing this sourcefile.
@@ -94,6 +95,7 @@ class MuleTest(tests.TestCase):
 # Define the path to the common load-test data.
 COMMON_N48_TESTDATA_PATH = testdata_filepath('n48_multi_field.ff')
 
+
 # Define basic sanity checks on that specific test datafile.
 # For testing alternative load methods.
 def check_common_n48_testdata(testcase, ffv):
@@ -107,10 +109,10 @@ def check_common_n48_testdata(testcase, ffv):
     testcase.assertIsNone(ffv.column_dependent_constants)
     testcase.assertEqual(len(ffv.fields), 5)
     testcase.assertEqual([fld.lbrel for fld in ffv.fields[:-1]],
-                     [3, 3, 3, 3])
+                         [3, 3, 3, 3])
     testcase.assertEqual(type(ffv.fields[-1]), Field)
     testcase.assertEqual([fld.lbvc for fld in ffv.fields[:-1]],
-                     [1, 1, 6, 129])
+                         [1, 1, 6, 129])
 
 
 def main():
