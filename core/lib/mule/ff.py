@@ -163,8 +163,7 @@ class _ReadFFProviderUnpacked(mule.RawReadProvider):
     """A :class:`mule.RawReadProvider` which reads an unpacked field."""
     WORD_SIZE = mule._DEFAULT_WORD_SIZE
 
-    @property
-    def data(self):
+    def _data_array(self):
         field = self.source
         data_bytes = self._read_bytes()
         dtype = _DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
@@ -184,8 +183,7 @@ class _ReadFFProviderCray32Packed(_ReadFFProviderUnpacked):
 
 class _ReadFFProviderWGDOSPacked(mule.RawReadProvider):
     """A :class:`mule.RawReadProvider` which reads a WGDOS packed field."""
-    @property
-    def data(self):
+    def _data_array(self):
         field = self.source
         data_bytes = self._read_bytes()
         data = wgdos_unpack_field(data_bytes, field.bmdi,
@@ -206,8 +204,7 @@ class _ReadFFProviderLandPacked(mule.RawReadProvider):
     WORD_SIZE = mule._DEFAULT_WORD_SIZE
     _LAND = True
 
-    @property
-    def data(self):
+    def _data_array(self):
         field = self.source
         data_bytes = self._read_bytes()
         if self.lsm_source is not None:

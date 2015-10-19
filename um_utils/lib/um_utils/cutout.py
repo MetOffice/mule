@@ -53,13 +53,13 @@ class CutoutDataOperator(DataOperator):
 
         return new_field
 
-    def transform(self, field):
+    def transform(self, source_field, result_field):
         """
         Retrieve and cut-out the data from the Field.
 
         """
         # Get the existing data
-        data = field.get_data()
+        data = source_field.get_data()
 
         # Create a new data array with the desired output sizes
         cut_data = np.empty((self.ny,self.nx), order="C")
@@ -68,17 +68,17 @@ class CutoutDataOperator(DataOperator):
         # of the domain assume the domain is wrapping and handle it
         # by extracting a section of the array from either side of
         # the dividing edge
-        if self.zx + self.nx > field.lbnpt:
+        if self.zx + self.nx > source_field.lbnpt:
             # The left-most part of the target array is filled using
             # values from right-most part of the source array
-            cut_data[:, :field.lbnpt - self.zx + 1] = (
+            cut_data[:, :source_field.lbnpt - self.zx + 1] = (
                 data[self.zy-1:self.zy - 1 + self.ny,
                      self.zx - 1:])
             # And the remainder of the target array is filled using
             # values from the left-most part of the source array
-            cut_data[:, field.lbnpt - self.zx + 1:] = (
+            cut_data[:, source_field.lbnpt - self.zx + 1:] = (
                 data[self.zy-1:self.zy-1+self.ny,
-                     :self.nx + self.zx - field.lbnpt - 1])
+                     :self.nx + self.zx - source_field.lbnpt - 1])
         else:
             # If the domain is contained entirely within the domain
             # it can be extracted directly

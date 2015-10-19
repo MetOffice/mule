@@ -51,6 +51,7 @@ from __future__ import (absolute_import, division, print_function)
 
 import os
 import numpy as np
+import numpy.ma
 from contextlib import contextmanager
 
 # UM fixed length header names and positions
@@ -609,8 +610,9 @@ class Field(object):
             * real_headers:
                 A sequence of floating-point header values.
             * data_provider:
-                A subclass of :class:`_DataProvider` which returns the data
-                referred to by this field object
+                An object representing the field data payload.
+                Typically, this is an object with a "._data_array" method,
+                in which case the data can be fetched with :meth:`get_data`.
 
         """
         # Create a numpy object array to hold the entire lookup, leaving a
@@ -631,8 +633,8 @@ class Field(object):
         self._lookup_ints = self._values[1:len(int_headers)+1]
         self._lookup_reals = self._values[len(int_headers)+1:]
 
-        # Save the reference to the given _DataProvider
-        self.data_provider = data_provider
+        # Save the reference to the given data provider.
+        self._data_provider = data_provider
 
     @classmethod
     def empty(cls):
@@ -640,7 +642,7 @@ class Field(object):
         Create an instance of the class from-scratch.
 
         The instance will be filled with empty values (-99 for integers,
-        and 0.0 for reals), and will have no :class:`_DataProvider` set.
+        and 0.0 for reals), and will have no data_provider set.
 
         """
         integers = np.empty(cls.NUM_LOOKUP_INTS, cls.DTYPE_INT)
@@ -675,18 +677,31 @@ class Field(object):
         """
         new_field = type(self)(self._lookup_ints.copy(),
                                self._lookup_reals.copy(),
-                               self.data_provider)
+                               self._data_provider)
         return new_field
+
+    def set_data_provider(self, data_provider):
+        """
+        Set the field data payload.
+
+        Args:
+            * data_provider:
+                An object representing the field data payload.
+                Typically, this is an object with a "._data_array" method,
+                which means the data can be accessed with :meth:`get_data`.
+
+        """
+        self._data_provider = data_provider
 
     def num_values(self):
         """Return the number of values defined by this header."""
         return len(self._values) - 1
 
     def get_data(self):
-        """Return a the data for this field as an array."""
+        """Return the data for this field as an array."""
         data = None
-        if self.data_provider is not None:
-            data = self.data_provider.data
+        if hasattr(self._data_provider, '_data_array'):
+            data = self._data_provider._data_array()
         return data
 
     def _get_raw_payload_bytes(self):
@@ -698,10 +713,10 @@ class Field(object):
         _can_copy_deferred_data).
 
         """
-        if hasattr(self.data_provider, "_read_bytes"):
-            return self.data_provider._read_bytes()
-        else:
-            return None
+        data = None
+        if hasattr(self._data_provider, "_read_bytes"):
+            data = self._data_provider._read_bytes()
+        return data
 
     def _can_copy_deferred_data(self, required_lbpack, required_bacc):
         """
@@ -713,10 +728,10 @@ class Field(object):
         """
         # Whether or not this is possible depends on if the Field's
         # data provider has been wrapped in any operations
-        compatible = hasattr(self.data_provider, "_read_bytes")
+        compatible = hasattr(self._data_provider, "_read_bytes")
         if compatible:
-            src_lbpack = self.data_provider.source.lbpack
-            src_bacc = self.data_provider.source.bacc
+            src_lbpack = self._data_provider.source.lbpack
+            src_bacc = self._data_provider.source.bacc
             # The packing words are compatible if nothing else is different.
             compatible = (required_lbpack == src_lbpack and
                           required_bacc == src_bacc)
@@ -742,26 +757,42 @@ class Field3(Field):
     HEADER_MAPPING = _LOOKUP_HEADER_3
 
 
-class _DataProvider(object):
+class ArrayDataProvider(object):
     """
-    This class provides the means to wrap a Field object's existing data
-    provider with a new one; consisting of the product of the field and
-    a data operator capable of returning the data array.
+    A :class:`Field` data provider that contains an actual array of values.
+
+    This is used to make a field with an ordinary array as its data payload.
+
+    .. Note::
+
+        This must be used with caution, as multiple fields with a concrete data
+        payload can easily consume large amounts of space.
+        By contrast, processing field payloads from an existing file will
+        normally only load one at a time.
 
     """
-    def __init__(self, operator, source):
+    def __init__(self, array):
         """
-        Initialise the wrapper, saving a reference to the data operator
-        and the field/s it will be applied to.
+        Create a data-provider which contains a concrete data array.
+
+        Args:
+            * array (array-like):
+                The data payload.  It is converted to a numpy array.
+                It must be 2D unmasked data.
 
         """
-        self.operator = operator
-        self.source = source
+        if numpy.ma.is_masked(array):
+            raise ValueError('ArrayDataProvider does not handle masked data.')
+        array = numpy.asarray(array)
+        shape = array.shape
+        if len(shape) != 2:
+            msg = 'ArrayDataProvider has shape {}, which is not 2-dimensional.'
+            raise ValueError(msg.format(shape))
+        self._array = array
 
-    @property
-    def data(self):
-        """Return the data using the provided operator."""
-        return self.operator.transform(self.source)
+    def _data_array(self):
+        """Return the data payload."""
+        return self._array
 
 
 class DataOperator(object):
@@ -776,18 +807,18 @@ class DataOperator(object):
         the user must override the "__init__", "new_field" and "transform"
         methods of this baseclass to create a valid operator.
 
-    A DataOperator is used to produce a new :class:`Field`, which is calculated
-    from an existing source Field and can also perform the required calculation
-    on the source data at a subsequent time.
+    A DataOperator is used to produce new :class:`Field` s, which are
+    calculated from existing source fields and which can also calculate their
+    data results from the source data at a subsequent time.
 
     The normal usage occurs in 3 separate stages:
 
-      * :meth:`__init__` creates a new operator with any instance-specific
-        parameters.
-      * :meth:`__call__` produces a new :class:`Field` object from an existing
-        one, calling the user :meth:`new_field` method.
-      * :meth:`transform` is called by the output Field to calculate its data
-        payload.
+      *   :meth:`__init__` creates a new operator with any instance-specific
+          parameters.
+      *   :meth:`__call__` is used to produce a new, transformed :class:`Field`
+          objects from existing ones, via the user :meth:`new_field` method.
+      *   :meth:`transform` is called by an output field to calculate its data
+          payload.
 
     For example:
 
@@ -799,7 +830,7 @@ class DataOperator(object):
     ...         fld.lbnpt /= self.factor
     ...         fld.bdx *= self.factor
     ...         return fld
-    ...     def transform(self, source_field):
+    ...     def transform(self, source_field, result_field):
     ...         data = source_field.get_data()
     ...         return data[:, ::self.factor]
     ...
@@ -829,47 +860,64 @@ class DataOperator(object):
 
         This calls the user-supplied :meth:`new_field` method, and configures
         the resulting field to return its data from the :meth:`transform`
-        method of this data operator.
+        method of the data operator.
 
         Args:
             * source:
-                This can be an object of any type; it is what will be passed
-                to this operator's transform method when the field data is
-                requested (typically source will be a :class:`Field` object).
+                This can be an object of any type; it is typically an existing
+                :class:`Field` which the result field is based on.
 
         Returns:
-
-            new_field (:class:`Field`):
+            * new_field (:class:`Field`):
                 A new Field instance, which returns data generated via the
                 :meth:`transform` method.
 
         """
+        class OperatorDataProvider(object):
+            """
+            A :class:`Field` data provider that fetches its data from a
+            DataOperator, by calling :meth:`transform`.
+
+            """
+            def __init__(self, operator, source, new_field):
+                """
+                Create a wrapper, including references to the operator,
+                the original source data and and the result field.
+
+                """
+                self.operator = operator
+                self.source = source
+                self.result_field = new_field
+
+            def _data_array(self):
+                """Return the data using the provided operator."""
+                return self.operator.transform(self.source, self.result_field)
+
         new_field = self.new_field(source, *args, **kwargs)
-        new_field.data_provider = _DataProvider(self, source)
+        provider = OperatorDataProvider(self, source, new_field)
+        new_field.set_data_provider(provider)
         return new_field
 
     def new_field(self, source, *args, **kwargs):
         """
         Produce a new output :class:`Field` from a source object
-        - this should be overidden by the user.
+        - this method should be overidden by the user.
 
-        This call encodes how to produce a new field, which is typically
-        based on a calculation from an existing source field or fields.
-        It is called by the :meth:`DataOperator.__call__` call.
+        This method encodes how to produce a new field, which is typically
+        derived by calculation from an existing source field or fields.
+        It is called by the :meth:`__call__` method.
 
         Args:
             * source:
-                This can be an object of any type; it is what will be passed
-                to this operator's transform method when the field data is
-                requested (typically source will be a :class:`Field` object).
+                This can be an object of any type; it is typically an existing
+                :class:`Field` which the result field is based on.
 
         Returns:
-
-            new_field (:class:`Field`):
+            * new_field (:class:`Field`):
                 A new Field instance, whose lookup attributes reflect the final
-                state of the result:  e.g. if the operator affects the number
-                of rows in the field, 'new_field' will have its row settings
-                adjusted accordingly.
+                state of the result:
+                E.G. if the operator affects the number of rows in the field,
+                then 'new_field' must have its row settings set accordingly.
 
         .. Note::
             It is advisable not to modify the "source" object inside this
@@ -880,18 +928,31 @@ class DataOperator(object):
                "overidden by the user")
         raise NotImplementedError(msg)
 
-    def transform(self, source):
+    def transform(self, source, result_field):
         """
-        Called by the bound :class:`_DataProvider` at the point the field data
-        is requested - this should be overidden by the user.
+        Calculate the data payload for a result field
+        - this method should be overidden by the user.
 
-        This method should return a 2d numpy array containing the field data,
-        typically it will first extract existing data from its source object
-        and manipulate it in some way.
+        This method must return a 2d numpy array containing the field data.
+        Typically it will extract the data payload from a source field and
+        manipulate it in some way.
 
         Args:
             * source:
-                This will be whatever was provided to the __call__ method.
+                The original 'source' argument from the :meth:`__call__`
+                invocation that created 'result_field'.
+                Usually, this is a pre-existing :class:`Field` object from
+                which the result field is calculated.
+
+            * result_field:
+                The 'new' field that was created by a call to :meth:`__call__`,
+                for which the data is now wanted.
+                This should not be modified, but provides access to any
+                necessary context information determined when it was created.
+
+        Returns:
+            * data (array):
+                The data array for 'result_field'.
 
         """
         msg = ("The transform method of the DataOperator baseclass should be "
@@ -899,14 +960,16 @@ class DataOperator(object):
         raise NotImplementedError(msg)
 
 
-class RawReadProvider(_DataProvider):
+class RawReadProvider(object):
     """
-    A special :class:`_DataProvider` subclass, which deals with the most
-    basic/common data-provision operation of reading in Field data from a file.
-    This class should not be used directly - since it does not define a "data"
-    property and so cannot return any data.  A series of subclasses of this
-    class are provided which define the property for the different packing
-    types found in :class:`UMFile` subclasses.
+    A generic 'data provider' object, which deals with the most basic/common
+    data-provision operation of reading in Field data from a file.
+
+    This class should not be used directly, since it does not define a
+    "_data_array" method, and so cannot return any data.
+    A series of subclasses of this class are provided which define the
+    '_data_array' method for the different packing types found in various
+    types of :class:`UMFile`.
 
     """
     DISK_RECORD_SIZE = _DEFAULT_WORD_SIZE
@@ -957,12 +1020,11 @@ class RawReadProvider(_DataProvider):
 
 class _NullReadProvider(RawReadProvider):
     """
-    A :class:`_DataProvider` to use when a packing code is unrecognised - to
-    be able to represent unknown-type data in a :class:`Field`.
+    A 'raw' data provider object to be used when a packing code is unrecognised
+    - to be able to represent unknown-type data in a :class:`Field`.
 
     """
-    @property
-    def data(self):
+    def _data_array(self):
         lbpack = self.source.raw[21]
         msg = "Packing code {0} unsupported".format(lbpack)
         raise NotImplementedError(msg)
@@ -1001,8 +1063,8 @@ class UMFile(object):
     READ_PROVIDERS = {}
     """
     A dictionary which maps the trailing 3 digits (n3 - n1) of a field's
-    lbpack (packing code) onto a suitable :class:`_DataProvider` object to
-    read the field.  Any packing code not in this list will default to using
+    lbpack (packing code) onto a suitable data-provider object to read the
+    field.  Any packing code not in this list will default to using
     a :class:`_NullReadProvider` object (which can only be used to copy the
     raw byte-data of the field - not to unpack it or access the data).
 
@@ -1382,7 +1444,7 @@ class UMFile(object):
 
                 # Now attach the selected provider to the field object and
                 # add it to the field-list
-                field.data_provider = provider
+                field.set_data_provider(provider)
                 self.fields.append(field)
 
                 # If this object was the Land-Sea mask, save a reference to it
@@ -1393,9 +1455,9 @@ class UMFile(object):
                 # If this object is using a form of Land/Sea packing, update
                 # its reference to the land_sea_mask (if available), otherwise
                 # save a reference to it for checking later
-                if hasattr(field.data_provider, "_LAND"):
+                if hasattr(field._data_provider, "_LAND"):
                     if land_sea_mask is not None:
-                        field.data_provider.lsm_source = land_sea_mask
+                        field._data_provider.lsm_source = land_sea_mask
                     else:
                         land_packed_fields.append(field)
 
@@ -1407,7 +1469,7 @@ class UMFile(object):
             # land/sea mask, update their references to it here
             for field in land_packed_fields:
                 if land_sea_mask is not None:
-                    field.data_provider.lsm_source = land_sea_mask
+                    field._data_provider.lsm_source = land_sea_mask
 
     def _apply_template(self, template):
         """Apply the assignments specified in a template."""

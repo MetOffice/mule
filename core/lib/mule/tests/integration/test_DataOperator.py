@@ -1,0 +1,65 @@
+# (C) Crown Copyright 2015, Met Office. All rights reserved.
+#
+# This file is part of Mule.
+#
+# Mule is free software: you can redistribute it and/or modify it under
+# the terms of the Modified BSD License, as published by the
+# Open Source Initiative.
+#
+# Mule is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Modified BSD License for more details.
+#
+# You should have received a copy of the Modified BSD License
+# along with Mule.  If not, see <http://opensource.org/licenses/BSD-3-Clause>.
+"""
+Unit tests for :class:`mule.Field`.
+
+"""
+
+from __future__ import (absolute_import, division, print_function)
+from six.moves import (filter, input, map, range, zip)  # noqa
+
+import mule.tests as tests
+
+from mule import FieldsFile, DataOperator
+
+class XSampler(DataOperator):
+    def __init__(self, factor):
+        self.factor = factor
+
+    def new_field(self, source_field):
+        fld = source_field.copy()
+        fld.lbnpt /= self.factor
+        fld.bdx *= self.factor
+        return fld
+
+    def transform(self, source_field, result_field):
+        data = source_field.get_data()
+        return data[:, ::self.factor]
+
+
+class Test_Subsample(tests.MuleTest):
+    def test(self):
+        ff = FieldsFile.from_file(tests.COMMON_N48_TESTDATA_PATH)
+        self.assertEqual(ff.integer_constants.num_cols, 96)
+        self.assertEqual(ff.real_constants.col_spacing, 3.75)
+        self.assertEqual(ff.fields[0].lbnpt, 96)
+        self.assertEqual(ff.fields[0].bdx, 3.75)
+        XStep4 = XSampler(factor=4)
+        ff.fields = [ff.fields[0], XStep4(ff.fields[1])]
+        with self.temp_filename() as temp_path:
+            ff.to_file(temp_path)
+            ff_back = FieldsFile.from_file(temp_path)
+            self.assertEqual(ff_back.integer_constants.num_cols, 96)
+            self.assertEqual(ff_back.real_constants.col_spacing, 3.75)
+            self.assertEqual(ff_back.fields[0].lbnpt, 96)
+            self.assertEqual(ff_back.fields[0].bdx, 3.75)
+            self.assertEqual(ff_back.fields[1].lbnpt, 24)
+            self.assertEqual(ff_back.fields[1].bdx, 15.0)
+            self.assertEqual(ff_back.fields[1].get_data().shape, (73, 24))
+
+
+if __name__ == '__main__':
+    tests.main()

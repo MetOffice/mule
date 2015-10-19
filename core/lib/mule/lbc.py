@@ -162,13 +162,13 @@ class LBCToMaskedArrayOperator(mule.DataOperator):
         new_field = field.copy()
         return new_field
 
-    def transform(self, field):
+    def transform(self, source_field, result_field):
         """
         Retrieve the data from the original :class:`mule.Field` object,
         and construct a masked 3-d data array to return.
 
         Args:
-            * field:
+            * source_field:
                 The :class:`mule.Field` object which contains the means
                 to extract the original data.
 
@@ -179,10 +179,10 @@ class LBCToMaskedArrayOperator(mule.DataOperator):
 
         """
         # Basic properties
-        ncols = field.lbnpt
-        nrows = field.lbrow
-        num_levels = field.lbhem - 100
-        halo_code = field.lbuser3
+        ncols = source_field.lbnpt
+        nrows = source_field.lbrow
+        num_levels = source_field.lbhem - 100
+        halo_code = source_field.lbuser3
 
         # Rim and halo widths
         rimwidth = int(halo_code // 10000)
@@ -207,8 +207,8 @@ class LBCToMaskedArrayOperator(mule.DataOperator):
 
         # Get the existing data and create the 3d-array (fill it with
         # mdi initially)
-        data = field.get_data()
-        mdi = field.bmdi
+        data = source_field.get_data()
+        mdi = source_field.bmdi
         data_3d = np.ones((num_levels, len_y, len_x))*mdi
 
         for z in range(0, num_levels):
@@ -273,13 +273,13 @@ class MaskedArrayToLBCOperator(mule.DataOperator):
         new_field = field.copy()
         return new_field
 
-    def transform(self, field):
+    def transform(self, source_field, result_field):
         """
         Retrieve the masked 3-d array from the :class:`mule.Field` object
         and revert it to a sequential 1-d LBC array.
 
         Args:
-            * field:
+            * source_field:
                 The :class:`mule.Field` object which returns the masked
                 3-d array.
 
@@ -290,10 +290,10 @@ class MaskedArrayToLBCOperator(mule.DataOperator):
 
         """
         # Basic properties
-        ncols = field.lbnpt
-        nrows = field.lbrow
-        num_levels = field.lbhem - 100
-        halo_code = field.lbuser3
+        ncols = source_field.lbnpt
+        nrows = source_field.lbrow
+        num_levels = source_field.lbhem - 100
+        halo_code = source_field.lbuser3
 
         # Rim and halo widths
         rimwidth = int(halo_code // 10000)
@@ -335,8 +335,8 @@ class MaskedArrayToLBCOperator(mule.DataOperator):
         total_size = size_ns*2 + size_ew*2
 
         # Get the existing data and create the 1d-array
-        data_3d = field.get_data()
-        mdi = field.bmdi
+        data_3d = source_field.get_data()
+        mdi = source_field.bmdi
         data = np.ones((num_levels, total_size))*mdi
 
         for z in range(0, num_levels):
