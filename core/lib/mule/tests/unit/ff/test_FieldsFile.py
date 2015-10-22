@@ -206,14 +206,14 @@ class Test_validate(tests.MuleTest):
     def test_tolerance_max_x__ok(self):
         ff = self._minimal_valid_ff()
         fld = self._minimal_valid_field()
-        fld.bzx += fld.bdx * (1.01 - 0.0001)
+        fld.bzx += fld.bdx * (1.51 - 0.0001)
         ff.fields = [fld]
         ff.validate()
 
     def test_tolerance_min_x__fail(self):
         ff = self._minimal_valid_ff()
         fld = self._minimal_valid_field()
-        fld.bzx += fld.bdx * (1.01 + 0.0001)
+        fld.bzx += fld.bdx * (1.51 + 0.0001)
         ff.fields = [fld]
         with self.assertRaisesRegexp(ValueError, 'longitude'):
             ff.validate()
