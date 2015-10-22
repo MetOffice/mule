@@ -21,6 +21,7 @@ PyMODINIT_FUNC initum_packing(void);
 
 static PyObject *wgdos_unpack_py(PyObject *self, PyObject *args);
 static PyObject *wgdos_pack_py(PyObject *self, PyObject *args);
+static PyObject *get_um_version_py(PyObject *self, PyObject *args);
 
 PyMODINIT_FUNC initum_packing(void)
 {
@@ -51,9 +52,16 @@ PyMODINIT_FUNC initum_packing(void)
   "  Byte-array/stream (suitable to write straight to file).\n"
   );
 
+  PyDoc_STRVAR(get_um_version__doc__,
+  "Return the UM version number used to compile the library.\n\n"
+  "Returns:\n"
+  "  String containing the UM version number.\n"
+  );
+
   static PyMethodDef um_packingMethods[] = {
     {"wgdos_unpack", wgdos_unpack_py, METH_VARARGS, wgdos_unpack__doc__},
     {"wgdos_pack", wgdos_pack_py, METH_VARARGS, wgdos_pack__doc__},
+    {"get_um_version", get_um_version_py, METH_VARARGS, get_um_version__doc__},
     {NULL, NULL, 0, NULL}
   };
 
@@ -236,3 +244,14 @@ static PyObject *wgdos_pack_py(PyObject *self, PyObject *args)
 }
 
 
+static PyObject *get_um_version_py(PyObject *self, PyObject *args)
+{
+  (void) self;
+  (void) args;
+
+  char version[8];
+  get_um_version(&version[0]);
+  PyObject *version_out = NULL;
+  version_out = PyString_FromStringAndSize(version, strlen(version));
+  return version_out;
+}
