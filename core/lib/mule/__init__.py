@@ -54,6 +54,8 @@ import numpy as np
 import numpy.ma
 from contextlib import contextmanager
 
+__version__ = 1.0
+
 # UM fixed length header names and positions
 _UM_FIXED_LENGTH_HEADER = [
     ('data_set_format_version',            1),
@@ -70,6 +72,27 @@ _UM_FIXED_LENGTH_HEADER = [
     ('model_version',                     12),
     ('obs_file_type',                     14),
     ('last_fieldop_type',                 15),
+    ('t1_year',                           21),
+    ('t1_month',                          22),
+    ('t1_day',                            23),
+    ('t1_hour',                           24),
+    ('t1_minute',                         25),
+    ('t1_second',                         26),
+    ('t1_year_day_number',                27),
+    ('t2_year',                           28),
+    ('t2_month',                          29),
+    ('t2_day',                            30),
+    ('t2_hour',                           31),
+    ('t2_minute',                         32),
+    ('t2_second',                         33),
+    ('t2_year_day_number',                34),    
+    ('t3_year',                           35),
+    ('t3_month',                          36),
+    ('t3_day',                            37),
+    ('t3_hour',                           38),
+    ('t3_minute',                         39),
+    ('t3_second',                         40),
+    ('t3_year_day_number',                41),    
     ('integer_constants_start',          100),
     ('integer_constants_length',         101),
     ('real_constants_start',             105),

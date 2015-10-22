@@ -499,7 +499,7 @@ class FieldsFile(mule.UMFile):
         # be strictly necessary to exmaine this in full detail) we will
         # make a few assumptions when checking the grid
         for ifield, field in enumerate(self.fields):
-            if field.lbrel != -99:
+            if field.lbrel in (2,3):
 
                 # Land packed fields shouldn't set their rows or columns
                 if (field.lbpack % 100)//10 == 2:
@@ -561,10 +561,10 @@ class FieldsFile(mule.UMFile):
                     lon_diff_steps = (np.abs(field_end_lon - file_end_lon) /
                                       self.real_constants.col_spacing)
 
-                    # For the longitude the field's result must be within 1
-                    # grid-spacing of the P grid in the header (allow an
+                    # For the longitude the field's result must be within 1.5
+                    # grid-spacings of the P grid in the header (allow an
                     # additional 1% tolerance for rounding errors)
-                    if lon_diff_steps > 1.01:
+                    if lon_diff_steps > 1.51:
                         raise ValidateError(
                             "Field {0} grid longitudes inconsistent"
                             .format(ifield))
@@ -576,9 +576,15 @@ class FieldsFile(mule.UMFile):
                     lat_diff_steps = (np.abs(field_end_lat - file_end_lat) /
                                       self.real_constants.row_spacing)
 
-                    # For the latitudes allow an extra half a spacing (as well
-                    # as the 1% tolerance for rounding)
+                    # Similarly for the latitudes 1.5 grid spacings with a
+                    # 1% tolerance
                     if lat_diff_steps > 1.51:
                         raise ValidateError(
                             "Field {0} grid latitudes inconsistent"
                             .format(ifield))
+            else:
+                # If the field has an unrecognised release number
+                if field.lbrel != -99:
+                    raise ValidateError(
+                        "Field {0} has unrecognised release number {1}"
+                        .format(ifield, field.lbrel))

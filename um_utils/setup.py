@@ -23,5 +23,13 @@ setup(name='um_utils',
       url='https://code.metoffice.gov.uk/trac/um',
       package_dir = {'': 'lib'},
       packages=['um_utils',
-                'um_utils.tests',])
+                'um_utils.tests'],
+      entry_points={
+          'console_scripts': [
+              'mule-pumf = um_utils.pumf:_main',
+              'mule-summary = um_utils.summary:_main',
+              'mule-cumf = um_utils.cumf:_main',
+              'mule-cutout = um_utils.cutout:_main',
+              'mule-trim = um_utils.trim:_main',
+              ]})
 

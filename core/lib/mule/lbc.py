@@ -87,8 +87,7 @@ class _ReadLBCProviderUnpacked(mule.RawReadProvider):
     """A :class:`mule.RawReadProvider` which reads an unpacked field."""
     WORD_SIZE = mule._DEFAULT_WORD_SIZE
 
-    @property
-    def data(self):
+    def _data_array(self):
         field = self.source
         data_bytes = self._read_bytes()
         dtype = mule.ff._DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
@@ -495,7 +494,7 @@ class LBCFile(mule.UMFile):
         # be strictly necessary to exmaine this in full detail) we will
         # make a few assumptions when checking the grid
         for ifield, field in enumerate(self.fields):
-            if field.lbrel != -99:
+            if field.lbrel in (2,3):
 
                 if (self.row_dependent_constants is not None and
                         self.column_dependent_constants is not None):
@@ -543,13 +542,13 @@ class LBCFile(mule.UMFile):
                     file_end_lon = (self.real_constants.start_lon +
                                     self.integer_constants.num_cols *
                                     self.real_constants.col_spacing)
-                    lon_diff = (np.abs(field_end_lon - file_end_lon) /
-                                self.real_constants.col_spacing)
+                    lon_diff_steps = (np.abs(field_end_lon - file_end_lon) /
+                                      self.real_constants.col_spacing)
 
-                    # For the longitude the field's result must be within 1
-                    # grid-spacing of the P grid in the header (allow an
+                    # For the longitude the field's result must be within 1.5
+                    # grid-spacings of the P grid in the header (allow an
                     # additional 1% tolerance for rounding errors)
-                    if lon_diff > 1.01:
+                    if lon_diff_steps > 1.51:
                         raise ValidateError(
                             "Field {0} grid longitudes inconsistent"
                             .format(ifield))
@@ -558,12 +557,18 @@ class LBCFile(mule.UMFile):
                     file_end_lat = (self.real_constants.start_lat +
                                     self.integer_constants.num_rows *
                                     self.real_constants.row_spacing)
-                    lat_diff = (np.abs(field_end_lat - file_end_lat) /
-                                self.real_constants.row_spacing)
+                    lat_diff_steps = (np.abs(field_end_lat - file_end_lat) /
+                                      self.real_constants.row_spacing)
 
-                    # For the latitudes allow an extra half a spacing (as well
-                    # as the 1% tolerance for rounding)
-                    if lat_diff > 1.51:
+                    # Similarly for the latitudes 1.5 grid spacings with a
+                    # 1% tolerance
+                    if lat_diff_steps > 1.51:
                         raise ValidateError(
                             "Field {0} grid latitudes inconsistent"
                             .format(ifield))
+            else:
+                # If the field has an unrecognised release number 
+                if field.lbrel != -99:
+                    raise ValidateError(
+                        "Field {0} has unrecognised release number {1}"
+                        .format(ifield, field.lbrel))    

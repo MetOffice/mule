@@ -1,8 +1,8 @@
 # (C) Crown Copyright 2015, Met Office. All rights reserved.
 #
-# This file is part of the UM packing library module.
+# This file is part of the UM packing library extension module for Mule.
 #
-# It is free software: you can redistribute it and/or modify it under
+# Mule is free software: you can redistribute it and/or modify it under
 # the terms of the Modified BSD License, as published by the
 # Open Source Initiative.
 #
@@ -12,8 +12,7 @@
 # Modified BSD License for more details.
 #
 # You should have received a copy of the Modified BSD License
-# along with this UM packing module.
-# If not, see <http://opensource.org/licenses/BSD-3-Clause>.
+# along with Mule.  If not, see <http://opensource.org/licenses/BSD-3-Clause>.
 """Tests for the :mod:`um_packing` module."""
 
 from __future__ import (absolute_import, division, print_function)
