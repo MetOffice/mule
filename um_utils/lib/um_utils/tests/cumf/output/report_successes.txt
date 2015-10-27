@@ -1,0 +1,124 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* CUMF-II Comparison Report *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+File 1: None
+File 2: None
+Files DO NOT compare
+  * 1 differences in fixed_length_header
+  * 1 differences in integer_constants
+  * 5 differences in level_dependent_constants
+  * 2 field differences, of which 1 are in data
+
+Compared 5/7 fields
+Maximum RMS diff as % of data in file 1: 400.0 (field 4)
+Maximum RMS diff as % of data in file 2: 80.0 (field 4)
+1 fields found in file 1 were not in file 2
+1 fields found in file 2 were not in file 1
+
+%%%%%%%%%%%%%%%%%%%%%%%
+* fixed_length_header *
+%%%%%%%%%%%%%%%%%%%%%%%
+Components DO NOT compare (compared 244/256 values)
+(Ignored indices: [35, 36, 37, 38, 39, 40, 41, 152, 153, 160, 161, 162])
+  Index 9 (grid_staggering) differs - file_1: 3  file_2: 6
+
+%%%%%%%%%%%%%%%%%%%%%
+* integer_constants *
+%%%%%%%%%%%%%%%%%%%%%
+Components DO NOT compare (compared 46/46 values)
+  Index 8 (num_p_levels) differs - file_1: 38  file_2: 70
+
+%%%%%%%%%%%%%%%%%%
+* real_constants *
+%%%%%%%%%%%%%%%%%%
+Components compare (compared 38/38 values)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* level_dependent_constants *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Components DO NOT compare (compared 48/48 values)
+  Index (1, 1) differs - file_1: 1  file_2: 5.0 
+  Index (2, 1) differs - file_1: 2  file_2: 10.0
+  Index (3, 1) differs - file_1: 3  file_2: 15.0
+  Index (4, 1) differs - file_1: 4  file_2: 20.0
+  Index (5, 1) differs - file_1: 5  file_2: 25.0
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* row_dependent_constants *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Components compare (compared 0/0 values)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* column_dependent_constants *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Components compare (compared 0/0 values)
+
+%%%%%%%%%%%%%%%%%%%%%%%
+* fields_of_constants *
+%%%%%%%%%%%%%%%%%%%%%%%
+Components compare (compared 0/0 values)
+
+%%%%%%%%%%%%%%%%%%%
+* extra_constants *
+%%%%%%%%%%%%%%%%%%%
+Components compare (compared 0/0 values)
+
+%%%%%%%%%%%%%%%%%%%%
+* temp_historyfile *
+%%%%%%%%%%%%%%%%%%%%
+Components compare (compared 0/0 values)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* compressed_field_index1 *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Components compare (compared 0/0 values)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* compressed_field_index2 *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Components compare (compared 0/0 values)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* compressed_field_index3 *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Components compare (compared 0/0 values)
+
+%%%%%%%%%%%%%%
+* Field 1/5  *
+%%%%%%%%%%%%%%
+Field compares
+Compared 64/64 lookup values.
+
+%%%%%%%%%%%%%%
+* Field 2/5  *
+%%%%%%%%%%%%%%
+Field compares
+Compared 64/64 lookup values.
+
+%%%%%%%%%%%%%%
+* Field 3/5  *
+%%%%%%%%%%%%%%
+Lookup compares, data DOES NOT compare
+Compared 64/64 lookup values.
+Data differences:
+  Number of point differences  : 11/12
+  Maximum absolute difference  : 44.0
+  RMS difference               : 25.9743463184
+  RMS diff as % of file_1 data : 400.0
+  RMS diff as % of file_2 data : 80.0
+
+%%%%%%%%%%%%%%
+* Field 4/5  *
+%%%%%%%%%%%%%%
+Lookup DOES NOT compare, data compares
+Compared 64/64 lookup values.
+Lookup differences:
+  Index 29 (lbegin) differs - file_1: 12345  file_2: 67890
+
+%%%%%%%%%%%%%%
+* Field 5/5  *
+%%%%%%%%%%%%%%
+Field compares
+Compared 64/64 lookup values.
+

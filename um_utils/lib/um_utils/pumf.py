@@ -14,6 +14,71 @@
 # You should have received a copy of the Modified BSD License
 # along with these utilities.
 # If not, see <http://opensource.org/licenses/BSD-3-Clause>.
+"""
+PUMF (Print UM FieldsFiles) is a utility to assist in examining UM files.
+
+Usage:
+
+ * Pretty-print an entire :class:`mule.UMFile` object:
+
+    >>> pumf.pprint(umfile_object)
+
+ * You can also print individual components or fields:
+
+    >>> pumf.pprint(umfile_object.fixed_length_header)
+
+    >>> pumf.pprint(umfile_object.fields[0])
+
+Global print settings:
+
+    The module contains a global "PRINT_SETTINGS" dictionary, which defines
+    default values for the various options; these may be overidden for an
+    entire script/session if desired, or in a startup file e.g.
+
+    >>> from um_utils import pumf
+    >>> pumf.PRINT_SETTINGS["print_columns"] = 4
+
+    Alternatively each of these settings may be supplied to the main "pprint"
+    routine as keyword arguments.  The available settings are:
+
+    * include_missing:
+        Flag to indicate whether or not pumf should print header values which
+        are set to the "MDI" value of the header in question.  This will also
+        cause pumf not to print entries for components that do not exist in
+        the file (default: False).
+
+    * use_indices:
+        Flag to indicate whether pumf should only print out named properties
+        (these are any with an entry in the "HEADER_MAPPING" definition for
+        the given component) (default: True).
+
+    * headers_only:
+        Flag to indicate whether to restrict the printing to header values
+        only (normally pumf will also read the data and print some statistical
+        information as well) (default: False).
+
+    * print_columns:
+        Indicates how many columns to use for the output (default: 1).
+
+    * component_filter:
+        A list of header component names which should be included in the
+        output (e.g. ["fixed_length_header", "lookup"]), (defaults to all).
+
+    * field_index:
+        A list of the field indices which should be printed (defaults to all).
+
+    * field_property:
+        A dictionary specifying named criteria that a particular lookup must
+        meet in order to be printed (e.g. {"lbuser4": 16004, "lbft": 3} would
+        print fields with STASH 16004 at forecast time 3) (defaults to all).
+
+    * stashmaster:
+        Either the full path to the STASHmaster file to use instead of trying
+        to take the version from the file, or the version number (e.g. "10.2",
+        requires UMDIR environment variable to be set and a suitable install
+        to exist there) (default: take from file).
+
+"""
 import os
 import re
 import sys
@@ -23,163 +88,149 @@ import numpy as np
 import argparse
 from um_utils.stashmaster import STASHmaster
 
-# This dictionary stores a list of global settings that control the
-# printing - when called as a main program these can be overidden by
-# the command line arguments, or the user can easily adjust these in
-# various ways to customise their output.
+# The global print settings dictionary
 PRINT_SETTINGS = {
-    "skip_missing_values": True,
-    "named_properties_only": True,
-    "filter_names": [""],
+    "include_missing": False,
+    "use_indices": False,
+    "headers_only": False,
+    "print_columns": 1,
     "component_filter": None,
     "field_index": [],
     "field_property": {},
-    "headers_only": False,
-    "print_columns": 1,
     "stashmaster": None,
     }
 
 
 def _banner(message):
     """A simple function which returns a banner string."""
-    return "{0:s}\n* {1:s} *\n{0:s}\n".format("%"*(len(message)+4),message)
+    return "{0:s}\n* {1:s} *\n{0:s}\n".format("%"*(len(message)+4), message)
 
 
-def _header_to_string_1d(header):
+def _print_name_value_pairs(
+        pairings, name_width, value_width, n_columns, stdout):
     """
-    Function which converts a header to a string (for a 1d header).
+    Helper function for controlled printing of a set of name, value pairs.
+
+    Args:
+        * pairings:
+            Tuple pairs of the name and value to print.
+        * name_width:
+            The fixed-width to use for the names.
+        * value_width:
+            The fixed-width to use for the values.
+        * n_columns:
+            How many columns to print before inserting a line break.
+        * stdout:
+            The (open) file object to print to.
+
+    """
+    # Create a width formatting string from the given widths
+    width_format = ("  {0:"+str(name_width)+"s} "
+                    ": {1:"+str(value_width)+"s}")
+    # Now print each pairing
+    column_count = 0
+    for name, value in pairings:
+        stdout.write(width_format.format(name, value))
+        # Insert a newline based on the desired column count
+        column_count += 1
+        if column_count % n_columns == 0:
+            stdout.write("\n")
+
+    # The way the above works, if the entries didn't fall nicely
+    # into the number of columns, it won't end in a newline, so
+    # we insert one here
+    if column_count % n_columns != 0:
+        stdout.write("\n")
+
+    # And a final newline to break for the next section
+    stdout.write("\n")
+
+
+def _print_component_1d(header, stdout, print_settings=PRINT_SETTINGS):
+    """
+    Print function for a 1d header component.
 
     Args:
         * header:
             A subclass of :class:`mule.BaseHeaderComponent1D`.
+    Kwargs:
+        * stdout:
+            A (open) file-like object to write the output to.
 
     """
-    as_string = ""
+    # Retrieve settings from global dict
+    include_missing = print_settings["include_missing"]
+    use_indices = print_settings["use_indices"]
+    print_columns = print_settings["print_columns"]
+
+    # The strings to print will be gathered first and then printed,
+    # to allow gathering of some maximum widths for formatting
     to_output = []
     max_width = 0
     max_val_width = 0
 
-    # Retrieve settings from global dict
-    skip_missing = PRINT_SETTINGS["skip_missing_values"]
-    named_properties = PRINT_SETTINGS["named_properties_only"]
-    filter_names = PRINT_SETTINGS["filter_names"]
-    print_columns = PRINT_SETTINGS["print_columns"]
-
-    if named_properties and hasattr(header, "HEADER_MAPPING"):
+    if not use_indices and hasattr(header, "HEADER_MAPPING"):
         # If we are only to select from named properties, use the
         # header mapping dictionary as our iterator
         for name, index in header.HEADER_MAPPING:
             value = getattr(header, name)
-            # Add the value to the output list if it satisfies the
-            # requirements for being missing (or not)
-            if not (skip_missing and value == header.MDI):
-                name = "({0}) {1}".format(index, name)
-                valstr = str(value)
-                to_output.append((name, valstr))
-                # Also keep a running total of the longest name
-                # assigned here to use later
-                if max_width < len(name): max_width = len(name)
-                if max_val_width < len(valstr): max_val_width = len(valstr)
+            # If this value is missing and we are not including missing
+            # values, skip it
+            if value == header.MDI and not include_missing:
+                continue
+            name = "({0}) {1}".format(index, name)
+            valstr = str(value)
+            to_output.append((name, valstr))
+            # Also keep a running total of the maximum widths
+            max_width = max(max_width, len(name))
+            max_val_width = max(max_val_width, len(valstr))
     else:
         # If we are using indices iterate through the raw values
         # in the header (skip the first value, it is a dummy value)
         for index, value in enumerate(header.raw[1:]):
-            # Add the value to the output list if it satisfies the
-            # requirements for being missing (or not)
-            if not (skip_missing and value == header.MDI):
-                name = str(index + 1)
-                valstr = str(value)                
-                to_output.append((name, valstr))
-                # Also keep a running total of the longest name
-                # assigned here to use later
-                if max_width < len(name): max_width = len(name)
-                if max_val_width < len(valstr): max_val_width = len(valstr)                    
+            # If this value is missing and we are not including missing
+            # values, skip it
+            if value == header.MDI and not include_missing:
+                continue
+            name = str(index + 1)
+            valstr = str(value)
+            to_output.append((name, valstr))
+            # Also keep a running total of the maximum widths
+            max_width = max(max_width, len(name))
+            max_val_width = max(max_val_width, len(valstr))
 
-    # Create a formatting string for the names which adds enough
-    # white-space to align the values, based on the maximum width
-    # calculated in the above loop
-    width_format = ("  {0:"+str(max_width)+"s} "
-                    ": {1:"+str(max_val_width)+"s}")
-    count = 0
-    for name, value in to_output:
-        # Apply the filtering based on supplied words here
-        if any([filt in name for filt in filter_names]):
-            as_string += width_format.format(name, value)
-            count += 1
-            if count % print_columns == 0:
-                as_string += "\n"
-
-    return as_string + "\n"
+    # Can now print the values using controlled widths
+    _print_name_value_pairs(to_output, max_width, max_val_width,
+                            print_columns, stdout)
 
 
-def _header_to_string_2d(header):
+def _print_component_2d(header, stdout, print_settings=PRINT_SETTINGS):
     """
-    Function which converts a header to a string (for a 2d header).
+    Print function for a 2d header component.
 
     Args:
         * header:
             A subclass of :class:`mule.BaseHeaderComponent2D`.
+    Kwargs:
+        * stdout:
+            A (open) file-like object to write the output to.
 
-    """    
-    as_string = ""
-
+    """
     # Retrieve settings from global dict
-    skip_missing = PRINT_SETTINGS["skip_missing_values"]
-    named_properties = PRINT_SETTINGS["named_properties_only"]
-    filter_names = PRINT_SETTINGS["filter_names"]
-    print_columns = PRINT_SETTINGS["print_columns"]
-    
-    if named_properties and hasattr(header, "HEADER_MAPPING"):
+    include_missing = print_settings["include_missing"]
+    use_indices = print_settings["use_indices"]
+    print_columns = print_settings["print_columns"]
+
+    if not use_indices and hasattr(header, "HEADER_MAPPING"):
         # If we are only to select from named properties, use the
-        # header mapping dictionary as our iterator        
+        # header mapping dictionary as our iterator
         for name, index in header.HEADER_MAPPING:
-            # In the 2-d case the name filtering only really makes
-            # sense for the named dimension, so apply it here
-            if any([filt in name for filt in filter_names]):
-                value = getattr(header, name)
-                # Omit the printing of the dimension header if every
-                # element in that slice is missing
-                if not (skip_missing and np.all(value == header.MDI)):
-                    as_string += "({0}) {1}:\n".format(index[1], name)
-
-                # Now iterate through the individual elements in this
-                # dimension to build up the output list
-                to_output = []
-                max_width = 0
-                max_val_width = 0
-                for ielement, element in enumerate(value):
-                    # Add the element to the output list if it satisfies
-                    # the requirements for being missing (or not)
-                    if not (skip_missing and element == header.MDI):
-                        name = str(ielement + 1)
-                        valstr = str(element)
-                        to_output.append((name, valstr))
-                        # Also keep a running total of the longest name
-                        # assigned here for use later
-                        if max_width < len(name): max_width = len(name)
-                        if max_val_width < len(valstr):
-                                max_val_width = len(valstr)
-
-                # Create a formatting string for the names which adds
-                # enough white-space to align the values, based on the
-                # maximum width calculated in the above loop
-                width_format = ("  {0:"+str(max_width)+"s} "
-                                ": {1:"+str(max_val_width)+"s}")
-                for count, (name, value) in enumerate(to_output):
-                    as_string += width_format.format(name, value)
-                    if ((count + 1) % print_columns == 0 or
-                        (count + 1) == len(to_output)):
-                        as_string += "\n"
-
-    else:
-        # If we are using indices iterate through the dimensions using
-        # their raw values (skip the first slice, it is a dummy value)        
-        for index in range(1, header.shape[1]+1):
-            value = header.raw[:, index]
-            # Omit the printing of the dimension header if every
-            # element in that slice is missing
-            if not (skip_missing and np.all(value == header.MDI)):
-                as_string += "{0}/{1}:\n".format(index, header.shape[1])
+            value = getattr(header, name)
+            # Omit the printing of the header if every element in that
+            # slice is missing
+            if np.all(value == header.MDI) and not include_missing:
+                continue
+            stdout.write("({0}) {1}:\n".format(index[1], name))
 
             # Now iterate through the individual elements in this
             # dimension to build up the output list
@@ -187,76 +238,98 @@ def _header_to_string_2d(header):
             max_width = 0
             max_val_width = 0
             for ielement, element in enumerate(value):
-                # Add the element to the output list if it satisfies
-                # the requirements for being missing (or not)                
-                if not (skip_missing and element == header.MDI):
-                    name = str(ielement + 1)
-                    valstr = str(element)
-                    to_output.append((name, valstr))
-                    # Also keep a running total of the longest name
-                    # assigned here for use later                    
-                    if max_width < len(name): max_width = len(name)
-                    if max_val_width < len(valstr):
-                        max_val_width = len(valstr)                        
+                # If this value is missing and we are not including missing
+                # values, skip it
+                if element == header.MDI and not include_missing:
+                    continue
+                name = str(ielement + 1)
+                valstr = str(element)
+                to_output.append((name, valstr))
+                # Also keep a running total of the maximum widths
+                max_width = max(max_width, len(name))
+                max_val_width = max(max_val_width, len(valstr))
 
-            # Create a formatting string for the names which adds
-            # enough white-space to align the values, based on the
-            # maximum width calculated in the above loop
-            width_format = ("  {0:"+str(max_width)+"s} "
-                            ": {1:"+str(max_val_width)+"s}")
-            for count, (name, value) in enumerate(to_output):
-                as_string += width_format.format(name, value)
-                if ((count + 1) % print_columns == 0 or
-                    (count + 1) == len(to_output)):
-                    as_string += "\n"
+            # Can now print the values using controlled widths
+            _print_name_value_pairs(to_output, max_width, max_val_width,
+                                    print_columns, stdout)
 
-    return as_string + "\n"    
+    else:
+        # If we are using indices iterate through the dimensions using
+        # their raw values (skip the first slice, it is a dummy value)
+        for index in range(1, header.shape[1]+1):
+            value = header.raw[:, index]
+            # Omit the printing of the dimension header if every
+            # element in that slice is missing
+            if np.all(value == header.MDI) and not include_missing:
+                continue
+            stdout.write("{0}/{1}:\n".format(index, header.shape[1]))
+
+            # Now iterate through the individual elements in this
+            # dimension to build up the output list
+            to_output = []
+            max_width = 0
+            max_val_width = 0
+            for ielement, element in enumerate(value):
+                # If this value is missing and we are not including missing
+                # values, skip it
+                if element == header.MDI and not include_missing:
+                    continue
+                name = str(ielement + 1)
+                valstr = str(element)
+                to_output.append((name, valstr))
+                # Also keep a running total of the maximum widths
+                max_width = max(max_width, len(name))
+                max_val_width = max(max_val_width, len(valstr))
+
+            # Can now print the values using controlled widths
+            _print_name_value_pairs(to_output, max_width, max_val_width,
+                                    print_columns, stdout)
 
 
-def _field_to_string(field):
+def _print_field(field, stdout, print_settings=PRINT_SETTINGS):
     """
-    Function which converts the lookup header from a field object to
-    a string.
+    Print function for fields; prints values from the header and some
+    information calculated from the data.
 
     Args:
         * field:
             A subclass of :class:`mule.Field`.
+        * stdout:
+            A (open) file-like object to write the output to.
 
-    """     
-    as_string = ""
+    """
     to_output = []
     max_width = 0
     max_val_width = 0
 
     # Retrieve settings from global dict
-    named_properties = PRINT_SETTINGS["named_properties_only"]
-    filter_names = PRINT_SETTINGS["filter_names"]
-    headers_only = PRINT_SETTINGS["headers_only"]
-    print_columns = PRINT_SETTINGS["print_columns"]
+    use_indices = print_settings["use_indices"]
+    headers_only = print_settings["headers_only"]
+    print_columns = print_settings["print_columns"]
 
-    if named_properties and hasattr(field, "HEADER_MAPPING"):
+    if not use_indices and hasattr(field, "HEADER_MAPPING"):
         # If we are only to select from named properties, use the
-        # header mapping dictionary as our iterator   
+        # header mapping dictionary as our iterator
         for name, index in field.HEADER_MAPPING:
             value = getattr(field, name)
             name = "({0}) {1}".format(index, name)
             valstr = str(value)
             to_output.append((name, valstr))
             # Also keep a running total of the longest name
-            # assigned here for use later               
-            if max_width < len(name): max_width = len(name)
-            if max_val_width < len(valstr): max_val_width = len(valstr)
+            # assigned here for use later
+            max_width = max(max_width, len(name))
+            max_val_width = max(max_val_width, len(valstr))
     else:
         # If we are using indices iterate through the raw values
-        # in the header (skip the first value, it is a dummy value)        
+        # in the header (skip the first value, it is a dummy value)
         for index, value in enumerate(field.raw[1:]):
             name = str(index + 1)
             valstr = str(value)
             to_output.append((name, valstr))
             # Also keep a running total of the longest name
-            # assigned here for use later               
-            if max_width < len(name): max_width = len(name)
-            if max_val_width < len(valstr): max_val_width = len(valstr)
+            # assigned here for use later
+            max_width = max(max_width, len(name))
+            max_val_width = max(max_val_width, len(valstr))
 
     if not headers_only:
         # Get the field data and calculate and extra quantities
@@ -267,27 +340,15 @@ def _field_to_string(field):
                            ("minimum", np.min)]:
             valstr = str(func(masked_data))
             to_output.append((name, valstr))
-            if max_width < len(name): max_width = len(name)
-            if max_val_width < len(valstr): max_val_width = len(valstr)            
-                
-    # Create a formatting string for the names which adds
-    # enough white-space to align the values, based on the
-    # maximum width calculated in the above loop
-    width_format = ("  {0:"+str(max_width)+"s} "
-                    ": {1:"+str(max_val_width)+"s}")
-    count = 0
-    for name, value in to_output:
-        # Apply the filtering based on supplied words here
-        if any([filt in name for filt in filter_names]):
-            as_string += width_format.format(name, value)
-            count += 1
-            if count % print_columns == 0:
-                as_string += "\n"
+            max_width = max(max_width, len(name))
+            max_val_width = max(max_val_width, len(valstr))
 
-    return as_string + "\n"
+    # Can now print the values using controlled widths
+    _print_name_value_pairs(to_output, max_width, max_val_width,
+                            print_columns, stdout)
 
 
-def _print_um_file(umf, stdout=sys.stdout):
+def _print_um_file(umf, stdout=sys.stdout, print_settings=PRINT_SETTINGS):
     """
     Print the contents of a :class:`UMFile` object.
 
@@ -302,13 +363,13 @@ def _print_um_file(umf, stdout=sys.stdout):
     # Prefix the report with a banner and report the filename
     stdout.write(_banner("PUMF-II Report")+"\n")
     stdout.write("File: {0}\n\n".format(umf._source_path))
-    
+
     # Retrieve settings from global dict
-    component_filter = PRINT_SETTINGS["component_filter"]
-    field_index = PRINT_SETTINGS["field_index"]
-    field_property = PRINT_SETTINGS["field_property"]
-    stashmaster = PRINT_SETTINGS["stashmaster"]
-    
+    component_filter = print_settings["component_filter"]
+    field_index = print_settings["field_index"]
+    field_property = print_settings["field_property"]
+    include_missing = print_settings["include_missing"]
+
     # Create a list of component names to print, pre-pending the fixed length
     # header since we want to include it
     names = ["fixed_length_header"] + [name for name, _ in umf.COMPONENTS]
@@ -326,38 +387,41 @@ def _print_um_file(umf, stdout=sys.stdout):
     for name in names:
         if name in component_filter:
             # Print a title banner quoting the name of the component first
-            stdout.write(_banner(name))
             component = getattr(umf, name)
             if component is not None:
                 # Check if the component is 1d or 2d and call the corresponding
                 # method to print it (note: if the component class defined a
                 # method of its own to do this it would be simpler)
+                stdout.write(_banner(name))
                 if len(component.shape) == 1:
-                    stdout.write(_header_to_string_1d(component))
+                    _print_component_1d(component, stdout, print_settings)
                 elif len(component.shape) == 2:
-                    stdout.write(_header_to_string_2d(component))
+                    _print_component_2d(component, stdout, print_settings)
             else:
-                # If a component is missing print a placeholder
-                stdout.write(" --- \n\n")
+                # If a component is missing print a placeholder, unless the
+                # skip_missing option is set
+                if include_missing:
+                    stdout.write(_banner(name))
+                    stdout.write(" --- \n\n")
 
     # Moving onto the fields
     if "lookup" in component_filter:
 
         # Setup the STASHmaster; if the user didn't supply an override
         # try to take the version from the file:
-        stashm = None
+        stashmaster = print_settings["stashmaster"]
         if stashmaster is None:
-            um_int_version = umf.fixed_length_header.model_version
-            if um_int_version != umf.fixed_length_header.MDI:
-                um_version = "vn{0}.{1}".format(um_int_version // 100,
-                                                um_int_version % 10)
-                stashm = STASHmaster(version=um_version)
+            # If the user hasn't set anything, load the STASHmaster for the
+            # version of the UM defined in the first file
+            stashm = STASHmaster.from_umfile(umf)
         else:
-            if os.path.exists(stashmaster):
-                stashm = STASHmaster(fname=stashmaster)
+            # If the settings looks like a version number, try to load the
+            # STASHmaster from that version, otherwise assume it is the path
+            if re.match(r"\d+.\d+", stashmaster):
+                stashm = STASHmaster.from_version(stashmaster)
             else:
-                stashm = STASHmaster(version=stashmaster)
-        
+                stashm = STASHmaster.from_file(stashmaster)
+
         total_fields = len(umf.fields)
         for ifield, field in enumerate(umf.fields):
 
@@ -377,18 +441,20 @@ def _print_um_file(umf, stdout=sys.stdout):
                     if skip_field:
                         continue
 
-                # Try to include the STASH name of the field in the banner, as well
-                # as the Field's index in the context of the total fields in the file
+                # Try to include the STASH name of the field in the banner,
+                # as well as the Field's index in the context of the total
+                # fields in the file
                 heading = "Field {0}/{1} ".format(ifield+1, total_fields)
-                if stashm is not None and stashm.has_key(field.lbuser4):
+                if stashm is not None and field.lbuser4 in stashm:
                     heading += "- " + stashm[field.lbuser4].name
                 stdout.write(_banner(heading))
-                # Print the header (note: as with the components, if the Field class
-                # defined such a method we could call it here instead)
-                stdout.write(_field_to_string(field))
+                # Print the header (note: as with the components, if the
+                # Field class defined such a method we could call it here
+                # instead)
+                _print_field(field, stdout, print_settings)
 
 
-def pprint(um_object, stdout=sys.stdout):
+def pprint(um_object, stdout=None, **kwargs):
     """
     Given a recognised object, print it using an appropriate method.
 
@@ -398,16 +464,41 @@ def pprint(um_object, stdout=sys.stdout):
               * :class:`mule.BaseHeaderComponent`
               * :class:`mule.UMFile`
               * :class:`mule.Field`
-    
+    Kwargs:
+        * stdout:
+            The open file-like object to write the output to, default
+            is to use sys.stdout.
+
+    Other Kwargs:
+        Any other keywords are assumed to be settings to override
+        the values in the global PRINT_SETTINGS dictionary, see
+        the docstring of the :mod:`pumf` module for details
+
     """
+    # Setup output
+    if stdout is None:
+        stdout = sys.stdout
+
+    # Deal with the possible keywords - take the global print settings
+    # dictionary as a starting point and add any changes supplied in
+    # the call to this method
+    print_settings = PRINT_SETTINGS.copy()
+    for keyword, value in kwargs.items():
+        if keyword in print_settings:
+            print_settings[keyword] = value
+        else:
+            msg = "Keyword not recognised: {0}"
+            raise ValueError(msg.format(keyword))
+
+    # Now select an appropriate print method
     if isinstance(um_object, mule.BaseHeaderComponent1D):
-        stdout.write(_header_to_string_1d(um_object))
+        _print_component_1d(um_object, stdout, print_settings)
     elif isinstance(um_object, mule.BaseHeaderComponent2D):
-        stdout.write(_header_to_string_2d(um_object))
+        _print_component_2d(um_object, stdout, print_settings)
     elif isinstance(um_object, mule.Field):
-        stdout.write(_field_to_string(um_object))
+        _print_field(um_object, stdout, print_settings)
     elif isinstance(um_object, mule.UMFile):
-        _print_um_file(um_object, stdout)
+        _print_um_file(um_object, stdout, print_settings)
     else:
         msg = "Unrecognised object type: {0}"
         raise ValueError(msg.format(type(um_object)))
@@ -417,7 +508,7 @@ def _main():
     """
     Main function; accepts command line arguments to override the print
     settings and provides a UM file to print.
-    
+
     """
     # Create a quick version of the regular raw description formatter which
     # adds spaces between the option help text
@@ -425,7 +516,7 @@ def _main():
         def _split_lines(self, text, width):
             return super(
                 BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
-    
+
     parser = argparse.ArgumentParser(
         usage="%(prog)s [options] input_filename",
         description="""
@@ -433,24 +524,26 @@ def _main():
 
         This script will output the contents of the headers from a UM file
         to stdout.  The default output may be customised with a variety
-        of options (see below).  
+        of options (see below).
         """,
         formatter_class=BlankLinesHelpFormatter,
         )
 
     # No need to output help text for the input file (it's obvious)
     parser.add_argument("input_file", help=argparse.SUPPRESS)
-    
+
     parser.add_argument("--include-missing",
-                        help="include header values which are set to MDI",
+                        help="include header values which are set to MDI and "
+                        "entries for components which are not present in the "
+                        "file (by default this will be hidden)",
                         action="store_true")
     parser.add_argument("--use-indices",
                         help="list headers by their indices (instead of only "
                         "listing named headers)",
                         action="store_true")
     parser.add_argument("--headers-only",
-                        help="only list headers (do not read data and calculate "
-                        "any derived statistics)",
+                        help="only list headers (do not read data and "
+                        "calculate any derived statistics)",
                         action="store_true")
     parser.add_argument("--components",
                         help="limit the header output to specific components "
@@ -458,22 +551,19 @@ def _main():
                         "spaces)",
                         metavar="component1[,component2][...]")
     parser.add_argument("--field-index",
-                        help="limit the lookup output to specific fields by index "
-                        "(comma-separated list of single indices, or ranges of "
-                        "indices separated by a single colon-character)",
+                        help="limit the lookup output to specific fields by "
+                        "index (comma-separated list of single indices, or "
+                        "ranges of indices separated by a single "
+                        "colon-character)",
                         metavar="i1[,i2][,i3:i5][...]")
     parser.add_argument("--field-property",
                         help="limit the lookup output to specific field using "
                         "a property string (comma-separated list of key=value "
-                        "pairs where the key is the name of a lookup property)",
+                        "pairs where the key is the name of a lookup property "
+                        "and the value is the value it must take)",
                         metavar="key1=value1[,key2=value2][...]")
-    parser.add_argument("--print-only",
-                        help="only print properties (after filtering) which "
-                        "contain a specific word (comma-separated list of words "
-                        "which must be in properties to be printed)",
-                        metavar="word1[,word2][...]")
     parser.add_argument("--print-columns",
-                        help="how many columns should be printed in the output",
+                        help="how many columns should be printed",
                         metavar="N")
     parser.add_argument("--stashmaster",
                         help="either the full path to a valid stashmaster "
@@ -495,9 +585,9 @@ def _main():
             if re.match(r"^\d+$", arg):
                 field_index.append(int(arg))
             elif re.match(r"^\d+:\d+$", arg):
-                field_index += range(*map(int, arg.split(":")))
+                field_index += range(*[int(elt) for elt in arg.split(":")])
             else:
-                msg = "Unrecognised field index option: {0}"
+                msg = "Unrecognised field-index option: {0}"
                 raise ValueError(msg.format(arg))
     PRINT_SETTINGS["field_index"] = field_index
 
@@ -509,14 +599,9 @@ def _main():
                 name, value = arg.split("=")
                 field_property[name] = int(value)
             else:
-                msg = "Unrecognised field property option: {0}"
-                raise ValueError(msg.format(arg))            
+                msg = "Unrecognised field-property option: {0}"
+                raise ValueError(msg.format(arg))
     PRINT_SETTINGS["field_property"] = field_property
-
-    # Process print filtering
-    if args.print_only is not None:
-        PRINT_SETTINGS["filter_names"] = (
-            args.print_only.split(","))
 
     # Process remaining options
     if args.print_columns is not None:
@@ -524,9 +609,9 @@ def _main():
     if args.stashmaster is not None:
         PRINT_SETTINGS["stashmaster"] = args.stashmaster
     if args.include_missing:
-        PRINT_SETTINGS["skip_missing_values"] = False
+        PRINT_SETTINGS["include_missing"] = True
     if args.use_indices:
-        PRINT_SETTINGS["named_properties_only"] = False
+        PRINT_SETTINGS["use_indices"] = True
     if args.headers_only:
         PRINT_SETTINGS["headers_only"] = True
 
@@ -538,8 +623,8 @@ def _main():
         # it appropriately
         try:
             pprint(um_file)
-        except IOError as e:
-            if e.errno != errno.EPIPE:
+        except IOError as error:
+            if error.errno != errno.EPIPE:
                 raise
     else:
         msg = "File not found: {0}".format(filename)

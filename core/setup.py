@@ -14,6 +14,7 @@
 # You should have received a copy of the Modified BSD License
 # along with Mule.  If not, see <http://opensource.org/licenses/BSD-3-Clause>.
 
+from glob import glob
 from setuptools import setup
 
 setup(name='mule',
@@ -29,9 +30,6 @@ setup(name='mule',
                 'mule.tests.integration',
                 'mule.example_code'],
       data_files=[('mule/tests/test_datafiles',
-                   ['lib/mule/tests/test_datafiles/n48_multi_field.ff',
-                    'lib/mule/tests/test_datafiles/n48_eg_regular_sample.ff',
-                    'lib/mule/tests/test_datafiles/ukv_eg_variable_sample.ff',
-                    'lib/mule/tests/test_datafiles/eg_boundary_sample.lbc'])]
+                       glob('lib/mule/tests/test_datafiles/*'))],
      )
 

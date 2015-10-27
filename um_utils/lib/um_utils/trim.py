@@ -14,6 +14,24 @@
 # You should have received a copy of the Modified BSD License
 # along with these utilities.
 # If not, see <http://opensource.org/licenses/BSD-3-Clause>.
+"""
+TRIM is a utility for extracting fixed-resolution sub-regions from
+variable resolution UM fields-files.
+
+Usage:
+
+ * Extract the central region from a typical variable resolution file
+   (in which there are 9 fixed-resoltion areas)
+
+    >>> ff_new = trim.trim_fixed_region(ff, 2, 2)
+
+   .. Note::
+       This returns a new :class:`mule.FieldsFile` object, its headers
+       and lookup headers will reflect the target region, and each
+       field object's data provider will be setup to return the data
+       for the target region.
+
+"""
 import os
 import mule
 import argparse
@@ -22,15 +40,25 @@ import numpy as np
 from um_utils.stashmaster import STASHmaster
 from um_utils.cutout import cutout
 
-# The STASHmaster is needed by cutout in order to lookup the relevant
-# grid information for the fields - if None it will try to take the
-# version from the file (it may be overidden at the command line)
-STASHMASTER = None
 
-def get_fixed_indices(array, tolerance=1.0e-9):
+def _get_fixed_indices(array, tolerance=1.0e-9):
     """
     Calculate the indices of regions with constant gradient from an array.
-    
+
+    Returns a list of lists with the outer list containing one element
+    for each separate fixed resolution section discovered, and the inner
+    lists containing the indices of the section in the original array.
+
+    Args:
+        * array:
+            The 1-dimensional array of values.
+
+    Kwargs:
+        * tolerance:
+            When examining the 2nd-derivative of the input array this
+            tolerance is used to determine where the fixed resolution
+            regions begin and end.
+
     """
     # Get the first derivative of the array
     array_delta = np.gradient(array)
@@ -48,7 +76,7 @@ def get_fixed_indices(array, tolerance=1.0e-9):
     for group in indices_dn:
         indices -= set(group)
     indices = list(indices)
-    
+
     # Now find the unique groupings of indices which make up the different
     # fixed regions from the original
     start = indices[0]
@@ -78,15 +106,39 @@ def get_fixed_indices(array, tolerance=1.0e-9):
     return region_indices
 
 
-def trim_fixed_region(ff_src, region_x, region_y):
+def trim_fixed_region(ff_src, region_x, region_y, stashmaster=None):
+    """
+    Extract a fixed resolution sub-region from a variable resolution
+    :class:`mule.FieldsFile` object.
+
+    Args:
+        * ff_src:
+            The input :class:`mule.FieldsFile` object.
+        * region_x:
+            The x index of the desired sub-region (starting from 1)
+        * region_y:
+            The y index of the desired sub-region (starting from 1)
+
+    Kwargs:
+        * stashmaster:
+            May be the complete path to a valid STASHmaster
+            file, or just the UM version number e.g. "10.2"
+            (assuming a UM install exists).  If omitted
+            cutout will try to take the version number from
+            the headers in the input file.
+
+    """
 
     # Check if the field looks like a variable resolution file
     if not (hasattr(ff_src, "row_dependent_constants") and
             hasattr(ff_src, "column_dependent_constants")):
-        msg = "Cannot trim non-variable resolution file"
+        msg = "Cannot trim fixed resolution file"
         raise ValueError(msg)
 
-    # Copy the input file object and its fields, to avoid corrupting them
+    # We are going to use CUTOUT to do the final cutout operation, but
+    # in order to have it extract the correct points we must first create
+    # a modified version of the original input object.  To avoid making
+    # any changes to the user's input object, take a copy of it here
     ff = ff_src.copy(include_fields=True)
 
     # We need the arrays giving the latitudes and longitudes of the P grid
@@ -96,22 +148,22 @@ def trim_fixed_region(ff_src, region_x, region_y):
 
     # The first step here is to extract the indices of the regions which
     # have fixed grid spacings
-    phi_p_regions = get_fixed_indices(phi_p)
-    lambda_p_regions = get_fixed_indices(lambda_p)
+    phi_p_regions = _get_fixed_indices(phi_p)
+    lambda_p_regions = _get_fixed_indices(lambda_p)
 
     # Double check the requested region actually exists in the results
     if len(lambda_p_regions) < region_x:
-        msg = "Region {0}{1} not found (only {2} regions in X-direction)"
-        raise ValueError(msg.format(region_x, region_y, len(lambda_p_regions)))    
+        msg = "Region {0}{1} not found (only {2} regions in the X-direction)"
+        raise ValueError(msg.format(region_x, region_y, len(lambda_p_regions)))
 
     if len(phi_p_regions) < region_y:
-        msg = "Region {0},{1} not found (only {2} regions in Y-direction)"
+        msg = "Region {0},{1} not found (only {2} regions in the Y-direction)"
         raise ValueError(msg.format(region_x, region_y, len(phi_p_regions)))
 
     # The start and size arguments which will need to be passed to cutout
     # can now be picked out of the selected array
     x_start = lambda_p_regions[region_x - 1][0]
-    x_size = len(lambda_p_regions[region_x - 1])    
+    x_size = len(lambda_p_regions[region_x - 1])
     y_start = phi_p_regions[region_y - 1][0]
     y_size = len(phi_p_regions[region_y - 1])
 
@@ -134,26 +186,30 @@ def trim_fixed_region(ff_src, region_x, region_y):
 
     # Setup the STASHmaster; if the user didn't supply an override
     # try to take the version from the file:
-    stashm = None
-    if STASHMASTER is None:
-        um_int_version = ff_src.fixed_length_header.model_version
-        if um_int_version != ff_src.fixed_length_header.MDI:
-            um_version = "vn{0}.{1}".format(um_int_version // 100,
-                                            um_int_version % 10)
-            stashm = STASHmaster(version=um_version)
+    if stashmaster is None:
+        # If the user hasn't set anything, load the STASHmaster for the
+        # version of the UM defined in the first file
+        stashm = STASHmaster.from_umfile(ff_src)
     else:
-        if os.path.exists(stashmaster):
-            stashm = STASHmaster(fname=stashmaster)
+        # If the settings looks like a version number, try to load the
+        # STASHmaster from that version, otherwise assume it is the path
+        if re.match(r"\d+.\d+", stashmaster):
+            stashm = STASHmaster.from_version(stashmaster)
         else:
-            stashm = STASHmaster(version=stashmaster)
-    
+            stashm = STASHmaster.from_file(stashmaster)
+
+    # Trim *cannot* continue without the STASHmaster
+    if stashm is None:
+        msg = "Cannot trim regions from a file without a valid STASHmaster"
+        raise ValueError(msg)
+
     # For the origin, take the lat/lon values at the start of the selected
     # region and back-trace to what the first P point would have been if the
     # entire grid were at the fixed resolution calculated above
     new_zx = lambda_p[x_start] - new_dx*(x_start + 1)
     new_zy = phi_p[y_start] - new_dy*(y_start + 1)
     if stagger == "endgame":
-        # For EG grids the origin is an additional half grid spacing 
+        # For EG grids the origin is an additional half grid spacing
         # behind the P origin (calculated above)
         new_zx = new_zx - 0.5*new_dx
         new_zy = new_zy - 0.5*new_dy
@@ -167,37 +223,42 @@ def trim_fixed_region(ff_src, region_x, region_y):
     # Now we must repeat these steps for each of the field objects
     for field in ff.fields:
         # Skip fields which won't have the required headers
-        if field.lbrel not in (2,3):
+        if field.lbrel not in (2, 3):
             continue
 
         # The grid spacing is just the same as in the file header
         field.bdx = new_dx
         field.bdy = new_dy
-        
+
         # The origin point depends on the staggering and the type of field
-        grid_type = stashm[field.lbuser4].grid
-        if grid_type == 19: # V Points
+        if field.lbuser4 in stashm:
+            grid_type = stashm[field.lbuser4].grid
+        else:
+            msg = "STASH code ({0}) not found in STASHmaster: {1}"
+            raise ValueError(msg.format(field_src.lbuser4, stashm.filename))
+
+        if grid_type == 19:  # V Points
             if stagger == "new_dynamics":
                 field.bzx = new_zx - new_dx
                 field.bzy = new_zy - 0.5*new_dy
             elif stagger == "endgame":
                 field.bzx = new_zx - 0.5*new_dx
                 field.bzy = new_zy - new_dy
-        elif grid_type == 18: # U Points
+        elif grid_type == 18:  # U Points
             if stagger == "new_dynamics":
                 field.bzx = new_zx - 0.5*new_dx
                 field.bzy = new_zy - new_dy
             elif stagger == "endgame":
                 field.bzx = new_zx - new_dx
                 field.bzy = new_zy - 0.5*new_dy
-        elif grid_type == 11: # UV Points
+        elif grid_type == 11:  # UV Points
             if stagger == "new_dynamics":
                 field.bzx = new_zx - 0.5*new_dx
                 field.bzy = new_zy - 0.5*new_dy
             elif stagger == "endgame":
                 field.bzx = new_zx - new_dx
                 field.bzy = new_zy - new_dy
-        elif grid_type in [1,2,3,21]: # P points
+        elif grid_type in [1, 2, 3, 21]:  # P points
             if stagger == "new_dynamics":
                 field.bzx = new_zx - new_dx
                 field.bzy = new_zy - new_dy
@@ -208,7 +269,8 @@ def trim_fixed_region(ff_src, region_x, region_y):
     # Should now be able to hand things off to cutout - note that since
     # normally cutout expects the start indices to be 1-based we have to adjust
     # the inputs slightly here to end up with the correct output
-    ff_out = cutout(ff, x_start + 1, y_start + 1, x_size - 1, y_size - 1)
+    ff_out = cutout(ff, x_start + 1, y_start + 1, x_size - 1, y_size - 1,
+                    stashmaster)
 
     return ff_out
 
@@ -224,7 +286,7 @@ def _main():
     class BlankLinesHelpFormatter(argparse.HelpFormatter):
         def _split_lines(self, text, width):
             return super(
-                BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']   
+                BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
 
     parser = argparse.ArgumentParser(
         usage="%(prog)s [options] input_file output_file region_x region_y",
@@ -238,7 +300,7 @@ def _main():
         )
 
     # No need to output help text for the files (it's obvious)
-    parser.add_argument("input_file", help=argparse.SUPPRESS)    
+    parser.add_argument("input_file", help=argparse.SUPPRESS)
     parser.add_argument("output_file", help=argparse.SUPPRESS)
 
     parser.add_argument("region_x",
@@ -258,15 +320,25 @@ def _main():
                         "file, or a UM version number e.g. '10.2'; if given "
                         "a number pumf will look in the following path: "
                         "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
-                        )    
+                        )
 
     args = parser.parse_args()
 
     filename = args.input_file
     if os.path.exists(filename):
+        # Load the file using Mule - note we explicitly load a FieldsFile
+        # as we don't expect cutout to work properly on anything else
         ff = mule.FieldsFile.from_file(filename)
+
+        # Perform the trim operation
         ff_out = trim_fixed_region(ff, args.region_x, args.region_y)
+
+        # Write the result out to the new file
         ff_out.to_file(args.output_file)
+
+    else:
+        msg = "File not found: {0}".format(filename)
+        raise ValueError(msg)
 
 if __name__ == "__main__":
     _main()

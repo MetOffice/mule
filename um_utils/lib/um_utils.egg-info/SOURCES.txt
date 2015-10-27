@@ -13,3 +13,9 @@ lib/um_utils.egg-info/dependency_links.txt
 lib/um_utils.egg-info/entry_points.txt
 lib/um_utils.egg-info/top_level.txt
 lib/um_utils/tests/__init__.py
+lib/um_utils/tests/cumf/__init__.py
+lib/um_utils/tests/cumf/test_cumf.py
+lib/um_utils/tests/pumf/__init__.py
+lib/um_utils/tests/pumf/test_pumf.py
+lib/um_utils/tests/summary/__init__.py
+lib/um_utils/tests/summary/test_summary.py

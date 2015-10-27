@@ -1,0 +1,122 @@
+# (C) Crown Copyright 2015, Met Office. All rights reserved.
+#
+# This file is part of the UM utilities module, which use the Mule API.
+#
+# Mule and these utilities are free software: you can redistribute it and/or
+# modify them under the terms of the Modified BSD License, as published by the
+# Open Source Initiative.
+#
+# These utilities are distributed in the hope that they will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Modified BSD License for more details.
+#
+# You should have received a copy of the Modified BSD License
+# along with these utilities.
+# If not, see <http://opensource.org/licenses/BSD-3-Clause>.
+"""Tests for the pumf utility in the :mod:`um_utils` module."""
+
+from __future__ import (absolute_import, division, print_function)
+
+import os
+import numpy as np
+import um_utils.tests as tests
+
+from StringIO import StringIO
+from um_utils import pumf
+
+# Disable warnings about the presence of the STASHmaster file
+import warnings
+warnings.filterwarnings("ignore", r".*unable to load STASHmaster file.*")
+
+# Manually change this flag to "True" if you are trying to add a new test -
+# this will trigger the testing to save the output if it doens't already
+# exist (for development work which adds a new test file)
+_ADD_NEW_TESTS = False
+
+class TestPumf(tests.UMUtilsTest):
+
+    def run_comparison(self, testname, n_fields=1, **kwargs):
+        """
+        Main test function, takes the name of a test to provide the
+        output file and runs :meth:`pumf.pprint`, then compares
+        the output to the expected result.
+
+        """
+        # Create a very simple test case - minimal FieldsFile with one
+        # minimal field
+        ff = self._minimal_valid_ff()
+        ff.fields = [self._minimal_valid_field() for _ in range(n_fields)]
+
+        # Vary the "stash code" of the fields and add an lbproc code
+        lbuser4 = 0
+        for field in ff.fields:
+            lbuser4 += 100            
+            field.lbuser4 = lbuser4
+            field.lbproc = 0
+
+        # Run pumf on the file, capturing the output to a buffer
+        strbuffer = StringIO()
+        pumf.pprint(ff, stdout=strbuffer, **kwargs)
+
+        # The expected output is kept in the "output" directory
+        expected_output = os.path.join(
+            os.path.dirname(__file__),
+            "output", "{0}.txt".format(testname))
+
+        if os.path.exists(expected_output):
+            # If the expected output file is found, read it in and do an
+            # exact comparison of the two files line by line
+            with open(expected_output, "r") as fh:
+                buffer_lines = strbuffer.getvalue().split("\n")
+                expect_lines = fh.read().split("\n")
+                for iline, line in enumerate(buffer_lines):
+                    self.assertLinesEqual(line, expect_lines[iline])
+        else:
+            # If the file doesn't exist, either try to create it (if the
+            # manual flag is set in this file, otherwise it is an error)
+            if _ADD_NEW_TESTS:
+                fh = open(expected_output, "w")
+                fh.write(strbuffer.getvalue())
+            else:
+                msg = "Test file not found: {0}"            
+                raise ValueError(msg.format(expected_output))
+
+    def test_default(self):
+        # Test of default pumf output
+        self.run_comparison("default")
+
+    def test_indices(self):
+        # Test of output by index instead of names
+        self.run_comparison("indices", use_indices=True)
+        
+    def test_missing(self):
+        # Test of output including missing values
+        self.run_comparison("missing", include_missing=True)
+
+    def test_nodata(self):
+        # Test of output including missing values
+        self.run_comparison("nodata", headers_only=True)
+
+    def test_component_filter(self):
+        # Test of output using the component filter
+        self.run_comparison("component_filter",
+                            component_filter=["integer_constants", "lookup"])
+
+    def test_field_index(self):
+        # Test of output using the field index
+        self.run_comparison("field_index", n_fields=10,
+                            field_index=[1,2,7])
+
+    def test_field_property(self):
+        # Test of output using the field property
+        self.run_comparison("field_property", n_fields=10,
+                            field_property={"lbuser4":200, "lbproc":0})
+
+    def test_columns(self):
+        # Testing a different number of columns
+        self.run_comparison("columns", print_columns=3)
+        
+
+if __name__ == "__main__":
+    tests.main()

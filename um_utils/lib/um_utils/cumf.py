@@ -14,6 +14,64 @@
 # You should have received a copy of the Modified BSD License
 # along with these utilities.
 # If not, see <http://opensource.org/licenses/BSD-3-Clause>.
+"""
+CUMF (Compare UM FieldsFiles) is a utility to assist in examining UM files.
+
+Usage:
+
+ * Compare :class:`mule.UMFile` objects with the
+   :class:`UMFileComparison` class:
+
+    >>> comp = UMFileComparsion(umfile_object1, umfile_object2)
+
+ * This object can be manually examined for details, or you can print either
+   a short summary or a full report (note a full report is a super-set of a
+   summary report):
+
+   >>> summary_report(comp)
+   >>> full_report(comp)
+
+    .. Note::
+       The field difference objects behave like the original fields, but their
+       data stores the absolute differences.  You could retrieve the data
+       using "get_data" to examine it, or write it out to a file.
+
+Global comparison settings:
+
+    The module contains a global "COMPARISON_SETTINGS" dictionary, which
+    defines default values for the various options; these may be overidden
+    for an entire script/session if desired, or in a startup file e.g.
+
+    >>> from um_utils import cumf
+    >>> cumf.COMPARISON_SETTINGS["ignore_missing"] = True
+
+    Alternatively each of these settings may be supplied to the main comparison
+    class as keyword arguments.  The available settings are:
+
+    * ignore_templates:
+        A dictionary indicating which indices should be ignored when making
+        comparisons.  The keys give the names of the components and the values
+        are lists of the indices to ignore
+        (e.g. {"fixed_length_header": [1,2,3], "lookup": [5,42]})
+        (default: ignore creation time in fixed length header only)
+
+    * ignore_missing:
+        Flag which sets all positional header indices to be ignored - this is
+        useful if the file objects being compared have fields which are
+        missing from either file. (default: False)
+
+    * only_report_failures:
+        Flag which indicates that the printed output should not contain any
+        sections which are simply stating that they agree.  (This cuts down
+        on the amount of output for larger files). (default:True)
+
+    * stashmaster:
+        Either the full path to the STASHmaster file to use instead of trying
+        to take the version from the file, or the version number (e.g. "10.2",
+        requires UMDIR environment variable to be set and a suitable install
+        to exist there) (default: take from file).
+
+"""
 import re
 import sys
 import mule
@@ -29,15 +87,15 @@ from um_utils.stashmaster import STASHmaster
 # various ways to customise their output.
 COMPARISON_SETTINGS = {
     "ignore_templates": {
-        "fixed_length_header": [35,36,37,38,39,40,41],        
+        "fixed_length_header": [35, 36, 37, 38, 39, 40, 41],
         },
     "ignore_missing": False,
-    "stashmaster": None,
     "only_report_failures": True,
+    "stashmaster": None,
     }
 
 # Lookup indices which should be ignored when the user indicates
-# they wish to ignore missing fields from either file 
+# they wish to ignore missing fields from either file
 _INDEX_IGNORE_MISSING_FIELDS = [
     29,  # lbegin (field start positions will be offset differently)
     40,  # lbuser(2) (for same reasons as above)
@@ -68,21 +126,21 @@ _INDEX_IGNORED_LOOKUP = [
 
 def _banner(message):
     """A simple function which returns a banner string."""
-    return "{0:s}\n* {1:s} *\n{0:s}\n".format("%"*(len(message)+4),message)
+    return "{0:s}\n* {1:s} *\n{0:s}\n".format("%"*(len(message)+4), message)
 
 
 class DifferenceField(mule.Field):
     """
-    Difference object - stores the difference between two :class:`mule.Field`s.
-    
+    Difference object - for two :class:`mule.Field` objects.
+
     A special subclass of :class:`mule.Field` which looks and behaves just
     like the original class, but defines some extra properties that are useful
     when performing a comparison.
-    
+
     """
     match = None
     """Global matching flag; True if both the lookup and data match."""
-    
+
     data_match = None
     """Data matching flag; True if the field data matches."""
 
@@ -91,46 +149,48 @@ class DifferenceField(mule.Field):
     Tuple containing the number of points which are different and the total
     number of points in the field.
     """
-    
+
     rms_diff = None
     """Root-Mean-Squared difference between the two fields."""
-    
+
     rms_norm_diff_1 = None
     """
     Root-Mean-Squared difference between the two fields, normalised by the
     values in the first field.
-    
+
     """
-    
+
     rms_norm_diff_2 = None
     """
     Root-Mean-Squared difference between the two fields, normalised by the
     values in the second field.
-    
+
     """
 
     max_diff = None
     """Maximum difference between the two fields."""
-    
+
     file_1_index = None
     """The field-index of the first field in its original file."""
-    
+
     file_2_index = None
     """The field-index of the second field in its original file."""
-    
+
     lookup_comparison = None
     """
     Holds a :class:`ComponentComparison` object that describes any differences
     in the lookup component of the fields.
 
     """
-    
+
+
 class DifferenceField2(mule.Field2, DifferenceField):
-    """A :class:`DifferenceField` object for :class:`mule.Field2`s."""
+    """A :class:`DifferenceField` object for :class:`mule.Field2` objects."""
     pass
 
+
 class DifferenceField3(mule.Field3, DifferenceField):
-    """A :class:`DifferenceField` object for :class:`mule.Field3`s."""    
+    """A :class:`DifferenceField` object for :class:`mule.Field3` objects."""
     pass
 
 
@@ -139,18 +199,27 @@ _DIFFERENCE_FIELDS = {2: DifferenceField2,
                       3: DifferenceField3,
                       -99: DifferenceField}
 
+
 class DifferenceOperator(mule.DataOperator):
     """
     This is a simple operator that calculates the difference between
     the data in two fields.
-    
+
     """
     def __init__(self):
+        """Initialise the object."""
         pass
 
     def new_field(self, fields):
         """
         Create a new field instance from the 2 fields being compared.
+
+        This returns a new :class:`DifferenceField` object with the same
+        lookup headers as the first field in the list.  It's data will
+        contain the absolute difference of the fields (field_1 - field_2).
+
+        Several statistical quantities will also be calculated and saved
+        to the new object, for later inspection.
 
         Args:
             * fields:
@@ -161,7 +230,7 @@ class DifferenceOperator(mule.DataOperator):
             Unlike most other operators the data is retrieved in
             this method as well as in the transform method; because
             we need to know if the fields compare.
-        
+
         """
         # Copy the header from the first field (if they are being
         # compared the headers should already be the same)
@@ -219,23 +288,18 @@ class DifferenceOperator(mule.DataOperator):
 
         # Add 1 to lbproc - to indicate it is a different between fields
         # (note the default "Field" objects do not know this property)
-        if new_field.lbrel in (2,3):
+        if new_field.lbrel in (2, 3):
             new_field.lbproc += 1
 
         # Turn off WGDOS packing - we can't guarantee that it will be able
         # to pack the difference values - all other field types are okay
         if new_field.lbpack == 1:
             new_field.lbpack = 0
-        
-        return new_field
-    
-    def transform(self, fields, new_field):
-        """
-        Return the absolute differences between the two fields.
 
-        This provides something nice to write out to a difference map file.
-        
-        """
+        return new_field
+
+    def transform(self, fields, new_field):
+        """Return the absolute differences between the two fields."""
         data1 = fields[0].get_data()
         data2 = fields[1].get_data()
         return data1 - data2
@@ -245,7 +309,7 @@ class ComponentComparison(object):
     """
     This class stores an individual comparison result; valid for any
     pair of UM header components.
-    
+
     """
     match = None
     """Global matching flag; True if both the lookup and data match."""
@@ -258,10 +322,10 @@ class ComponentComparison(object):
     """
 
     in_file_1 = None
-    """Presence flag; True if the first component exists in the file."""
-    
+    """Presence flag; True if the first component exists."""
+
     in_file_2 = None
-    """Presence flag; True if the first component exists in the file."""    
+    """Presence flag; True if the second component exists."""
 
     same_shape = None
     """Shape flag; True if the components are the same shape."""
@@ -273,6 +337,7 @@ class ComponentComparison(object):
     """
     If the components differ, this list stores the differences; it will
     contain one tuple for each difference, consisting of:
+
         * The index into the components where the difference occurs.
         * The value of the item in component_1.
         * The value of the item in component_2.
@@ -285,7 +350,12 @@ class ComponentComparison(object):
         an empty list.
 
     """
-    
+    component_1 = None
+    """A reference to the first component."""
+
+    component_2 = None
+    """A reference to the second component"""
+
     def __init__(self, component_1, component_2, ignore_indices=[]):
         """
         Return elements of the components which do not agree.
@@ -312,14 +382,14 @@ class ComponentComparison(object):
 
         # Save a copy of which (if any) indices were ignored (for reporting)
         self.ignored = ignore_indices
-        
+
         # Check if the components are both present.
         self.in_file_1 = component_1 is not None
         self.in_file_2 = component_2 is not None
         if not (self.in_file_1 and self.in_file_2):
             self.match = self.in_file_1 == self.in_file_2
             return
-        
+
         # Get the component shapes.
         shape_1 = component_1.raw.shape
         shape_2 = component_2.raw.shape
@@ -342,9 +412,10 @@ class ComponentComparison(object):
         comparison_count = 0
         for i_element, elements in enumerate(component_zip):
             # Note: call unravel here to work out the original
-            # index in the 2-d case.                
+            # index in the 2-d case.
             index = np.unravel_index(i_element, shape_1)
-            if len(index) == 1: index = index[0]
+            if len(index) == 1:
+                index = index[0]
 
             # Only perform the check if this index wasn't
             # explicitly filtered out by the user
@@ -376,7 +447,63 @@ class UMFileComparison(object):
     :class:`mule.UMFile` subclasses.
 
     """
-    def __init__(self, um_file1, um_file2):
+
+    match = None
+    """Global matching flag; True if everything about the files matches."""
+
+    file_1 = None
+    """A reference to the first file object."""
+
+    file_2 = None
+    """A reference to the second file object."""
+
+    files_are_same_type = None
+    """Type flag; True if both files are the same file type."""
+
+    comparisons = None
+    """
+    A dictionary containing a :class:`ComponentComparison` object for
+    each of the possible UM file header components (except the lookup).
+    The dictionary keys are the component names (e.g. "fixed_length_header")
+
+    """
+
+    field_comparisons = None
+    """
+    A list of :class:`DifferenceField` objects; one for each pair of fields
+    compared between the two files.
+
+    """
+
+    max_rms_diff_1 = None
+    """
+    A tuple containing the maximum encountered RMS difference relative to
+    the data in the first file, and the index of the field containing it.
+
+    """
+
+    max_rms_diff_2 = None
+    """
+    A tuple containing the maximum encountered RMS difference relative to
+    the data in the second file, and the index of the field containing it.
+
+    """
+
+    unmatched_file_1 = None
+    """
+    A list containing the indices of any fields which exist in file 1 but
+    were not successfully matched to a field in file 2.
+
+    """
+
+    unmatched_file_2 = None
+    """
+    A list containing the indices of any fields which exist in file 2 but
+    were not successfully matched to a field in file 1.
+
+    """
+
+    def __init__(self, um_file1, um_file2, **kwargs):
         """
         Create the comparison object.
 
@@ -386,7 +513,23 @@ class UMFileComparison(object):
             * um_file2:
                 The second :class:`mule.UMFile` subclass.
 
+        Kwargs:
+            Any other keywords are assumed to be settings to override
+            the values in the global COMPARISON_SETTINGS dictionary,
+            see the docstring of the :mod:`cumf` module for details
+
         """
+
+        # Deal with the possible keywords - take the global print settings
+        # dictionary as a starting point and add any changes supplied in
+        # the call to this method
+        comp_settings = COMPARISON_SETTINGS.copy()
+        for keyword, value in kwargs.items():
+            if keyword in comp_settings:
+                comp_settings[keyword] = value
+            else:
+                msg = "Keyword not recognised: {0}"
+                raise ValueError(msg.format(keyword))
 
         # Global flag to indicate if the files match
         self.match = True
@@ -403,7 +546,7 @@ class UMFileComparison(object):
         if type(um_file1) is mule.FieldsFile:
             um_file1.remove_empty_lookups()
         if type(um_file2) is mule.FieldsFile:
-            um_file2.remove_empty_lookups()            
+            um_file2.remove_empty_lookups()
 
         # First we want to create a list of comparisons of the header
         # compoennts in the file
@@ -424,12 +567,11 @@ class UMFileComparison(object):
             # If the template for ignores sets up any indices to ignore
             # for this component extract them here
             component_ignores = (
-                COMPARISON_SETTINGS["ignore_templates"].get(name, []))
+                comp_settings["ignore_templates"].get(name, []))
 
-            if (COMPARISON_SETTINGS["ignore_missing"]
-                and name == "fixed_length_header"):
+            if (comp_settings["ignore_missing"]
+                    and name == "fixed_length_header"):
                 component_ignores.extend(_INDEX_IGNORE_MISSING_FLH)
-                
 
             comparison = ComponentComparison(component_1, component_2,
                                              component_ignores)
@@ -439,21 +581,21 @@ class UMFileComparison(object):
             self.match = self.match and comparison.match
 
         # For the fields we will need the difference operator defined above,
-        # but it needs to be initialised first 
+        # but it needs to be initialised first
         difference_op = DifferenceOperator()
 
         # Get the (user) list of lookup elements to ignore
         lookup_ignores = (
-            COMPARISON_SETTINGS["ignore_templates"].get("lookup", []))
+            comp_settings["ignore_templates"].get("lookup", []))
 
         # If the user has chosen to ignore missing fields, add the required
         # elements of the lookup to the ignore list
-        if COMPARISON_SETTINGS["ignore_missing"]:
+        if comp_settings["ignore_missing"]:
             lookup_ignores.extend(_INDEX_IGNORE_MISSING_FIELDS)
 
         # Create a mapping which relates the lookups in the two files (in
         # case the ordering of fields has changed)
-        index = self.create_index(um_file1, um_file2, lookup_ignores)
+        index = self._create_index(um_file1, um_file2, lookup_ignores)
 
         # Now iterate through the fields whose lookups appear to match
         self.field_comparisons = []
@@ -498,12 +640,11 @@ class UMFileComparison(object):
 
             # Update the global matching if any field or lookup fails to match
             self.match = self.match and diff_field.match
-            
+
             # Append the information and objects to the comparison list
             self.field_comparisons.append(diff_field)
 
-
-    def create_index(self, um_file1, um_file2, lookup_ignores=[]):
+    def _create_index(self, um_file1, um_file2, lookup_ignores=[]):
         """
         Method to attempt to match fields in the two files by their lookups.
 
@@ -529,12 +670,12 @@ class UMFileComparison(object):
         # will be removed from this list as the fields are processed
         set_unmatched_in_file1 = set(range(len(um_file1.fields)))
         index = []
-    
+
         # Create a dictionary storing sets of the indices in file 2 separated
         # according to their stash code, with that stash code as the keys
         file_2_fields_by_stash = defaultdict(set)
         for ifield2, field in enumerate(um_file2.fields):
-           file_2_fields_by_stash[field.lbuser4].add(ifield2)
+            file_2_fields_by_stash[field.lbuser4].add(ifield2)
 
         # Can now go through the fields in file 1 and identify matches
         for ifield1, field1 in enumerate(um_file1.fields):
@@ -553,7 +694,7 @@ class UMFileComparison(object):
                         index.append((ifield1, ifield2))
                         set_unmatched_in_file1.remove(ifield1)
                         file_2_fields_by_stash[stash_item].remove(ifield2)
-                        break # Move to next field in file 1
+                        break  # Move to next field in file 1
 
         # Any indices left in either list represent fields for which a
         # match was not found between the files.  Save these indices
@@ -571,23 +712,41 @@ class UMFileComparison(object):
 
         return index
 
-def summary_report(comparison, stdout=sys.stdout):
+
+def summary_report(comparison, stdout=None):
     """
-    Given a :class:`UMFileComparison` object, print a report which
-    gives a brief summary of the differences.
+    Print a report giving a brief summary of a comparison object.
+
+    Args:
+        * comparison:
+            A :class:`UMFileComparison` object, populated with the
+            differences between two files.
+
+    Kwargs:
+        * stdout:
+            A open file-like object to write the report to.
 
     """
+    # Setup output
+    if stdout is None:
+        stdout = sys.stdout
+
     stdout.write(_banner("CUMF-II Comparison Report")+"\n")
 
     # Report the names of the files
     stdout.write("File 1: {0}\n".format(comparison.file_1._source_path))
-    stdout.write("File 2: {0}\n".format(comparison.file_2._source_path))    
+    stdout.write("File 2: {0}\n".format(comparison.file_2._source_path))
 
     # First of all do the files compare overall
     if comparison.match:
         stdout.write("Files compare\n")
     else:
         stdout.write("Files DO NOT compare\n")
+
+    # Warn if the files are not the same type
+    if not comparison.files_are_same_type:
+        stdout.write("WARNING: Files are not the same type!  This is likely "
+                     "to cause unknown differences\n")
 
     # Create the component list from the base file class
     component_list = (["fixed_length_header"] +
@@ -601,11 +760,12 @@ def summary_report(comparison, stdout=sys.stdout):
                          .format(len(comp_comp.diffs), name))
 
     if len(comparison.field_comparisons) > 0:
-        field_matches = np.array([(comp_field.match, comp_field.data_match)
-                            for comp_field in comparison.field_comparisons])
+        field_matches = np.array(
+            [(comp_field.match, comp_field.data_match)
+                for comp_field in comparison.field_comparisons])
         n_diff, n_data_diff = np.sum(np.bitwise_not(field_matches), axis=0)
         stdout.write("  * {0} field differences, of which {1} are in data\n"
-                     .format(n_diff, n_data_diff))           
+                     .format(n_diff, n_data_diff))
     stdout.write("\n")
 
     # Summarise the field differences
@@ -621,11 +781,11 @@ def summary_report(comparison, stdout=sys.stdout):
         stdout.write(
             "Maximum RMS diff as % of data in file 1: {0} (field {1})\n"
             .format(*comparison.max_rms_diff_1))
-    if comparison.max_rms_diff_2[0] > 0.0:        
+    if comparison.max_rms_diff_2[0] > 0.0:
         stdout.write(
             "Maximum RMS diff as % of data in file 2: {0} (field {1})\n"
             .format(*comparison.max_rms_diff_2))
-    
+
     # If not all the fields were matched, report on the distribution of the
     # mis-match
     if len(comparison.unmatched_file_1) > 0:
@@ -633,16 +793,44 @@ def summary_report(comparison, stdout=sys.stdout):
         stdout.write(msg.format(len(comparison.unmatched_file_1)))
     if len(comparison.unmatched_file_2) > 0:
         msg = "{0} fields found in file 2 were not in file 1\n"
-        stdout.write(msg.format(len(comparison.unmatched_file_2)))        
+        stdout.write(msg.format(len(comparison.unmatched_file_2)))
     stdout.write("\n")
-    
 
-def full_report(comparison, stdout=sys.stdout):
+
+def full_report(comparison, stdout=None, **kwargs):
     """
-    Given a :class:`UMFileComparison` object, print a report which
-    describes the differences.
-    
+    Print a report giving a full analysis of a comparison object.
+
+    Args:
+        * comparison:
+            A :class:`UMFileComparison` object, populated with the
+            differences between two files.
+
+    Kwargs:
+        * stdout:
+            A open file-like object to write the report to.
+
+    Other Kwargs:
+        Any other keywords are assumed to be settings to override
+        the values in the global COMPARISON_SETTINGS dictionary,
+        see the docstring of the :mod:`cumf` module for details
+
     """
+    # Setup output
+    if stdout is None:
+        stdout = sys.stdout
+
+    # Deal with the possible keywords - take the global print settings
+    # dictionary as a starting point and add any changes supplied in
+    # the call to this method
+    comp_settings = COMPARISON_SETTINGS.copy()
+    for keyword, value in kwargs.items():
+        if keyword in comp_settings:
+            comp_settings[keyword] = value
+        else:
+            msg = "Keyword not recognised: {0}"
+            raise ValueError(msg.format(keyword))
+
     # The full report contains the summary at the beginning
     summary_report(comparison, stdout)
 
@@ -651,26 +839,22 @@ def full_report(comparison, stdout=sys.stdout):
                       [name for name, _ in mule.UMFile.COMPONENTS])
 
     # Get the verbosity setting from the dictionary
-    only_report_failures = COMPARISON_SETTINGS["only_report_failures"]
+    only_report_failures = comp_settings["only_report_failures"]
 
     # Retrieve the stashmaster from the settings (if set)
-    stashmaster = COMPARISON_SETTINGS["stashmaster"]
-    # Setup the STASHmaster; if the user didn't supply an override
-    # try to take the version from the file, assuming the version set
-    # in the first file of the two being compared
-    stashm = None
+    stashmaster = comp_settings["stashmaster"]
     if stashmaster is None:
+        # If the user hasn't set anything, load the STASHmaster for the
+        # version of the UM defined in the first file
         umf = comparison.file_1
-        um_int_version = umf.fixed_length_header.model_version
-        if um_int_version != umf.fixed_length_header.MDI:
-            um_version = "vn{0}.{1}".format(um_int_version // 100,
-                                            um_int_version % 10)
-            stashm = STASHmaster(version=um_version)
+        stashm = STASHmaster.from_umfile(umf)
     else:
-        if os.path.exists(stashmaster):
-            stashm = STASHmaster(fname=stashmaster)
+        # If the settings looks like a version number, try to load the
+        # STASHmaster from that version, otherwise assume it is the path
+        if re.match(r"\d+.\d+", stashmaster):
+            stashm = STASHmaster.from_version(stashmaster)
         else:
-            stashm = STASHmaster(version=stashmaster)    
+            stashm = STASHmaster.from_file(stashmaster)
 
     # Define a quick function for convenience since it's used in a two
     # places below - this is used to format the index report nicely
@@ -690,9 +874,9 @@ def full_report(comparison, stdout=sys.stdout):
 
             valstr_1 = str(value_1)
             valstr_2 = str(value_2)
-            if len(indexstr) > max_width[0]: max_width[0] = len(indexstr)                
-            if len(valstr_1) > max_width[1]: max_width[1] = len(valstr_1)
-            if len(valstr_2) > max_width[2]: max_width[2] = len(valstr_2)
+            max_width[0] = max(max_width[0], len(indexstr))
+            max_width[1] = max(max_width[1], len(valstr_1))
+            max_width[2] = max(max_width[2], len(valstr_2))
             to_output.append((indexstr, valstr_1, valstr_2))
 
         # Construct an appropriate width statement
@@ -702,7 +886,7 @@ def full_report(comparison, stdout=sys.stdout):
 
         # Output the nicely formatter lines
         for output in to_output:
-            stdout.write(width_format.format(*output))        
+            stdout.write(width_format.format(*output))
 
     # Now report on differences bettween the components
     for name in component_list:
@@ -753,16 +937,17 @@ def full_report(comparison, stdout=sys.stdout):
 
         # First a simple message explaining if the field broadly compares
         heading = "Field {0}/{1} ".format(ifield + 1, fields_compared)
-        if stashm is not None and stashm.has_key(comp_field.lbuser4):
+        if stashm is not None and comp_field.lbuser4 in stashm:
             heading += "- " + stashm[comp_field.lbuser4].name
-        
+
         if comp_field.match:
             # If the field compares report this and continue
-            if only_report_failures: continue
+            if only_report_failures:
+                continue
             stdout.write(_banner(heading))
             stdout.write("Field compares\n")
         else:
-            stdout.write(_banner(heading))            
+            stdout.write(_banner(heading))
             # Report the status of the two components separately
             if comp_lookup.match:
                 stdout.write("Lookup compares, ")
@@ -776,11 +961,12 @@ def full_report(comparison, stdout=sys.stdout):
         # Indicate how many lookup values were actually compared
         stdout.write("Compared {0}/{1} lookup values.\n"
                      .format(*comp_lookup.compared))
-        
+
         # Also report the indices that were ignored
         if len(comp_lookup.ignored) > 0:
-            stdout.write("(Ignored indices: {0})\n".format(comp_lookup.ignored))
-            
+            stdout.write(
+                "(Ignored indices: {0})\n".format(comp_lookup.ignored))
+
         # Report if there was a difference in the ordering of the fields
         if comp_field.file_1_index != comp_field.file_2_index:
             msg = ("Order difference: field is #{0} in file 1 "
@@ -805,18 +991,19 @@ def full_report(comparison, stdout=sys.stdout):
                          .format(comp_field.rms_diff))
             if comp_field.rms_norm_diff_1 is not None:
                 stdout.write("  RMS diff as % of file_1 data : {0}\n"
-                            .format(comp_field.rms_norm_diff_1))
+                             .format(comp_field.rms_norm_diff_1))
             if comp_field.rms_norm_diff_2 is not None:
                 stdout.write("  RMS diff as % of file_2 data : {0}\n"
-                            .format(comp_field.rms_norm_diff_2))
-                
+                             .format(comp_field.rms_norm_diff_2))
+
         stdout.write("\n")
+
 
 def _main():
     """
     Main function; accepts command line arguments to override the comparison
     settings and provides a pair of UM files to compare.
-    
+
     """
     # Create a quick version of the regular raw description formatter which
     # adds spaces between the option help text
@@ -826,18 +1013,18 @@ def _main():
                 BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
 
     parser = argparse.ArgumentParser(
-            usage="%(prog)s [options] file_1 file_2",
-            description="""
-            CUMF-II - Comparison tool for UM Files, version II
-            (using the Mule API).
+        usage="%(prog)s [options] file_1 file_2",
+        description="""
+        CUMF-II - Comparison tool for UM Files, version II
+        (using the Mule API).
 
-            This script will compare all headers and data from two UM files, 
-            and write a report describing any differences to stdout.  The
-            assumptions made by the comparison may be customised with a
-            variety of options (see below).
-            """,
-            formatter_class=BlankLinesHelpFormatter,
-            )
+        This script will compare all headers and data from two UM files,
+        and write a report describing any differences to stdout.  The
+        assumptions made by the comparison may be customised with a
+        variety of options (see below).
+        """,
+        formatter_class=BlankLinesHelpFormatter,
+        )
 
     # No need to output help text for the two input files (these are obvious)
     parser.add_argument("file_1", help=argparse.SUPPRESS)
@@ -864,16 +1051,16 @@ def _main():
                         "that differ",
                         metavar="filename",
                         )
-    parser.add_argument('--full', action='store_true', 
+    parser.add_argument('--full', action='store_true',
                         help="if not using summary output, will increase the "
                         "verbosity by reporting on all comparisons (default "
                         "behaviour is to only report on failures)",
                         )
-    parser.add_argument('--summary', action='store_true', 
+    parser.add_argument('--summary', action='store_true',
                         help="print a much shorter report which summarises "
                         "the differences between the files without going into "
                         "much detail",
-                        )    
+                        )
     parser.add_argument("--stashmaster",
                         help="either the full path to a valid stashmaster "
                         "file, or a UM version number e.g. '10.2'; if given "
@@ -921,8 +1108,8 @@ def _main():
             summary_report(comparison)
         else:
             full_report(comparison)
-    except IOError as e:
-        if e.errno != errno.EPIPE:
+    except IOError as error:
+        if error.errno != errno.EPIPE:
             raise
 
     # If requested, and any data differences exist, write to diff file
@@ -930,12 +1117,10 @@ def _main():
         diff_file = args.diff_file
         new_ff = file_1.copy()
         new_ff.fields = [field for field in comparison.field_comparisons
-                         if not field.data_match ]
+                         if not field.data_match]
         if len(new_ff.fields) > 0:
             new_ff.to_file(diff_file)
-            
+
 
 if __name__ == "__main__":
     _main()
-
-    

@@ -14,6 +14,22 @@
 # You should have received a copy of the Modified BSD License
 # along with these utilities.
 # If not, see <http://opensource.org/licenses/BSD-3-Clause>.
+"""
+CUTOUT is a utility for extracting sub-regions from UM fields-files.
+
+Usage:
+
+ * Extract a 20x30 region from a file, starting from the point (5,10)
+
+    >>> ff_new = cutout.cutout(ff, 5, 10, 20, 30)
+
+   .. Note::
+       This returns a new :class:`mule.FieldsFile` object, its headers
+       and lookup headers will reflect the target region, and each
+       field object's data provider will be setup to return the data
+       for the target region.
+
+"""
 import os
 import mule
 import argparse
@@ -21,27 +37,33 @@ import warnings
 import numpy as np
 from um_utils.stashmaster import STASHmaster
 
-# The STASHmaster is needed by cutout in order to lookup the relevant
-# grid information for the fields - if None it will try to take the
-# version from the file (it may be overidden at the command line)
-STASHMASTER = None
 
 class CutoutDataOperator(mule.DataOperator):
     """
-    Operator which extracts a new Field representing a sub-region
-    of an existing Field
-    
+    Operator which extracts a new field representing a sub-region
+    of an existing :class:`mule.Field`.
+
     """
     def __init__(self, zx, zy, nx, ny):
         """
         Setup the operator.
 
         Args:
-          * zx - Index of first x point to extract
-          * zy - Index of firsy y point to extract
-          * nx - Number of x points to extract
-          * ny - Number of y points to extract
-          
+            * zx:
+                Index of first x point to extract.
+            * zy:
+                Index of firsy y point to extract.
+            * nx:
+                Number of x points to extract.
+            * ny:
+                Number of y points to extract.
+
+        .. Note::
+            The point-indices are always referring to the points
+            of the P grid - there is no need to try and manually
+            adjust the values passed here for non-P grid fields,
+            as this operator will calculate the differences itself.
+
         """
         self.zx = zx
         self.zy = zy
@@ -50,11 +72,15 @@ class CutoutDataOperator(mule.DataOperator):
 
     def new_field(self, field):
         """
-        Create the new cutout field.
+        Create and return the new cutout field.
+
+        The returned field will have its grid definition lookup headers
+        updated to reflect the target sub-region.
 
         Args:
-          * field - the Field object containing the source.
-        
+            * field:
+                The :class:`mule.Field` object containing the source.
+
         """
         new_field = field.copy()
 
@@ -73,15 +99,12 @@ class CutoutDataOperator(mule.DataOperator):
         return new_field
 
     def transform(self, source_field, result_field):
-        """
-        Retrieve and cut-out the data from the Field.
-
-        """
+        """Extract the sub-region data from the original field data."""
         # Get the existing data
         data = source_field.get_data()
 
         # Create a new data array with the desired output sizes
-        cut_data = np.empty((self.ny,self.nx), order="C")
+        cut_data = np.empty((self.ny, self.nx))
 
         # If the requested number of points extend beyond the edge
         # of the domain assume the domain is wrapping and handle it
@@ -101,11 +124,42 @@ class CutoutDataOperator(mule.DataOperator):
         else:
             # If the domain is contained entirely within the domain
             # it can be extracted directly
-            cut_data[:,:] = data[self.zy-1:self.zy-1+self.ny,
-                                self.zx-1:self.zx-1+self.nx]
+            cut_data[:, :] = data[self.zy-1:self.zy-1+self.ny,
+                                  self.zx-1:self.zx-1+self.nx]
         return cut_data
 
-def cutout(ff_src, x_start, y_start, x_points, y_points):
+
+def cutout(ff_src, x_start, y_start, x_points, y_points,
+           stashmaster=None):
+    """
+    Cutout a sub-region from a :class:`mule.FieldsFile` object.
+
+    Args:
+        * ff_src:
+            The input :class:`mule.FieldsFile` object.
+        * x_start:
+            The x index at the start of the sub-region.
+        * y_start:
+            The y index at the start of the sub-region.
+        * x_points:
+            The number of points to extract in the x direction.
+        * y_points:
+            The number of points to extract in the y direction.
+
+    Kwargs:
+        * stashmaster:
+            May be the complete path to a valid STASHmaster
+            file, or just the UM version number e.g. "10.2"
+            (assuming a UM install exists).  If omitted
+            cutout will try to take the version number from
+            the headers in the input file.
+
+    .. Warning::
+        The input :class:`mule.FieldsFile` must be on a fixed
+        resolution grid (see the TRIM utility for working with a
+        variable grid)
+
+    """
 
     def check_regular_grid(dx, dy, fail_context, mdi=0.0):
         # Raise error if dx or dy values indicate an 'irregular' grid.
@@ -125,27 +179,30 @@ def cutout(ff_src, x_start, y_start, x_points, y_points):
     # Remove empty fields before processing
     ff_src.remove_empty_lookups()
 
-    # Setup the STASHmaster; if the user didn't supply an override
-    # try to take the version from the file:
-    stashm = None
-    if STASHMASTER is None:
-        um_int_version = ff_src.fixed_length_header.model_version
-        if um_int_version != ff_src.fixed_length_header.MDI:
-            um_version = "vn{0}.{1}".format(um_int_version // 100,
-                                            um_int_version % 10)
-            stashm = STASHmaster(version=um_version)
+    # Retrieve the stashmaster from the file if one wasn't provided
+    if stashmaster is None:
+        # If the user hasn't set anything, load the STASHmaster for the
+        # version of the UM defined in the first file
+        stashm = STASHmaster.from_umfile(ff_src)
     else:
-        if os.path.exists(stashmaster):
-            stashm = STASHmaster(fname=stashmaster)
+        # If the settings looks like a version number, try to load the
+        # STASHmaster from that version, otherwise assume it is the path
+        if re.match(r"\d+.\d+", stashmaster):
+            stashm = STASHmaster.from_version(stashmaster)
         else:
-            stashm = STASHmaster(version=stashmaster)
+            stashm = STASHmaster.from_file(stashmaster)
+
+    # Cutout *cannot* continue without the STASHmaster
+    if stashm is None:
+        msg = "Cannot cutout from file without a valid STASHmaster"
+        raise ValueError(msg)
 
     # Grid-spacing in degrees, ensure this is a regular grid
     rmdi = ff_src.real_constants.real_mdi
     dx = ff_src.real_constants.col_spacing
     dy = ff_src.real_constants.row_spacing
     check_regular_grid(dx, dy, fail_context='header', mdi=rmdi)
-    
+
     # Want to extract the co-ords of the first P point in the file
     if stagger == "new_dynamics":
         # For ND grids this is given directly
@@ -162,11 +219,11 @@ def cutout(ff_src, x_start, y_start, x_points, y_points):
 
     # Ensure the requested points fit within the target domain (it is allowed
     # to exceed the domain in the X direction provided the domain wraps)
-    horiz_grid = ff_src.fixed_length_header.horiz_grid_type    
+    horiz_grid = ff_src.fixed_length_header.horiz_grid_type
     msg = ("The given cutout parameters extend outside the dimensions of the "
            "grid contained in the source file.")
     if y_start + y_points > ny0 or (x_start + x_points > nx0
-                               and horiz_grid % 10 == 3):
+                                    and horiz_grid % 10 == 3):
         raise ValueError(msg)
 
     # Create a new fieldsfile to store the cutout fields
@@ -181,7 +238,7 @@ def cutout(ff_src, x_start, y_start, x_points, y_points):
         # For EG grids the header values are offset by half a grid spacing
         ff_dest.real_constants.start_lat = zy0 + ((y_start - 1.5) * dy)
         ff_dest.real_constants.start_lon = zx0 + ((x_start - 1.5) * dx)
-        
+
     # The new grid type will be a LAM, and its size is whatever the size of
     # the specified cutout domain is going to be
     ff_dest.fixed_length_header.horiz_grid_type = 3
@@ -209,8 +266,13 @@ def cutout(ff_src, x_start, y_start, x_points, y_points):
 
         # Retrieve the grid-type for this field from the STASHmaster and
         # use it to adjust the indices to extract for the non-P grids
-        grid_type = stashm[field_src.lbuser4].grid
-        if grid_type == 19: # V Points
+        if field_src.lbuser4 in stashm:
+            grid_type = stashm[field_src.lbuser4].grid
+        else:
+            msg = "STASH code ({0}) not found in STASHmaster: {1}"
+            raise ValueError(msg.format(field_src.lbuser4, stashm.filename))
+
+        if grid_type == 19:  # V Points
             if stagger == "new_dynamics":
                 # One less row than the P grid
                 cut_y = y_points - 1
@@ -219,7 +281,7 @@ def cutout(ff_src, x_start, y_start, x_points, y_points):
                 # One more row than the P grid
                 cut_y = y_points + 1
                 cut_x = x_points
-        elif grid_type == 18: # U Points
+        elif grid_type == 18:  # U Points
             if stagger == "new_dynamics":
                 # Same as the P grid
                 cut_y = y_points
@@ -228,7 +290,7 @@ def cutout(ff_src, x_start, y_start, x_points, y_points):
                 # Same as the P grid
                 cut_y = y_points
                 cut_x = x_points
-        elif grid_type == 11: # UV Points
+        elif grid_type == 11:  # UV Points
             if stagger == "new_dynamics":
                 # One less row than the P grid
                 cut_y = y_points - 1
@@ -237,13 +299,13 @@ def cutout(ff_src, x_start, y_start, x_points, y_points):
                 # One more row than the P grid
                 cut_y = y_points + 1
                 cut_x = x_points
-        elif grid_type in [1,2,3,21]: # P Points (or land packed points)
+        elif grid_type in [1, 2, 3, 21]:  # P Points (or land packed points)
             # Are already correct as defined above
             cut_y = y_points
             cut_x = x_points
         else:
             msg = ('Field {0} has unsupported grid type {1} '
-                   'and will not be included in the output')            
+                   'and will not be included in the output')
             warnings.warn(msg.format(i_field, grid_type))
             continue
 
@@ -256,6 +318,7 @@ def cutout(ff_src, x_start, y_start, x_points, y_points):
 
     return ff_dest
 
+
 def _main():
     """
     Main function; accepts command line arguments and provides the cutout
@@ -267,7 +330,7 @@ def _main():
     class BlankLinesHelpFormatter(argparse.HelpFormatter):
         def _split_lines(self, text, width):
             return super(
-                BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']   
+                BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
 
     parser = argparse.ArgumentParser(
         usage="%(prog)s [options] input_file output_file zx zy nx ny",
@@ -281,7 +344,7 @@ def _main():
         )
 
     # No need to output help text for the files (it's obvious)
-    parser.add_argument("input_file", help=argparse.SUPPRESS)    
+    parser.add_argument("input_file", help=argparse.SUPPRESS)
     parser.add_argument("output_file", help=argparse.SUPPRESS)
 
     parser.add_argument("zx",
@@ -309,20 +372,26 @@ def _main():
                         "file, or a UM version number e.g. '10.2'; if given "
                         "a number pumf will look in the following path: "
                         "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
-                        )    
+                        )
 
     args = parser.parse_args()
 
-    if args.stashmaster is not None:
-        STASHMASTER = args.stashmaster    
-
     filename = args.input_file
     if os.path.exists(filename):
+        # Load the file using Mule - note we explicitly load a FieldsFile
+        # as we don't expect cutout to work properly on anything else
         ff = mule.FieldsFile.from_file(filename)
-        ff_out = cutout(ff, args.zx, args.zy, args.nx, args.ny)
+
+        # Perform the cutout
+        ff_out = cutout(ff, args.zx, args.zy, args.nx, args.ny,
+                        args.stashmaster)
+
+        # Write the result out to the new file
         ff_out.to_file(args.output_file)
 
+    else:
+        msg = "File not found: {0}".format(filename)
+        raise ValueError(msg)
 
 if __name__ == "__main__":
     _main()
-

@@ -1,0 +1,319 @@
+%%%%%%%%%%%%%%%%%%
+* PUMF-II Report *
+%%%%%%%%%%%%%%%%%%
+
+File: None
+
+%%%%%%%%%%%%%%%%%%%%%%%
+* fixed_length_header *
+%%%%%%%%%%%%%%%%%%%%%%%
+  (1) data_set_format_version            : -32768
+  (2) sub_model                          : -32768
+  (3) vert_coord_type                    : -32768
+  (4) horiz_grid_type                    : -32768
+  (5) dataset_type                       : 3     
+  (6) run_identifier                     : -32768
+  (7) experiment_number                  : -32768
+  (8) calendar                           : -32768
+  (9) grid_staggering                    : 3     
+  (10) time_type                         : -32768
+  (11) projection_number                 : -32768
+  (12) model_version                     : -32768
+  (14) obs_file_type                     : -32768
+  (15) last_fieldop_type                 : -32768
+  (21) t1_year                           : -32768
+  (22) t1_month                          : -32768
+  (23) t1_day                            : -32768
+  (24) t1_hour                           : -32768
+  (25) t1_minute                         : -32768
+  (26) t1_second                         : -32768
+  (27) t1_year_day_number                : -32768
+  (28) t2_year                           : -32768
+  (29) t2_month                          : -32768
+  (30) t2_day                            : -32768
+  (31) t2_hour                           : -32768
+  (32) t2_minute                         : -32768
+  (33) t2_second                         : -32768
+  (34) t2_year_day_number                : -32768
+  (35) t3_year                           : -32768
+  (36) t3_month                          : -32768
+  (37) t3_day                            : -32768
+  (38) t3_hour                           : -32768
+  (39) t3_minute                         : -32768
+  (40) t3_second                         : -32768
+  (41) t3_year_day_number                : -32768
+  (100) integer_constants_start          : -32768
+  (101) integer_constants_length         : -32768
+  (105) real_constants_start             : -32768
+  (106) real_constants_length            : -32768
+  (110) level_dependent_constants_start  : -32768
+  (111) level_dependent_constants_dim1   : -32768
+  (112) level_dependent_constants_dim2   : -32768
+  (115) row_dependent_constants_start    : -32768
+  (116) row_dependent_constants_dim1     : -32768
+  (117) row_dependent_constants_dim2     : -32768
+  (120) column_dependent_constants_start : -32768
+  (121) column_dependent_constants_dim1  : -32768
+  (122) column_dependent_constants_dim2  : -32768
+  (125) fields_of_constants_start        : -32768
+  (126) fields_of_constants_dim1         : -32768
+  (127) fields_of_constants_dim2         : -32768
+  (130) extra_constants_start            : -32768
+  (131) extra_constants_length           : -32768
+  (135) temp_historyfile_start           : -32768
+  (136) temp_historyfile_length          : -32768
+  (140) compressed_field_index1_start    : -32768
+  (141) compressed_field_index1_length   : -32768
+  (142) compressed_field_index2_start    : -32768
+  (143) compressed_field_index2_length   : -32768
+  (144) compressed_field_index3_start    : -32768
+  (145) compressed_field_index3_length   : -32768
+  (150) lookup_start                     : -32768
+  (151) lookup_dim1                      : -32768
+  (152) lookup_dim2                      : -32768
+  (153) total_prognostic_fields          : -32768
+  (160) data_start                       : -32768
+  (161) data_dim1                        : -32768
+  (162) data_dim2                        : -32768
+
+%%%%%%%%%%%%%%%%%%%%%
+* integer_constants *
+%%%%%%%%%%%%%%%%%%%%%
+  (1) timestep               : -32768
+  (2) meaning_interval       : -32768
+  (3) dumps_in_mean          : -32768
+  (6) num_cols               : 4     
+  (7) num_rows               : 3     
+  (8) num_p_levels           : 5     
+  (9) num_wet_levels         : -32768
+  (10) num_soil_levels       : -32768
+  (11) num_cloud_levels      : -32768
+  (12) num_tracer_levels     : -32768
+  (13) num_boundary_levels   : -32768
+  (14) num_passive_tracers   : -32768
+  (15) num_field_types       : -32768
+  (16) n_steps_since_river   : -32768
+  (17) height_algorithm      : -32768
+  (18) num_radiation_vars    : -32768
+  (19) river_row_length      : -32768
+  (20) river_num_rows        : -32768
+  (21) integer_mdi           : -32768
+  (22) triffid_call_period   : -32768
+  (23) triffid_last_step     : -32768
+  (24) first_constant_rho    : -32768
+  (25) num_land_points       : -32768
+  (26) num_ozone_levels      : -32768
+  (27) num_tracer_adv_levels : -32768
+  (28) num_soil_hydr_levels  : -32768
+  (34) num_conv_levels       : -32768
+  (35) radiation_timestep    : -32768
+  (36) amip_flag             : -32768
+  (37) amip_first_year       : -32768
+  (38) amip_first_month      : -32768
+  (39) amip_current_day      : -32768
+  (40) ozone_current_month   : -32768
+  (41) sh_zonal_flag         : -32768
+  (42) sh_zonal_begin        : -32768
+  (43) sh_zonal_period       : -32768
+  (44) suhe_level_weight     : -32768
+  (45) suhe_level_cutoff     : -32768
+  (46) frictional_timescale  : -32768
+
+%%%%%%%%%%%%%%%%%%
+* real_constants *
+%%%%%%%%%%%%%%%%%%
+  (1) col_spacing         : 0.1          
+  (2) row_spacing         : 0.2          
+  (3) start_lat           : -60.0        
+  (4) start_lon           : 10.0         
+  (5) north_pole_lat      : -1073741824.0
+  (6) north_pole_lon      : -1073741824.0
+  (8) atmos_year          : -1073741824.0
+  (9) atmos_day           : -1073741824.0
+  (10) atmos_hour         : -1073741824.0
+  (11) atmos_minute       : -1073741824.0
+  (12) atmos_second       : -1073741824.0
+  (16) top_theta_height   : -1073741824.0
+  (18) mean_diabatic_flux : -1073741824.0
+  (19) mass               : -1073741824.0
+  (20) energy             : -1073741824.0
+  (21) energy_drift       : -1073741824.0
+  (29) real_mdi           : -1073741824.0
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* level_dependent_constants *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+(1) eta_at_theta:
+  1 : 0
+  2 : 1
+  3 : 2
+  4 : 3
+  5 : 4
+  6 : 5
+
+(2) eta_at_rho:
+  1 : 0 
+  2 : 2 
+  3 : 4 
+  4 : 6 
+  5 : 8 
+  6 : 10
+
+(3) rhcrit:
+  1 : 0 
+  2 : 3 
+  3 : 6 
+  4 : 9 
+  5 : 12
+  6 : 15
+
+(4) soil_thickness:
+  1 : 0 
+  2 : 4 
+  3 : 8 
+  4 : 12
+  5 : 16
+  6 : 20
+
+(5) zsea_at_theta:
+  1 : 0 
+  2 : 5 
+  3 : 10
+  4 : 15
+  5 : 20
+  6 : 25
+
+(6) c_at_theta:
+  1 : 0 
+  2 : 6 
+  3 : 12
+  4 : 18
+  5 : 24
+  6 : 30
+
+(7) zsea_at_rho:
+  1 : 0 
+  2 : 7 
+  3 : 14
+  4 : 21
+  5 : 28
+  6 : 35
+
+(8) c_at_rho:
+  1 : 0 
+  2 : 8 
+  3 : 16
+  4 : 24
+  5 : 32
+  6 : 40
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* row_dependent_constants *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ --- 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* column_dependent_constants *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ --- 
+
+%%%%%%%%%%%%%%%%%%%%%%%
+* fields_of_constants *
+%%%%%%%%%%%%%%%%%%%%%%%
+ --- 
+
+%%%%%%%%%%%%%%%%%%%
+* extra_constants *
+%%%%%%%%%%%%%%%%%%%
+ --- 
+
+%%%%%%%%%%%%%%%%%%%%
+* temp_historyfile *
+%%%%%%%%%%%%%%%%%%%%
+ --- 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* compressed_field_index1 *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ --- 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* compressed_field_index2 *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ --- 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* compressed_field_index3 *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ --- 
+
+%%%%%%%%%%%%%%
+* Field 1/1  *
+%%%%%%%%%%%%%%
+  (1) lbyr     : -99  
+  (2) lbmon    : -99  
+  (3) lbdat    : -99  
+  (4) lbhr     : -99  
+  (5) lbmin    : -99  
+  (6) lbsec    : -99  
+  (7) lbyrd    : -99  
+  (8) lbmond   : -99  
+  (9) lbdatd   : -99  
+  (10) lbhrd   : -99  
+  (11) lbmind  : -99  
+  (12) lbsecd  : -99  
+  (13) lbtim   : -99  
+  (14) lbft    : -99  
+  (15) lblrec  : -99  
+  (16) lbcode  : -99  
+  (17) lbhem   : -99  
+  (18) lbrow   : 3    
+  (19) lbnpt   : 4    
+  (20) lbext   : -99  
+  (21) lbpack  : -99  
+  (22) lbrel   : 3    
+  (23) lbfc    : -99  
+  (24) lbcfc   : -99  
+  (25) lbproc  : 0    
+  (26) lbvc    : -99  
+  (27) lbrvc   : -99  
+  (28) lbexp   : -99  
+  (29) lbegin  : -99  
+  (30) lbnrec  : -99  
+  (31) lbproj  : -99  
+  (32) lbtyp   : -99  
+  (33) lblev   : -99  
+  (34) lbrsvd1 : -99  
+  (35) lbrsvd2 : -99  
+  (36) lbrsvd3 : -99  
+  (37) lbrsvd4 : -99  
+  (38) lbsrce  : -99  
+  (39) lbuser1 : -99  
+  (40) lbuser2 : -99  
+  (41) lbuser3 : -99  
+  (42) lbuser4 : 100  
+  (43) lbuser5 : -99  
+  (44) lbuser6 : -99  
+  (45) lbuser7 : -99  
+  (46) brsvd1  : 0.0  
+  (47) brsvd2  : 0.0  
+  (48) brsvd3  : 0.0  
+  (49) brsvd4  : 0.0  
+  (50) bdatum  : 0.0  
+  (51) bacc    : 0.0  
+  (52) blev    : 0.0  
+  (53) brlev   : 0.0  
+  (54) bhlev   : 0.0  
+  (55) bhrlev  : 0.0  
+  (56) bplat   : 0.0  
+  (57) bplon   : 0.0  
+  (58) bgor    : 0.0  
+  (59) bzy     : -60.0
+  (60) bdy     : 0.2  
+  (61) bzx     : 10.0 
+  (62) bdx     : 0.1  
+  (63) bmdi    : 0.0  
+  (64) bmks    : 0.0  
+  maximum      : 11   
+  minimum      : 1    
+

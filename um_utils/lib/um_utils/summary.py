@@ -14,6 +14,61 @@
 # You should have received a copy of the Modified BSD License
 # along with these utilities.
 # If not, see <http://opensource.org/licenses/BSD-3-Clause>.
+"""
+SUMMARY is a utility to assist in examining the lookup headers from UM files.
+
+Usage:
+
+ * Summarise a :class:`mule.UMFile` object:
+
+    >>> summary.field_summary(umfile_object)
+
+Global print settings:
+
+    The module contains a global "PRINT_SETTINGS" dictionary, which defines
+    default values for the various options; these may be overidden for an
+    entire script/session if desired, or in a startup file e.g.
+
+    >>> from um_utils import summary
+    >>> summary.PRINT_SETTINGS["column_names"] = ["stash_name", "lbft"]
+
+    Alternatively each of these settings may be supplied to the main
+    "field_summary" routine as keyword arguments.  The available settings are:
+
+    * column_names:
+        A list giving the names for the columns in the summary, in the order
+        they should appear.  Names are the exact names from the
+        :class:`mule.Field` header mappings (e.g. "lbuser4", "lbft") or one
+        of the following "special" names, which result in the following:
+
+            * "stash_name":
+                Gives the name from the stashmaster (if available).
+            * "index":
+                Gives the index of the field.
+            * "t1" or "t2":
+                Gives a nicely formatted time/date string corresponding to
+                either the first or second time in the lookup.
+
+    * heading_frequency:
+        The number of lines after which the heading entries will be repeated
+        (to assist in remembering column names when the output is long).  A
+        value of 0 will result in no repetitions).
+
+    * field_index:
+        A list of the field indices which should be printed (defaults to all).
+
+    * field_property:
+        A dictionary specifying named criteria that a particular lookup must
+        meet in order to be printed (e.g. {"lbuser4": 16004, "lbft": 3} would
+        print fields with STASH 16004 at forecast time 3) (defaults to all).
+
+    * stashmaster:
+        Either the full path to the STASHmaster file to use instead of trying
+        to take the version from the file, or the version number (e.g. "10.2",
+        requires UMDIR environment variable to be set and a suitable install
+        to exist there) (default: take from file).
+
+"""
 import os
 import re
 import sys
@@ -23,24 +78,18 @@ import numpy as np
 import argparse
 from um_utils.stashmaster import STASHmaster
 
+# The global print settings dictionary
 PRINT_SETTINGS = {
-    "stashmaster": None,
-    "column_names": ["index",
-                     "stash_name",
-                     "lbft",
-                     "lblev",
-                     "lbfc",
-                     "lbuser4",
-                     "lbnpt",
-                     "lbrow",
-                     "t1",
-                     ],
+    "column_names": ["index", "stash_name", "lbft", "lblev", "lbfc",
+                     "lbuser4", "lbnpt", "lbrow", "t1"],
+    "heading_frequency": 100,
     "field_index": [],
     "field_property": {},
-    "heading_frequency": 100,
+    "stashmaster": None,
     }
 
-def field_summary(umf, properties=None, stdout=sys.stdout):
+
+def field_summary(umf, stdout=None, **kwargs):
     """
     Print a summary of the field headers from a given file.
 
@@ -49,42 +98,54 @@ def field_summary(umf, properties=None, stdout=sys.stdout):
             The :class:`UMFile` instance to summarise.
 
     Kwargs:
-        * properties:
-            A list containing the names of the properties making
-            up each column in the summary.
         * stdout:
-            A (open) file-like object to write the summary to.
-    
+            The open file-like object to write the output to, default
+            is to use sys.stdout.
+
+    Other Kwargs:
+        Any other keywords are assumed to be settings to override
+        the values in the global PRINT_SETTINGS dictionary, see
+        the docstring of the :mod:`summary` module for details
+
     """
-    # Retrieve the settings from the global dictionary
-    field_index = PRINT_SETTINGS["field_index"]
-    field_property = PRINT_SETTINGS["field_property"]
-    stashmaster = PRINT_SETTINGS["stashmaster"]
-    heading_frequency = PRINT_SETTINGS["heading_frequency"]
+    # Setup output
+    if stdout is None:
+        stdout = sys.stdout
+
+    # Deal with the possible keywords - take the global print settings
+    # dictionary as a starting point and add any changes supplied in
+    # the call to this method
+    print_settings = PRINT_SETTINGS.copy()
+    for keyword, value in kwargs.items():
+        if keyword in print_settings:
+            print_settings[keyword] = value
+        else:
+            msg = "Keyword not recognised: {0}"
+            raise ValueError(msg.format(keyword))
+
+    # Retrieve the settings from the settings dictionary
+    field_index = print_settings["field_index"]
+    field_property = print_settings["field_property"]
+    heading_frequency = print_settings["heading_frequency"]
+    properties = print_settings["column_names"]
 
     # Setup the STASHmaster; if the user didn't supply an override
     # try to take the version from the file:
-    stashm = None
+    stashmaster = print_settings["stashmaster"]
     if stashmaster is None:
-        um_int_version = umf.fixed_length_header.model_version
-        if um_int_version != umf.fixed_length_header.MDI:
-            um_version = "vn{0}.{1}".format(um_int_version // 100,
-                                            um_int_version % 10)
-            stashm = STASHmaster(version=um_version)
+        # If the user hasn't set anything, load the STASHmaster for the
+        # version of the UM defined in the first file
+        stashm = STASHmaster.from_umfile(umf)
     else:
-        if os.path.exists(stashmaster):
-            stashm = STASHmaster(fname=stashmaster)
+        # If the settings looks like a version number, try to load the
+        # STASHmaster from that version, otherwise assume it is the path
+        if re.match(r"\d+.\d+", stashmaster):
+            stashm = STASHmaster.from_version(stashmaster)
         else:
-            stashm = STASHmaster(version=stashmaster)
+            stashm = STASHmaster.from_file(stashmaster)
 
     # Summary cannot handle empty field entrys
     umf.remove_empty_lookups()
-
-    if properties is None:
-        if PRINT_SETTINGS["column_names"] is None:
-            msg = "No column names provided"
-            raise ValueError(msg)
-        properties = PRINT_SETTINGS["column_names"]        
 
     # Get the fields (filter by index if requested)
     fields = umf.fields
@@ -105,7 +166,7 @@ def field_summary(umf, properties=None, stdout=sys.stdout):
     # Find a field reference with full property names (to save time)
     ref_field = None
     for field in fields:
-        if field.lbrel in (2,3):
+        if field.lbrel in (2, 3):
             ref_field = field
             break
     if ref_field is None:
@@ -142,7 +203,7 @@ def field_summary(umf, properties=None, stdout=sys.stdout):
         if prop == "t2":
             indices.append(0)
             t2_name_index = iprop
-            
+
     # Setup the sizes leaving space for heading lines
     if heading_frequency <= 0:
         heading_frequency = len(fields)
@@ -164,11 +225,11 @@ def field_summary(umf, properties=None, stdout=sys.stdout):
         if ifield % heading_frequency == 0:
             array_ind += 3
 
-        array[array_ind] = map(str, field.raw[indices])
-        
+        array[array_ind] = [str(item) for item in field.raw[indices]]
+
         # If the stash name was requested, get it here (if possible)
         if stash_name_index is not None:
-            if stashm.has_key(field.lbuser4):
+            if stashm is not None and field.lbuser4 in stashm:
                 stash_name = stashm[field.lbuser4].name
             else:
                 stash_name = "UNKNOWN STASH CODE"
@@ -179,23 +240,21 @@ def field_summary(umf, properties=None, stdout=sys.stdout):
             array[array_ind][index_name_index] = str(ifield + 1)
 
         # If the t1 time was requested, get it here
+        time_format = "{0:04d}/{1:02d}/{2:02d} {3:02d}:{4:02d}:{5:02d}"
         if t1_name_index is not None:
             array[array_ind][t1_name_index] = (
-                "{0:04d}/{1:02d}/{2:02d} {3:02d}:{4:02d}:{5:02d}"
-                .format(*field.raw[1:7]))
-            
+                time_format.format(*field.raw[1:7]))
+
         # If the t1 time was requested, get it here
         if t2_name_index is not None:
             array[array_ind][t2_name_index] = (
-                "{0:04d}/{1:02d}/{2:02d} {3:02d}:{4:02d}:{5:02d}"
-                .format(*field.raw[7:13]))
-            
+                time_format.format(*field.raw[7:13]))
+
         # Save the widths of each element to the width array
-        element_widths[array_ind] = map(len, array[array_ind])
+        element_widths[array_ind] = [len(item) for item in array[array_ind]]
 
         # Increment the index
         array_ind += 1
-
 
     # Can now calculate the maximum width needed for each column
     max_widths = np.max(element_widths, axis=0)
@@ -220,12 +279,12 @@ def field_summary(umf, properties=None, stdout=sys.stdout):
 
     # Create an array from the heading names - add a hash character to the
     # first one (makes it easier to identify heading lines)
-    properties[0] = "# "+properties[0]
-    headings = np.array(properties, dtype="S", ndmin=2)
+    headings = np.array(["# "+properties[0]] + properties[1:],
+                        dtype="S", ndmin=2)
 
     # Add a dividing line; this will just be dashes the same width as the
     # column entries.  Insert a hash into the first entry as with the names.
-    div = ["-"*width for width in max_widths]    
+    div = ["-"*width for width in max_widths]
     div[0] = div[0].replace('--', '# ', 1)
     divider = np.array(div, dtype="S", ndmin=2)
 
@@ -234,7 +293,7 @@ def field_summary(umf, properties=None, stdout=sys.stdout):
         array[(3 + heading_frequency)*ihead] = divider
         array[(3 + heading_frequency)*ihead + 1] = headings
         array[(3 + heading_frequency)*ihead + 2] = divider
-        
+
     # Finally output the entire array with the appropriate widths
     np.savetxt(stdout, array, fmt=col_format, delimiter="|")
 
@@ -242,8 +301,8 @@ def field_summary(umf, properties=None, stdout=sys.stdout):
 def _main():
     """
     Main function; accepts command line arguments to override the print
-    settings and provides a UM file to print.
-    
+    settings and provides a UM file to summarise.
+
     """
     # Create a quick version of the regular raw description formatter which
     # adds spaces between the option help text
@@ -251,7 +310,7 @@ def _main():
         def _split_lines(self, text, width):
             return super(
                 BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
-    
+
     parser = argparse.ArgumentParser(
         usage="%(prog)s [options] input_file",
         description="""
@@ -267,8 +326,10 @@ def _main():
                         help="set the names of the lookup header items to "
                         "print, in the order the columns should appear as a "
                         "comma separated list. A special entry of "
-                        "\"stash_name\" will put in the field's name according "
-                        "to the STASHmaster",
+                        "\"stash_name\" will put in the field's name "
+                        "according to the STASHmaster, \"index\" will give "
+                        "the fields index number, and \"t1\" or \"t2\" will "
+                        "give the first and second time from the lookup",
                         metavar="--column-names name1[,name2][...]",
                         )
 
@@ -284,29 +345,30 @@ def _main():
                         )
     parser.add_argument("--field-index",
                         help="limit the output to specific fields by index "
-                        "(comma-separated list of single indices, or ranges of "
-                        "indices separated by a single colon-character)",
+                        "(comma-separated list of single indices, or ranges "
+                        "of indices separated by a single colon-character)",
                         metavar="i1[,i2][,i3:i5][...]",
                         )
     parser.add_argument("--field-property",
                         help="limit the output to specific fields using "
                         "a property string (comma-separated list of key=value "
-                        "pairs where the key is the name of a lookup property)",
+                        "pairs where key is the name of a lookup property and "
+                        "value is what it must be set to)",
                         metavar="key1=value1[,key2=value2][...]",
                         )
     parser.add_argument("--stashmaster",
                         help="either the full path to a valid stashmaster "
                         "file, or a UM version number e.g. '10.2'; if given "
-                        "a number pumf will look in the following path: "
+                        "a number summary will look in the following path: "
                         "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
                         )
 
     args = parser.parse_args()
 
     # Process column names
-    properties = None
     if args.column_names is not None:
         properties = args.column_names.split(",")
+        PRINT_SETTINGS["column_names"] = properties
 
     # Process field filtering by index argument
     field_index = []
@@ -315,7 +377,7 @@ def _main():
             if re.match(r"^\d+$", arg):
                 field_index.append(int(arg))
             elif re.match(r"^\d+:\d+$", arg):
-                field_index += range(*map(int, arg.split(":")))
+                field_index += range(*[int(elt) for elt in arg.split(":")])
             else:
                 msg = "Unrecognised field index option: {0}"
                 raise ValueError(msg.format(arg))
@@ -330,7 +392,7 @@ def _main():
                 field_property[name] = int(value)
             else:
                 msg = "Unrecognised field property option: {0}"
-                raise ValueError(msg.format(arg))            
+                raise ValueError(msg.format(arg))
     PRINT_SETTINGS["field_property"] = field_property
 
     # Process stashmaster option
@@ -349,11 +411,13 @@ def _main():
         # Now print the object to stdout, if a SIGPIPE is received handle
         # it appropriately
         try:
-            field_summary(um_file, properties)
-        except IOError as e:
-            if e.errno != errno.EPIPE:
+            field_summary(um_file)
+        except IOError as error:
+            if error.errno != errno.EPIPE:
                 raise
+    else:
+        msg = "File not found: {0}".format(filename)
+        raise ValueError(msg)
 
-        
 if __name__ == "__main__":
     _main()
