@@ -1,7 +1,0 @@
-[console_scripts]
-mule-summary = um_utils.summary:_main
-mule-cumf = um_utils.cumf:_main
-mule-cutout = um_utils.cutout:_main
-mule-pumf = um_utils.pumf:_main
-mule-trim = um_utils.trim:_main
-
