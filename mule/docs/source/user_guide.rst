@@ -21,5 +21,6 @@ for yourself.
    :maxdepth: 2
 
    user_guide_basics
+   user_guide_operators
 
     

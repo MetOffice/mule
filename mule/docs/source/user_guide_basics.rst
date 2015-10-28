@@ -12,10 +12,10 @@ these files run the following code snippet:
 .. code-block:: python
 
     >>> import os
-    >>> import mule
+    >>> import mule.tests
     >>> import glob
-    >>> mule_dir = os.path.dirname(mule.__file__)
-    >>> test_pattern = os.path.join(mule_dir, "tests", "test_datafiles", "*")
+    >>> testdata_path = mule.tests.TESTDATA_DIRPATH
+    >>> test_pattern = os.path.join(testdata_path, "*")
     >>> test_files = sorted(glob.glob(test_pattern))
     
 .. Note::
@@ -37,6 +37,7 @@ You can then create a new class instance based on the file like so:
 
 .. code-block:: python
 
+    >>> import mule
     >>> ff = mule.FieldsFile.from_file(test_files[1])
 
 This will load the 2nd file from the list of test files (a fields-file) using
