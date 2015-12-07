@@ -494,7 +494,7 @@ class LBCFile(mule.UMFile):
         # be strictly necessary to exmaine this in full detail) we will
         # make a few assumptions when checking the grid
         for ifield, field in enumerate(self.fields):
-            if field.lbrel in (2,3):
+            if field.lbrel in (2, 3):
 
                 if (self.row_dependent_constants is not None and
                         self.column_dependent_constants is not None):
@@ -567,8 +567,8 @@ class LBCFile(mule.UMFile):
                             "Field {0} grid latitudes inconsistent"
                             .format(ifield))
             else:
-                # If the field has an unrecognised release number 
+                # If the field has an unrecognised release number
                 if field.lbrel != -99:
                     raise ValidateError(
                         "Field {0} has unrecognised release number {1}"
-                        .format(ifield, field.lbrel))    
+                        .format(ifield, field.lbrel))

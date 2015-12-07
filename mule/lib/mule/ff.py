@@ -124,7 +124,6 @@ _DATA_DTYPES = {4: {1: '>f4', 2: '>i4', 3: '>i4'},
 
 # Default word sizes for Cray32 and WGDOS packed fields
 _CRAY32_SIZE = 4
-_WGDOS_SIZE = 4
 
 
 # Overidden versions of the relevant header elements for a FieldsFile
@@ -297,12 +296,19 @@ class _WriteFFOperatorWGDOSPacked(_WriteFFOperatorUnpacked):
     into the output file, as WGDOS packed FieldsFile data.
 
     """
-    WORD_SIZE = _WGDOS_SIZE
+    WORD_SIZE = mule._DEFAULT_WORD_SIZE
 
     def to_bytes(self, field):
         data = field.get_data()
+        # The packing library will expect the data in native byte-ordering
+        # and in the appropriate format, so ensure that is the case here
+        dtype = np.dtype(_DATA_DTYPES[self.WORD_SIZE][field.lbuser1])
+        native_dtype = dtype.newbyteorder("=")
+        if data.dtype is not native_dtype:
+            data = data.astype(native_dtype)
+
         data_bytes = wgdos_pack_field(data, field.bmdi, int(field.bacc))
-        return data_bytes, len(data_bytes)/(2*self.WORD_SIZE)
+        return data_bytes, len(data_bytes)/self.WORD_SIZE
 
 
 class _WriteFFOperatorCray32Packed(_WriteFFOperatorUnpacked):
@@ -499,7 +505,7 @@ class FieldsFile(mule.UMFile):
         # be strictly necessary to exmaine this in full detail) we will
         # make a few assumptions when checking the grid
         for ifield, field in enumerate(self.fields):
-            if field.lbrel in (2,3):
+            if field.lbrel in (2, 3):
 
                 # Land packed fields shouldn't set their rows or columns
                 if (field.lbpack % 100)//10 == 2:

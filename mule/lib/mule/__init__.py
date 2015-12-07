@@ -85,14 +85,14 @@ _UM_FIXED_LENGTH_HEADER = [
     ('t2_hour',                           31),
     ('t2_minute',                         32),
     ('t2_second',                         33),
-    ('t2_year_day_number',                34),    
+    ('t2_year_day_number',                34),
     ('t3_year',                           35),
     ('t3_month',                          36),
     ('t3_day',                            37),
     ('t3_hour',                           38),
     ('t3_minute',                         39),
     ('t3_second',                         40),
-    ('t3_year_day_number',                41),    
+    ('t3_year_day_number',                41),
     ('integer_constants_start',          100),
     ('integer_constants_length',         101),
     ('real_constants_start',             105),
@@ -1669,23 +1669,44 @@ class UMFile(object):
                     else:
 
                         # Strip just the n1-n3 digits from the lbpack value
-                        # and check for a suitable write operator
+                        # since the later digits are not relevant
                         lbpack321 = (field.lbpack -
                                      ((field.lbpack//1000) % 10)*1000)
 
-                        if lbpack321 not in self.WRITE_OPERATORS:
+                        # Select an appropriate operator for writing the data
+                        # (if one is available for the given packing code)
+                        if lbpack321 in self.WRITE_OPERATORS:
+                            write_operator = self._write_operators[lbpack321]
+                        else:
                             msg = ('Cannot save data with lbpack={0} : '
                                    'packing not supported.')
                             raise ValueError(msg.format(field.lbpack))
 
-                        data_bytes, data_size = (
-                            self._write_operators[lbpack321].to_bytes(field))
+                        # Use the write operator to prepare the field data for
+                        # writing to disk
+                        data_bytes, data_size = write_operator.to_bytes(field)
 
+                        # The bytes returned by the operator are in the exact
+                        # format to be written
                         output_file.write(data_bytes)
+
+                        # and the operator also returns the exact number of
+                        # words/records taken up by the data; this is exactly
+                        # what needs to go in the Field's lblrec
                         field.lblrec = data_size
-                        field.lbnrec = (
-                            field.lblrec - field.lblrec
-                            % -self._WORDS_PER_SECTOR)
+
+                        # The other record header, lbnrec, is the number of
+                        # words/records used to store the data; this may be
+                        # different to the above in the case of packed data;
+                        # if the packing method has a different word size.
+                        # Calculate the actual on-disk word size here
+                        size_on_disk = ((write_operator.WORD_SIZE*data_size)
+                                                             / self.WORD_SIZE)
+
+                        # Padding will also be applied to ensure that the next
+                        # block of data is aligned with a sector boundary
+                        field.lbnrec = (size_on_disk -
+                                       (size_on_disk % -self._WORDS_PER_SECTOR))
 
                     # Pad out the data section to a whole number of sectors.
                     overrun = output_file.tell() % sector_size
