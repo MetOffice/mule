@@ -1735,12 +1735,14 @@ class UMFile(object):
 # Import the derived UM File formats
 from mule.ff import FieldsFile
 from mule.lbc import LBCFile
+from mule.ancil import AncilFile
 
 # Mapping from known dataset types to the appropriate class to use
 DATASET_TYPE_MAPPING = {
     1: FieldsFile,
     2: FieldsFile,
     3: FieldsFile,
+    4: AncilFile,
     5: LBCFile,
 }
 

@@ -25,15 +25,16 @@ these files run the following code snippet:
 
 Mule supports different UM file types using a series of classes; when 
 writing scripts you should generally select a class that corresponds to
-the specific type of file you aim to support.  Currently there are two
+the specific type of file you aim to support.  Currently there are three
 available classes:
 
   * :class:`mule.FieldsFile`
   * :class:`mule.LBCFile`
+  * :class:`mule.AncilFile`
 
 Pick one of the classes and a file which it should correspond to (the test
-files have either ".ff" or ".lbc" extensions that should indicate this).  
-You can then create a new class instance based on the file like so:
+files have either ".ff", ".lbc" or ".anc" extensions that should indicate 
+this).  You can then create a new class instance based on the file like so:
 
 .. code-block:: python
 
@@ -42,14 +43,16 @@ You can then create a new class instance based on the file like so:
 
 This will load the 2nd file from the list of test files (a fields-file) using
 the :class:`mule.FieldsFile` class.  You should find you can load a LBC file 
-using the :class:`mule.LBCFile` class in the same way.
+using the :class:`mule.LBCFile` class, or an Ancillary file using the 
+:class:`mule.AncilFile` class in the same way.
 
 .. Note::
     
-    You might also notice that if you try to load a fields-file with the
-    :class:`mule.LBCFile` class or visca-versa; it will not work; the 
-    classes can detect if the file they are given appears to be the correct
-    type - based on information from the headers (more on this later).
+    You might also notice that if you try to load a fields-file with either of 
+    the :class:`mule.LBCFile` or :class:`mule.AncilFile` classes (or 
+    visca-versa) it will not work; the classes can detect if the file they are 
+    given appears to be the correct type - based on information from the 
+    headers (more on this later).
 
 Alternatively, there is a convenience method which will allow you to attempt
 to load a file when you aren't sure of the type (or more likely - where you

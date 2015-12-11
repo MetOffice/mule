@@ -28,6 +28,7 @@ API Documentation:
    mule
    mule/ff
    mule/lbc
+   mule/ancil
    mule/packing
 
 Indices and tables

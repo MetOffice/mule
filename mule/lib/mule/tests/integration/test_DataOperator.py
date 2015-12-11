@@ -25,6 +25,7 @@ import mule.tests as tests
 
 from mule import FieldsFile, DataOperator
 
+
 class XSampler(DataOperator):
     def __init__(self, factor):
         self.factor = factor

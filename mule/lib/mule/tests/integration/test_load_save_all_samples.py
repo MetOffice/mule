@@ -26,7 +26,7 @@ import os
 import os.path
 
 import mule.tests as tests
-from mule import UMFile, FieldsFile, LBCFile, load_umfile
+from mule import UMFile, FieldsFile, LBCFile, AncilFile, load_umfile
 
 
 # Identify all the test datafiles, their types and name stems.
@@ -65,16 +65,23 @@ def _check_ukv_eg_variable_sample(testcase, ffv):
     testcase.assertEqual(ffv.column_dependent_constants.shape, (744, 2))
 
 
+def _check_soil_params(testcase, ffv):
+    testcase.assertEqual(ffv.level_dependent_constants.shape, (1, 4))
+    testcase.assertEqual(len(ffv.fields), 11)
+    testcase.assertIsNone(ffv.row_dependent_constants)
+    testcase.assertIsNone(ffv.column_dependent_constants)
+
 # Store the sanity-checks by datafile name
 KNOWN_EXPECTED_PROPERTIES = {
     'n48_multi_field':  _check_n48_multi_field,
     'eg_boundary_sample': _check_eg_boundary_sample,
     'n48_eg_regular_sample': _check_n48_eg_regular_sample,
-    'ukv_eg_variable_sample': _check_ukv_eg_variable_sample
+    'ukv_eg_variable_sample': _check_ukv_eg_variable_sample,
+    'soil_params': _check_soil_params,
 }
 
 # Map file extensions to UMFile subclasses.
-_UM_FILE_TYPES = {'ff': FieldsFile, 'lbc': LBCFile}
+_UM_FILE_TYPES = {'ff': FieldsFile, 'lbc': LBCFile, 'anc': AncilFile}
 
 
 class Test_all_sample_data(tests.MuleTest):
