@@ -1,4 +1,4 @@
-# (C) Crown Copyright 2015, Met Office. All rights reserved.
+# (C) Crown Copyright 2016, Met Office. All rights reserved.
 #
 # This file is part of Mule.
 #
