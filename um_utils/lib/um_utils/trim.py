@@ -33,12 +33,15 @@ Usage:
 
 """
 import os
+import sys
 import mule
 import argparse
 import warnings
 import numpy as np
 from um_utils.stashmaster import STASHmaster
 from um_utils.cutout import cutout
+from um_utils.version import report_modules
+from um_utils.pumf import _banner
 
 
 def _get_fixed_indices(array, tolerance=1.0e-9):
@@ -106,7 +109,8 @@ def _get_fixed_indices(array, tolerance=1.0e-9):
     return region_indices
 
 
-def trim_fixed_region(ff_src, region_x, region_y, stashmaster=None):
+def trim_fixed_region(ff_src, region_x, region_y,
+                      stashmaster=None, stdout=None):
     """
     Extract a fixed resolution sub-region from a variable resolution
     :class:`mule.FieldsFile` object.
@@ -126,8 +130,14 @@ def trim_fixed_region(ff_src, region_x, region_y, stashmaster=None):
             (assuming a UM install exists).  If omitted
             cutout will try to take the version number from
             the headers in the input file.
+        * stdout:
+            The open file-like object to write informational output to,
+            default is to use sys.stdout.
 
     """
+    # Setup printing
+    if stdout is None:
+        stdout = sys.stdout
 
     # Check if the field looks like a variable resolution file
     if not (hasattr(ff_src, "row_dependent_constants") and
@@ -151,14 +161,36 @@ def trim_fixed_region(ff_src, region_x, region_y, stashmaster=None):
     phi_p_regions = _get_fixed_indices(phi_p)
     lambda_p_regions = _get_fixed_indices(lambda_p)
 
-    # Double check the requested region actually exists in the results
-    if len(lambda_p_regions) < region_x:
-        msg = "Region {0}{1} not found (only {2} regions in the X-direction)"
-        raise ValueError(msg.format(region_x, region_y, len(lambda_p_regions)))
+    num_x_regions = len(lambda_p_regions)
+    num_y_regions = len(phi_p_regions)
 
-    if len(phi_p_regions) < region_y:
-        msg = "Region {0},{1} not found (only {2} regions in the Y-direction)"
-        raise ValueError(msg.format(region_x, region_y, len(phi_p_regions)))
+    stdout.write(_banner("Locating fixed regions")+"\n")
+
+    # Double check the requested region actually exists in the results
+    if num_x_regions < region_x or region_x <= 0:
+        msg = "Region {0},{1} not found (1 - {2} regions in the X-direction)"
+        raise ValueError(msg.format(region_x, region_y, num_x_regions))
+
+    if num_y_regions < region_y or region_y <= 0:
+        msg = "Region {0},{1} not found (1 - {2} regions in the Y-direction)"
+        raise ValueError(msg.format(region_x, region_y, num_y_regions))
+
+    stdout.write("X-regions:")
+    for i_region, region in enumerate(lambda_p_regions):
+        stdout.write(
+            "\n  {0}: from {1} to {2} ({3} points)"
+            .format(i_region + 1, region[0] + 1, region[-1] + 1, len(region)))
+        if i_region + 1 == region_x:
+            stdout.write(" (selected)")
+
+    stdout.write("\n\nY-regions:")
+    for i_region, region in enumerate(phi_p_regions):
+        stdout.write(
+            "\n  {0}: from {1} to {2} ({3} points)"
+            .format(i_region + 1, region[0] + 1, region[-1] + 1, len(region)))
+        if i_region + 1 == region_y:
+            stdout.write(" (selected)")
+    stdout.write("\n\n")
 
     # The start and size arguments which will need to be passed to cutout
     # can now be picked out of the selected array
@@ -206,8 +238,8 @@ def trim_fixed_region(ff_src, region_x, region_y, stashmaster=None):
     # For the origin, take the lat/lon values at the start of the selected
     # region and back-trace to what the first P point would have been if the
     # entire grid were at the fixed resolution calculated above
-    new_zx = lambda_p[x_start] - new_dx*(x_start + 1)
-    new_zy = phi_p[y_start] - new_dy*(y_start + 1)
+    new_zx = lambda_p[x_start] - new_dx*x_start
+    new_zy = phi_p[y_start] - new_dy*y_start
     if stagger == "endgame":
         # For EG grids the origin is an additional half grid spacing
         # behind the P origin (calculated above)
@@ -269,8 +301,8 @@ def trim_fixed_region(ff_src, region_x, region_y, stashmaster=None):
     # Should now be able to hand things off to cutout - note that since
     # normally cutout expects the start indices to be 1-based we have to adjust
     # the inputs slightly here to end up with the correct output
-    ff_out = cutout(ff, x_start + 1, y_start + 1, x_size - 1, y_size - 1,
-                    stashmaster)
+    ff_out = cutout(ff, x_start + 1, y_start + 1, x_size, y_size,
+                    stashmaster, stdout)
 
     return ff_out
 
@@ -322,7 +354,17 @@ def _main():
                         "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
                         )
 
+    # If the user supplied no arguments, print the help text and exit
+    if len(sys.argv) == 1:
+        parser.print_help()
+        parser.exit(1)
+
     args = parser.parse_args()
+
+    # Print version information
+    print(_banner("(TRIM) Module Information")),
+    report_modules()
+    print ""
 
     filename = args.input_file
     if os.path.exists(filename):

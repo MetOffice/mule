@@ -5,10 +5,14 @@
 File 1: None
 File 2: None
 Files DO NOT compare
-  * 5 differences in level_dependent_constants
+  * 0 differences in fixed_length_header (with 1 ignored indices)
+  * 0 differences in integer_constants (with 1 ignored indices)
+  * 5 differences in level_dependent_constants (with 0 ignored indices)
   * 1 field differences, of which 1 are in data
 
 Compared 5/7 fields
+Ignored lookup indices: 
+  Index 29 (lbegin)
 Maximum RMS diff as % of data in file 1: 400.0 (field 4)
 Maximum RMS diff as % of data in file 2: 80.0 (field 4)
 1 fields found in file 1 were not in file 2
@@ -18,6 +22,7 @@ Maximum RMS diff as % of data in file 2: 80.0 (field 4)
 * level_dependent_constants *
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Components DO NOT compare (compared 48/48 values)
+Component differences:
   Index (1, 1) differs - file_1: 1  file_2: 5.0 
   Index (2, 1) differs - file_1: 2  file_2: 10.0
   Index (3, 1) differs - file_1: 3  file_2: 15.0
@@ -29,7 +34,8 @@ Components DO NOT compare (compared 48/48 values)
 %%%%%%%%%%%%%%
 Lookup compares, data DOES NOT compare
 Compared 63/64 lookup values.
-(Ignored indices: [29])
+File_1 lookup info: 
+  t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-98)
 Data differences:
   Number of point differences  : 11/12
   Maximum absolute difference  : 44.0

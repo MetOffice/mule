@@ -77,6 +77,8 @@ import mule
 import numpy as np
 import argparse
 from um_utils.stashmaster import STASHmaster
+from um_utils.version import report_modules
+from um_utils.pumf import _banner
 
 # The global print settings dictionary
 PRINT_SETTINGS = {
@@ -111,6 +113,10 @@ def field_summary(umf, stdout=None, **kwargs):
     # Setup output
     if stdout is None:
         stdout = sys.stdout
+
+    # A banner to report the filename
+    stdout.write(_banner("SUMMARY Report")+"\n")
+    stdout.write("File: {0}\n\n".format(umf._source_path))
 
     # Deal with the possible keywords - take the global print settings
     # dictionary as a starting point and add any changes supplied in
@@ -363,7 +369,17 @@ def _main():
                         "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
                         )
 
+    # If the user supplied no arguments, print the help text and exit
+    if len(sys.argv) == 1:
+        parser.print_help()
+        parser.exit(1)
+
     args = parser.parse_args()
+
+    # Print version information
+    print(_banner("(SUMMARY) Module Information")),
+    report_modules()
+    print ""
 
     # Process column names
     if args.column_names is not None:

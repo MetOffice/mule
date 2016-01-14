@@ -220,8 +220,14 @@ class AncilFile(mule.UMFile):
         # be strictly necessary to exmaine this in full detail) we will
         # make a few assumptions when checking the grid
         for ifield, field in enumerate(self.fields):
-            if field.lbrel in (2, 3):
-
+            if field.lbrel not in (2, 3):
+                # If the field release number isn't one of the recognised
+                # values, or -99 (a missing/padding field) error
+                if field.lbrel != -99:
+                    raise ValidateError(
+                        "Field {0} has unrecognised release number {1}"
+                        .format(ifield, field.lbrel))
+            else:
                 if (self.row_dependent_constants is not None and
                         self.column_dependent_constants is not None):
                     # Fields on a variable resolution grid should simply
@@ -292,9 +298,3 @@ class AncilFile(mule.UMFile):
                         raise ValidateError(
                             "Field {0} grid latitudes inconsistent"
                             .format(ifield))
-            else:
-                # If the field has an unrecognised release number
-                if field.lbrel != -99:
-                    raise ValidateError(
-                        "Field {0} has unrecognised release number {1}"
-                        .format(ifield, field.lbrel))

@@ -18,7 +18,7 @@ import setuptools
 import numpy as np
 
 setuptools.setup(name='um_packing',
-      version='1.0',
+      version='1.1',
       description='Unified Model packing library extension',
       author='UM Systems Team',
       url='https://code.metoffice.gov.uk/trac/um',

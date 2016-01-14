@@ -34,7 +34,7 @@ warnings.filterwarnings("ignore", r".*unable to load STASHmaster file.*")
 # Manually change this flag to "True" if you are trying to add a new test -
 # this will trigger the testing to save the output if it doens't already
 # exist (for development work which adds a new test file)
-_ADD_NEW_TESTS = True
+_ADD_NEW_TESTS = False
 
 class TestCumf(tests.UMUtilsTest):
 

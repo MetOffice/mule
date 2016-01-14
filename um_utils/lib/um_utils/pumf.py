@@ -87,6 +87,7 @@ import mule
 import numpy as np
 import argparse
 from um_utils.stashmaster import STASHmaster
+from um_utils.version import report_modules
 
 # The global print settings dictionary
 PRINT_SETTINGS = {
@@ -571,7 +572,17 @@ def _main():
                         "a number pumf will look in the following path: "
                         "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A")
 
+    # If the user supplied no arguments, print the help text and exit
+    if len(sys.argv) == 1:
+        parser.print_help()
+        parser.exit(1)
+
     args = parser.parse_args()
+
+    # Print version information
+    print(_banner("(PUMF-II) Module Information")),
+    report_modules()
+    print ""
 
     # Process component filtering argument
     if args.components is not None:

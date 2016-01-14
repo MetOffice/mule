@@ -1,5 +1,63 @@
-um_utils.cumf
-=============
+CUMF (Compare UM Files)
+=======================
+
+This utility is used to compare two UM files and report on any differences 
+found in either the headers or field data.  Its intended use is to test 
+results from different UM runs against each other to investigate possible
+changes.  An install of this module will include an executable wrapper script
+``mule-cumf`` which provides a command-line interface to most of CUMF's 
+functionality, but it may also be imported and used directly inside another
+Python script.
+
+Command line utility
+--------------------
+Here is the help text for the command line utility (obtainable by running
+``mule-cumf --help``):
+
+.. code-block:: none
+
+    usage: mule-cumf [options] file_1 file_2
+
+    CUMF-II - Comparison tool for UM Files, version II (using the Mule API). This
+    script will compare all headers and data from two UM files, and write a report
+    describing any differences to stdout. The assumptions made by the comparison
+    may be customised with a variety of options (see below).
+
+    optional arguments:
+      -h, --help            show this help message and exit
+
+      --ignore component_name=index1[,index2][...]
+                            ignore specific indices of a component; provide the
+                            name of the component and a comma separated list of
+                            indices or ranges (i.e. M:N) to ignore. This may be
+                            specified multiple times to ignore indices from more
+                            than one component
+
+      --ignore-missing      if present, positional headers will be ignored
+                            (required if missing fields from either file should
+                            not be considered a failure to compare)
+
+      --diff-file filename  a filename to write a new UM file to which contains
+                            the absolute differences for any fields that differ
+
+      --full                if not using summary output, will increase the
+                            verbosity by reporting on all comparisons (default
+                            behaviour is to only report on failures)
+
+      --summary             print a much shorter report which summarises the
+                            differences between the files without going into much
+                            detail
+
+      --stashmaster STASHMASTER
+                            either the full path to a valid stashmaster file, or a
+                            UM version number e.g. '10.2'; if given a number cumf
+                            will look in the following path:
+                            $UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A
+
+
+um_utils.cumf API
+-----------------
+Here is the API documentation (auto-generated):
 
 .. automodule:: um_utils.cumf
    :members:

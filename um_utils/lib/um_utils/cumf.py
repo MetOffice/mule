@@ -71,6 +71,11 @@ Global comparison settings:
         requires UMDIR environment variable to be set and a suitable install
         to exist there) (default: take from file).
 
+    * lookup_print_func:
+        A callback function which is called for each printed field comparison
+        to provide extra information about the fields.  It will be passed 2
+        arguments - the comparison field and the stdout object to write to.
+
 """
 import re
 import sys
@@ -80,6 +85,31 @@ import argparse
 import numpy as np
 from collections import defaultdict
 from um_utils.stashmaster import STASHmaster
+from um_utils.pumf import pprint, _banner
+from um_utils.version import report_modules
+
+
+# The following functions are defaults which are used to print some additional
+# information about the lookups being compared (to assist in distinguishing
+# between similar fields)
+def _print_lookup(field, stdout):
+    """Prints the validity time, level and processing information."""
+    validity_format = "t1({0:04d}/{1:02d}/{2:02d} {3:02d}:{4:02d}:{5:02d})"
+    validity = validity_format.format(*field.raw[1:7])
+
+    lev_format = "lblev({0})/blev({1})"
+    lev = lev_format.format(field.lblev, field.blev)
+
+    proc_format = "lbproc({0})"
+    proc = proc_format.format(field.lbproc)
+
+    stdout.write("  " + "  ".join([validity, lev, proc])+"\n")
+
+
+# This version is switched to by default for the "full" output mode
+def _print_lookup_full(field, stdout):
+    """Prints the entire lookup contents using pumf."""
+    pprint(field, stdout=stdout, headers_only=True)
 
 # This dictionary stores a list of global settings that control the
 # comparison - when called as a main program these can be overidden by
@@ -92,6 +122,7 @@ COMPARISON_SETTINGS = {
     "ignore_missing": False,
     "only_report_failures": True,
     "stashmaster": None,
+    "lookup_print_func": _print_lookup,
     }
 
 # Lookup indices which should be ignored when the user indicates
@@ -124,11 +155,6 @@ _INDEX_IGNORED_LOOKUP = [
     ]
 
 
-def _banner(message):
-    """A simple function which returns a banner string."""
-    return "{0:s}\n* {1:s} *\n{0:s}\n".format("%"*(len(message)+4), message)
-
-
 class DifferenceField(mule.Field):
     """
     Difference object - for two :class:`mule.Field` objects.
@@ -143,6 +169,9 @@ class DifferenceField(mule.Field):
 
     data_match = None
     """Data matching flag; True if the field data matches."""
+
+    data_shape_match = None
+    """Data shape matching flag: True if fields are the same shape."""
 
     compared = None
     """
@@ -256,6 +285,14 @@ class DifferenceOperator(mule.DataOperator):
         # of the differences if any are found
         bool_field = data1 == data2
         new_field.data_match = np.all(bool_field)
+
+        # If the fields aren't the same shape, it isn't possible to calculate
+        # anymore comparison information
+        new_field.data_shape_match = data1.shape == data2.shape
+        if not new_field.data_shape_match:
+            new_field.data_match = False
+            return new_field
+
         if not new_field.data_match:
             diff = np.abs(data1 - data2)
             # Maximum absolute difference and RMS difference
@@ -673,9 +710,9 @@ class UMFileComparison(object):
 
         # Create a dictionary storing sets of the indices in file 2 separated
         # according to their stash code, with that stash code as the keys
-        file_2_fields_by_stash = defaultdict(set)
+        file_2_fields_by_stash = defaultdict(list)
         for ifield2, field in enumerate(um_file2.fields):
-            file_2_fields_by_stash[field.lbuser4].add(ifield2)
+            file_2_fields_by_stash[field.lbuser4].append(ifield2)
 
         # Can now go through the fields in file 1 and identify matches
         for ifield1, field1 in enumerate(um_file1.fields):
@@ -706,8 +743,7 @@ class UMFileComparison(object):
         # dictionary and back into a flat list
         self.unmatched_file_2 = []
         for stash_item in file_2_fields_by_stash:
-            self.unmatched_file_2.extend(list(
-                file_2_fields_by_stash[stash_item]))
+            self.unmatched_file_2.extend(file_2_fields_by_stash[stash_item])
         self.unmatched_file_2 = sorted(self.unmatched_file_2)
 
         return index
@@ -756,8 +792,13 @@ def summary_report(comparison, stdout=None):
     for name in component_list:
         comp_comp = comparison.comparisons[name]
         if not comp_comp.match:
-            stdout.write("  * {0} differences in {1}\n"
-                         .format(len(comp_comp.diffs), name))
+            stdout.write(
+                "  * {0} differences in {1} (with {2} ignored indices)\n"
+                .format(len(comp_comp.diffs), name, len(comp_comp.ignored)))
+        elif len(comp_comp.ignored) > 0:
+            stdout.write(
+                "  * 0 differences in {0} (with {1} ignored indices)\n"
+                .format(name, len(comp_comp.ignored)))
 
     if len(comparison.field_comparisons) > 0:
         field_matches = np.array(
@@ -775,6 +816,27 @@ def summary_report(comparison, stdout=None):
                     + len(comparison.unmatched_file_2))
     stdout.write("Compared {0}/{1} fields\n"
                  .format(fields_compared, total_fields))
+
+    # If no fields were compared, exit here
+    if fields_compared == 0:
+        stdout.write("\n")
+        return
+
+    # Report which indices were ignored from the lookups (include the
+    # attribute names in the output, based on the 1st field)
+    field_ref = comparison.field_comparisons[0]
+    if len(field_ref.lookup_comparison.ignored) > 0:
+        ignored = []
+        for index in field_ref.lookup_comparison.ignored:
+            indexstr = str(index)
+            if field_ref.HEADER_MAPPING is not None:
+                for map_name, map_ind in field_ref.HEADER_MAPPING:
+                    if map_ind == index:
+                        indexstr = "{0} ({1})".format(index, map_name)
+                        break
+            ignored.append(indexstr)
+        stdout.write("Ignored lookup indices: \n  Index {0}\n"
+                     .format("\n  Index ".join(ignored)))
 
     # Report on the maximum RMS diff percentage
     if comparison.max_rms_diff_1[0] > 0.0:
@@ -863,7 +925,7 @@ def full_report(comparison, stdout=None, **kwargs):
         max_width = [0, 0, 0]
         # Capture the widest width needed for each element
         for index, (value_1, value_2) in diffmap:
-            # Set the index string to be the numberical value
+            # Set the index string to be the numerical value
             indexstr = str(index)
             if name_mapping is not None:
                 # If a mapping was given, add the associated name here
@@ -897,7 +959,18 @@ def full_report(comparison, stdout=None, **kwargs):
 
         # Also report the indices that were ignored
         if len(comp_comp.ignored) > 0:
-            msg_ignore = "\n(Ignored indices: {0})".format(comp_comp.ignored)
+            ignored = []
+            mapping = comp_comp.component_1.HEADER_MAPPING
+            for index in comp_comp.ignored:
+                indexstr = str(index)
+                if mapping is not None:
+                    for map_name, map_ind in mapping:
+                        if map_ind == index:
+                            indexstr = "{0} ({1})".format(index, map_name)
+                            break
+                ignored.append(indexstr)
+            msg_ignore = ("\nIgnored indices: \n  Index {0}"
+                          .format("\n  Index ".join(ignored)))
             msg_values += msg_ignore
 
         if comp_comp.match:
@@ -925,11 +998,20 @@ def full_report(comparison, stdout=None, **kwargs):
             else:
                 index_name_ref = None
 
+            stdout.write("Component differences:\n")
             report_index_errors(comp_comp.diffs, stdout, index_name_ref)
             stdout.write("\n")
 
     # Get the total number of fields
     fields_compared = len(comparison.field_comparisons)
+
+    # Get the printing callback function from the settings dictionary
+    print_lookups = comp_settings["lookup_print_func"]
+
+    # If this is the default pumf case, and the callback hasn't been
+    # overidden by the user, switch it for the more verbose version
+    if not only_report_failures and print_lookups is _print_lookup:
+        print_lookups = _print_lookup_full
 
     # Each field is treated individually for both its lookup and data parts
     for ifield, comp_field in enumerate(comparison.field_comparisons):
@@ -962,10 +1044,9 @@ def full_report(comparison, stdout=None, **kwargs):
         stdout.write("Compared {0}/{1} lookup values.\n"
                      .format(*comp_lookup.compared))
 
-        # Also report the indices that were ignored
-        if len(comp_lookup.ignored) > 0:
-            stdout.write(
-                "(Ignored indices: {0})\n".format(comp_lookup.ignored))
+        # Print some extra information about the fields
+        stdout.write("File_1 lookup info: \n")
+        print_lookups(comp_field, stdout)
 
         # Report if there was a difference in the ordering of the fields
         if comp_field.file_1_index != comp_field.file_2_index:
@@ -980,7 +1061,10 @@ def full_report(comparison, stdout=None, **kwargs):
             report_index_errors(comp_lookup.diffs, stdout,
                                 comp_field.HEADER_MAPPING)
 
-        if not comp_field.data_match:
+        if not comp_field.data_shape_match:
+            # If the data shape wasn't the same there isn't much to report here
+            stdout.write("Data shapes are different, no comparison possible\n")
+        elif not comp_field.data_match:
             # If there were any data differences report them
             stdout.write("Data differences:\n")
             stdout.write("  Number of point differences  : {0}/{1}\n"
@@ -1068,7 +1152,17 @@ def _main():
                         "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
                         )
 
+    # If the user supplied no arguments, print the help text and exit
+    if len(sys.argv) == 1:
+        parser.print_help()
+        parser.exit(1)
+
     args = parser.parse_args()
+
+    # Print version information
+    print(_banner("(CUMF-II) Module Information")),
+    report_modules()
+    print ""
 
     # Process ignoring indices from
     if args.ignore is not None:
@@ -1117,7 +1211,7 @@ def _main():
         diff_file = args.diff_file
         new_ff = file_1.copy()
         new_ff.fields = [field for field in comparison.field_comparisons
-                         if not field.data_match]
+                         if not field.data_match and field.data_shape_match]
         if len(new_ff.fields) > 0:
             new_ff.to_file(diff_file)
 

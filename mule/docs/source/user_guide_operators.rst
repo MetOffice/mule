@@ -26,7 +26,7 @@ instructions to:
 
 All of the above then allow the 2-d array data to be returned to you.  In 
 the earlier section we called :meth:`get_data` manually to do this, but 
-consider what is happening when you don't to this and you try to write out
+consider what is happening when you don't do this and you try to write out
 some fields to a new file.  For each field being written the API first 
 calls :meth:`get_data` to retrieve the data in the field, then it writes
 the data out to the new file.
@@ -41,13 +41,13 @@ the data out to the new file.
 So with all that in mind - in order to efficiently make changes to the data
 in the field you hook into this :meth:`get_data` mechanism; intercepting
 the data given by the field's normal data provider and adding your own
-changes.  A :class:`mule.DataOperator` provides a simple an re-usable 
+changes.  A :class:`mule.DataOperator` provides a simple and re-usable 
 framework to do exactly this.
 
 
 Defining an operator
 --------------------
-Before we dive in an try to write a :class:`mule.DataOperator` of your own let's
+Before we dive in and try to write a :class:`mule.DataOperator` let's first 
 quickly examine what parts make up an operator.  Here's a definition of an
 operator:
 
@@ -63,7 +63,7 @@ operator:
         def new_field(self, source_field):
             return source_field.copy()
 
-        def transform(self, source_field, new_field)
+        def transform(self, source_field, new_field):
             return source_field.get_data()
 
 
@@ -106,7 +106,7 @@ operation, for instance:
 
             return field
 
-        def transform(self, source_field, new_field)
+        def transform(self, source_field, new_field):
             return source_field.get_data()
 
 Now the :meth:`new_field` method is again copying the source field, but it
@@ -155,7 +155,7 @@ update that:
 
             return field
 
-        def transform(self, source_field, new_field)
+        def transform(self, source_field, new_field):
             data = source_field.get_data()
 
             data = np.sqrt(data)
@@ -186,7 +186,7 @@ the upcoming example.
 Your first operator
 -------------------
 Let's actually create a real operator now and try applying it to some fields,
-we'll start with the same bare-bones example as above.  (You may want to put
+we'll start with the same barebones example as above.  (You may want to put
 this into a script at this point, as running this at the command line will
 become tiresome!):
 
@@ -202,7 +202,7 @@ become tiresome!):
         def new_field(self, source_field):
             return source_field.copy()
 
-        def transform(self, source_field, new_field)
+        def transform(self, source_field, new_field):
             return source_field.get_data()
 
 To make it easy to see what the operator is doing we are going to scale
@@ -219,7 +219,7 @@ we will also re-name the operator here to something more relevant):
         def new_field(self, source_field):
             return source_field.copy()
 
-        def transform(self, source_field, new_field)
+        def transform(self, source_field, new_field):
             data = source_field.get_data()
 
             size_x = new_field.lbrow
@@ -230,13 +230,13 @@ we will also re-name the operator here to something more relevant):
             y_1 = size_y/3
             y_2 = 2*y_1
 
-            data[x_1:x_2, y_1:y_2] = 0.9*data[x_1:x_2, y_1:y_2]
+            data[x_1:x_2, y_1:y_2] = 0.1*data[x_1:x_2, y_1:y_2]
 
             return data
 
 
 We're just grabbing approximately the middle third of the data and lowering
-the values by 10%.  Before we continue let's apply this to a field (we'll 
+the values by 90%.  Before we continue let's apply this to a field (we'll 
 take a field from one of the example files used in the basic section of the 
 guide, see that section for details):
 
@@ -244,8 +244,8 @@ guide, see that section for details):
 
     scale_operator = ScaleBoxOperator()
 
-    # "ff" is a FieldsFile object and we take the first field
-    field = ff.fields[0]
+    # "ff" is a FieldsFile object and we take the second field this time
+    field = ff.fields[1]
 
     new_field = scale_operator(field)
 
@@ -270,7 +270,7 @@ example here it might be logical to be able to pass in the scaling factor:
         def new_field(self, source_field):
             return source_field.copy()
 
-        def transform(self, source_field, new_field)
+        def transform(self, source_field, new_field):
             data = source_field.get_data()
 
             size_x = new_field.lbrow
@@ -331,7 +331,7 @@ two existing fields together might look like this:
 
             return field
 
-        def transform(self, field_list, new_field)
+        def transform(self, field_list, new_field):
 
             data_1 = field_list[0].get_data()
             data_2 = field_list[1].get_data()
@@ -359,3 +359,74 @@ free to implement your operator however you wish (as long as each method
 returns the correct output).
     
 
+Provided Operators for LBCs
+---------------------------
+Compared to the other file types the data sections of the fields in LBC files
+are slightly more awkward to interpret.  In this section we will explain the 
+features which can help with transforming the LBC data - for full details of 
+exactly how the data is arranged consult the main UM documentation.
+
+Supposing we have loaded an LBC file, then accessing the data from the first
+field will return an array with one dimension being the vertical level and the 
+other containing all points in the field in an LBC specific ordering:
+
+.. code-block:: python
+
+    >>> # "lbc" is an LBCFile object
+    >>> field = lbc.fields[0]
+    >>> data = field.get_data()
+    >>> data.shape
+    (38, 272)
+
+In some cases this might be suitable for your requirements without any extra
+interpretation.  For example if you simply want to scale the entire field by
+a factor or add it to another field, it doesn't matter that the points are 
+arranged in this way.  However if your processing needs to refer to specific 
+parts of the domain or if you wish to visualise the data in some way, you can 
+make use of the following built-in operator:
+
+.. code-block:: python
+
+    >>> from mule.lbc import LBCToMaskedArrayOperator
+    >>> lbc_to_masked = LBCToMaskedArrayOperator()
+    >>> masked_field = lbc_to_masked(field)
+    >>> data = masked_field.get_data()
+    >>> type(data)
+    <class 'numpy.ma.core.MaskedArray'>
+    >>> data.shape
+    (38, 18, 24)
+
+It's a simple operator, requiring no arguments and mapping directly from a 
+standard LBC field.  The resulting object's :meth:`get_data` method returns
+a masked-array where the central portion of the LBC domain provides the mask. 
+It still has the level dimension but the other one has been expanded to appear 
+as a 2d array.
+
+Of course if this is being done as part of a broader (set of) data operations
+with the intention of writing out the field with modifications, it will need 
+to be translated back the other way before writing.  An equivalent operator
+exists to perform this reverse-translation:
+
+.. code-block:: python
+
+    >>> from mule.lbc import MaskedArrayToLBCOperator
+    >>> masked_to_lbc = MaskedArrayToLBCOperator()
+    >>> field = masked_to_lbc(masked_field)
+    >>> data = field.get_data()
+    >>> type(data)
+    <type 'numpy.ndarray'>
+    >>> data.shape
+    (38, 272)
+
+As dicussed above the modular nature of the operators means that for LBC files
+a common pattern will be to apply the :class:`LBCToMaskedArrayOperator` to a
+field from an input file, followed by an operator of your own and then 
+eventually use the :class:`MaskedArrayToLBCOperator` to prepare it for output.
+
+
+Conclusion
+----------
+Having read through this section you should have an idea of how you can use
+data operators to manipulate the data in UM files.  As a slightly abstract 
+concept the best way to improve your understanding from here is to try writing
+a few simple operators of your own and see what you can come up with!

@@ -18,7 +18,7 @@ from glob import glob
 from setuptools import setup
 
 setup(name='um_utils',
-      version='1.0',
+      version='1.1',
       description='Unified Model Fields File utilities',
       author='UM Systems Team',
       url='https://code.metoffice.gov.uk/trac/um',
@@ -42,5 +42,6 @@ setup(name='um_utils',
               'mule-cumf = um_utils.cumf:_main',
               'mule-cutout = um_utils.cutout:_main',
               'mule-trim = um_utils.trim:_main',
+              'mule-version = um_utils.version:_main',
               ]})
 

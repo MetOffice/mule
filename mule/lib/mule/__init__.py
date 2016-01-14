@@ -1701,12 +1701,13 @@ class UMFile(object):
                         # if the packing method has a different word size.
                         # Calculate the actual on-disk word size here
                         size_on_disk = ((write_operator.WORD_SIZE*data_size)
-                                                             / self.WORD_SIZE)
+                                        / self.WORD_SIZE)
 
                         # Padding will also be applied to ensure that the next
                         # block of data is aligned with a sector boundary
-                        field.lbnrec = (size_on_disk -
-                                       (size_on_disk % -self._WORDS_PER_SECTOR))
+                        field.lbnrec = (
+                            size_on_disk -
+                            (size_on_disk % -self._WORDS_PER_SECTOR))
 
                     # Pad out the data section to a whole number of sectors.
                     overrun = output_file.tell() % sector_size

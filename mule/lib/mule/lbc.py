@@ -444,7 +444,7 @@ class LBCFile(mule.UMFile):
 
         # Length of integer constants
         ic_length = self.integer_constants.shape[0]
-        ic_valid = 46
+        ic_valid = LBC_IntegerConstants.CREATE_DIMS[0]
         if ic_length != ic_valid:
             raise ValidateError(
                 "Incorrect number of integer constants, "
@@ -452,7 +452,7 @@ class LBCFile(mule.UMFile):
 
         # Length of real constants
         rc_length = self.real_constants.shape[0]
-        rc_valid = 38
+        rc_valid = LBC_RealConstants.CREATE_DIMS[0]
         if rc_length != rc_valid:
             raise ValidateError(
                 "Incorrect number of real constants, "
@@ -460,7 +460,8 @@ class LBCFile(mule.UMFile):
 
         # Shape of level dependent constants
         ldc_shape = self.level_dependent_constants.shape
-        ldc_valid = (self.integer_constants.num_p_levels + 1, 4)
+        ldc_valid = (self.integer_constants.num_p_levels + 1,
+                     LBC_LevelDependentConstants.CREATE_DIMS[1])
         if ldc_shape != ldc_valid:
             raise ValidateError(
                 "Incorrectly shaped level dependent constants based on "
@@ -472,9 +473,11 @@ class LBCFile(mule.UMFile):
             rdc_shape = self.row_dependent_constants.shape
             # ENDGame row dependent constants have an extra point
             if self.fixed_length_header.grid_staggering == 6:
-                rdc_valid = (self.integer_constants.num_rows + 1, 2)
+                rdc_valid = (self.integer_constants.num_rows + 1,
+                             LBC_RowDependentConstants.CREATE_DIMS[1])
             else:
-                rdc_valid = (self.integer_constants.num_rows, 2)
+                rdc_valid = (self.integer_constants.num_rows,
+                             LBC_RowDependentConstants.CREATE_DIMS[1])
             if rdc_shape != rdc_valid:
                 raise ValidateError(
                     "Incorrectly shaped row dependent constants based on "
@@ -483,7 +486,8 @@ class LBCFile(mule.UMFile):
 
         if self.column_dependent_constants is not None:
             cdc_shape = self.column_dependent_constants.shape
-            cdc_valid = (self.integer_constants.num_cols, 2)
+            cdc_valid = (self.integer_constants.num_cols,
+                         LBC_ColumnDependentConstants.CREATE_DIMS[1])
             if cdc_shape != cdc_valid:
                 raise ValidateError(
                     "Incorrectly shaped column dependent constants based on "
@@ -494,8 +498,14 @@ class LBCFile(mule.UMFile):
         # be strictly necessary to exmaine this in full detail) we will
         # make a few assumptions when checking the grid
         for ifield, field in enumerate(self.fields):
-            if field.lbrel in (2, 3):
-
+            if field.lbrel not in (2, 3):
+                # If the field release number isn't one of the recognised
+                # values, or -99 (a missing/padding field) error
+                if field.lbrel != -99:
+                    raise ValidateError(
+                        "Field {0} has unrecognised release number {1}"
+                        .format(ifield, field.lbrel))
+            else:
                 if (self.row_dependent_constants is not None and
                         self.column_dependent_constants is not None):
                     # Fields on a variable resolution grid should simply
@@ -566,9 +576,3 @@ class LBCFile(mule.UMFile):
                         raise ValidateError(
                             "Field {0} grid latitudes inconsistent"
                             .format(ifield))
-            else:
-                # If the field has an unrecognised release number
-                if field.lbrel != -99:
-                    raise ValidateError(
-                        "Field {0} has unrecognised release number {1}"
-                        .format(ifield, field.lbrel))

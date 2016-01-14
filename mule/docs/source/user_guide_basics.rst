@@ -50,7 +50,7 @@ using the :class:`mule.LBCFile` class, or an Ancillary file using the
     
     You might also notice that if you try to load a fields-file with either of 
     the :class:`mule.LBCFile` or :class:`mule.AncilFile` classes (or 
-    visca-versa) it will not work; the classes can detect if the file they are 
+    vice versa) it will not work; the classes can detect if the file they are 
     given appears to be the correct type - based on information from the 
     headers (more on this later).
 
@@ -71,8 +71,8 @@ will return whichever type appears to be correct:
 .. Warning::
 
     It is *not* considered good practice to use this method when your code 
-    is actually designed to target a specific file type; since the specific
-    sub-classes are **not identical** - so you have to be very careful about 
+    is actually designed to target a specific file type. Since the specific
+    sub-classes are **not identical**, you have to be very careful about 
     what properties you make use of.
     
 
@@ -174,7 +174,7 @@ mentioned in UMDP F03.
 
 Field Objects
 -------------
-Moving onto the fields which are stored in the file; a UM field comprises
+Moving on to the fields which are stored in the file; a UM field consists 
 of a lookup-header entry which provides metadata for the field as well as a 
 description of where to find the data and how to extract it.  This is all
 encapsulated in a series of :class:`mule.Field` objects - one for each field,
@@ -188,7 +188,9 @@ and these can be found in the "fields" attribute of the file object:
 Firstly, the lookup header - this behaves fairly similarly to the other
 header components, and it contains both the integer and real properties in a
 single object.  Accessing these works in the same way as the other header
-components:
+components - let's take the first field in the file as an example (note that
+unlike the raw header arrays the field list starts from **zero** as per 
+Python's normal rules):
 
 .. code-block:: python
 
@@ -235,6 +237,7 @@ As you can see the data has been returned as a 2-d numpy array.  If you want
     <matplotlib.collections.QuadMesh object at 0x2e8f0d0>
     >>> plt.axis("tight")
     (0.0, 96.0, 0.0, 72.0)
+    >>> plt.colorbar()
     >>> plt.show()
 
 Take some time now to explore the field objects from the file, and the file
@@ -250,7 +253,7 @@ list of fields with a list containing only the first field:
 
 .. code-block:: python
 
-    >>> ff.fields = list(ff.fields[0])
+    >>> ff.fields = [ff.fields[0]]
 
 If we want to adjust any headers we can just set the attributes, for instance
 we could change the grid staggering and give the field a different (and invalid)
@@ -278,7 +281,7 @@ file in your home directory - amend as necessary):
     >>> ff.to_file(os.path.expanduser("~/mule_example.ff"))
 
 If you inspect the file produced using a different tool (or re-open it with
-the API) you should find your changes are in-tact.  In a moment you should 
+the API) you should find your changes are intact.  In a moment you should 
 experiment with this process, but before you do there is a helpful feature
 worth mentioning.
 
@@ -345,6 +348,5 @@ Conclusion
 ----------
 Having worked through this section you should now be familiar with the basic 
 elements of the API - you should be able to interrogate a file to access 
-and modify its header values, and write it to a new file.  In the next part of
-this guide we will apply this to a few example cases.
+and modify its header values, and write it to a new file.  
     

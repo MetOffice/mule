@@ -17,11 +17,20 @@
 """
 CUTOUT is a utility for extracting sub-regions from UM fields-files.
 
+A cutout can be performed either by specifying the new region in terms
+of indices into the grid of the source file, or by providing a pair of
+co-ordinates which specify the SW and NE corners of the desired domain
+within the source file.
+
 Usage:
 
  * Extract a 20x30 region from a file, starting from the point (5,10)
 
     >>> ff_new = cutout.cutout(ff, 5, 10, 20, 30)
+
+ * Extract the region between (13.0 W 50.0 N) and (5.0 E 60 N)
+
+    >>> ff_new = cutout.cutout_coords(ff, -13.0, 50.0, 5.0, 60.0)
 
    .. Note::
        This returns a new :class:`mule.FieldsFile` object, its headers
@@ -29,13 +38,24 @@ Usage:
        field object's data provider will be setup to return the data
        for the target region.
 
+   .. Warning::
+       Both cutout methods here expect the :class:`mule.FieldsFile`
+       object to be on a regular grid - see the alternative
+       :mod:`um_utils.trim` module for working with variable resolution
+       files.
+
 """
 import os
+import sys
 import mule
 import argparse
 import warnings
 import numpy as np
 from um_utils.stashmaster import STASHmaster
+from um_utils.version import report_modules
+from um_utils.pumf import _banner
+
+GRID_STAGGER = {3: "new_dynamics", 6: "endgame"}
 
 
 class CutoutDataOperator(mule.DataOperator):
@@ -94,6 +114,7 @@ class CutoutDataOperator(mule.DataOperator):
             new_field.lbnpt = self.nx
             new_field.lbrow = self.ny
 
+        # This is now a LAM so update the hemisphere code
         new_field.lbhem = 3
 
         return new_field
@@ -129,10 +150,289 @@ class CutoutDataOperator(mule.DataOperator):
         return cut_data
 
 
-def cutout(ff_src, x_start, y_start, x_points, y_points,
-           stashmaster=None):
+class CoordRotator(object):
+    """A class which assists with performing pole rotations."""
+
+    def __init__(self, pole_lon, pole_lat):
+        """
+        Initialise the rotator object, providing the pole co-ordinates of
+        the desired domain
+
+        Args:
+            * pole_lon:
+                Longitude of target domain's North pole, in degrees.
+            * pole_lat:
+                Latitude of target domain's North pole, in degrees.
+
+        """
+        # Store the values in degrees for reference only
+        self.pole_lon = pole_lon
+        self.pole_lat = pole_lat
+
+        # Convert to radians for use in calculations
+        self.pole_lon_rads = self.to_rads(pole_lon)
+        self.pole_lat_rads = self.to_rads(pole_lat)
+
+        # Calculate the longitudinal angle the grid needs to be rotated
+        # by to place its pole on the 180 degree meridian
+        if self.pole_lon_rads == 0.0:
+            self.to_meridian = 0.0
+        else:
+            self.to_meridian = self.pole_lon_rads - np.pi
+
+    @staticmethod
+    def to_rads(degrees):
+        """Simple function to go from degrees to radians"""
+        return (degrees % 360.0)*(np.pi/180.0)
+
+    @staticmethod
+    def to_degrees(rads):
+        """Simple function to go from radians to degrees"""
+        return rads*(180.0/np.pi)
+
+    def rotate(self, longitude, latitude):
+        """
+        Rotate a pair of co-ordinates from a regular lat-lon grid onto
+        the rotated grid defined by this object.
+
+        Args:
+            * longitude:
+                Longitude of the desired point, in degrees
+            * latitude:
+                Latitude of the desired point, in degrees
+
+        """
+        # Convert the input co-ordinates to radians
+        lon_rads = self.to_rads(longitude)
+        lat_rads = self.to_rads(latitude)
+
+        # Adjust the input longitude in the same manner as would be needed
+        # to align the regular pole's 180 degree meridian with the new pole
+        lon_temp = (
+            np.mod(lon_rads - self.to_meridian + 5*np.pi, 2*np.pi) - np.pi)
+
+        # Can now calculate the new latitude by again applying the same
+        # rotation as would be needed to go from one pole to the other
+        bpart = np.cos(lon_temp)*np.cos(lat_rads)
+        lat_rotated = np.arcsin(-np.cos(self.pole_lat_rads)*bpart +
+                                np.sin(self.pole_lat_rads)*np.sin(lat_rads))
+
+        # Knowing the latitude allows the correct longitude to be inferred
+        t1 = np.cos(self.pole_lat_rads)*np.sin(lat_rads)
+        t2 = np.sin(self.pole_lat_rads)*bpart
+        lon_rotated = -np.arccos((t1 + t2)/np.cos(lat_rotated))
+
+        # Correct this based on the original adjustment to meet the meridian
+        if lon_temp >= 0.0 and lon_temp <= np.pi:
+            lon_rotated = -1.0*lon_rotated
+
+        # ...and convert the values back to degrees
+        return self.to_degrees(lon_rotated), self.to_degrees(lat_rotated)
+
+    def unrotate(self, longitude, latitude):
+        """
+        Rotate a pair of co-ordinates from the grid defined by this object
+        onto a regular lat-lon grid.
+
+        Args:
+            * longitude:
+                Longitude of the desired point, in degrees
+            * latitude:
+                Latitude of the desired point, in degrees
+
+        """
+        # Convert the input co-ordinates to radians
+        lon_rads = self.to_rads(longitude)
+        lat_rads = self.to_rads(latitude)
+
+        # Reverse the rotation for the latitude
+        cpart = np.cos(lon_rads)*np.cos(lat_rads)
+        lat_unrotated = np.arcsin(np.cos(self.pole_lat_rads)*cpart +
+                                  np.sin(self.pole_lat_rads)*np.sin(lat_rads))
+
+        # Use the unrotated latitude to infer what the longitude would be on
+        # the 180 degree meridian of the regular pole
+        t1 = -np.cos(self.pole_lat_rads)*np.sin(lat_rads)
+        t2 = np.sin(self.pole_lat_rads)*cpart
+        lon_unrotated = -np.arccos((t1 + t2)/np.cos(lat_unrotated))
+
+        # Ensure this is in the correct range, then rotate it back into
+        # position to get the final longitude
+        lon_temp = np.mod((lon_rads + 5*np.pi), 2*np.pi) - np.pi
+        if lon_temp >= 0.0 and lon_temp <= np.pi:
+            lon_unrotated = -1.0*lon_unrotated
+        lon_unrotated += self.to_meridian
+
+        # ...and convert the values back to degrees
+        return self.to_degrees(lon_unrotated), self.to_degrees(lat_unrotated)
+
+
+def cutout_coords(ff_src, sw_lon, sw_lat, ne_lon, ne_lat,
+                  native_grid=False, stashmaster=None, stdout=None):
     """
-    Cutout a sub-region from a :class:`mule.FieldsFile` object.
+    Cutout a sub-region from a :class:`mule.FieldsFile` object, based on
+    the lat-lon co-ordinates of the region.
+
+    Args:
+        * ff_src:
+            The input :class:`mule.FieldsFile` object.
+        * sw_lon:
+            The longitude of the SW corner point of the sub-region.
+        * sw_lat:
+            The latitude of the SW corner point of the sub-region.
+        * ne_lon:
+            The longitude of the NE corner point of the sub-region.
+        * ne_lat:
+            The latitude of the NE corner point of the sub-region.
+
+    Kwargs:
+        * native_grid:
+            If set to True, assumes that the given co-ordinates are on the
+            same grid as the source (otherwise, assumes they are regular
+            lat/lon co-ordinates and applies any required rotations).
+        * stashmaster:
+            May be the complete path to a valid STASHmaster
+            file, or just the UM version number e.g. "10.2"
+            (assuming a UM install exists).  If omitted
+            cutout will try to take the version number from
+            the headers in the input file.
+        * stdout:
+            The open file-like object to write informational output to,
+            default is to use sys.stdout.
+
+    .. Warning::
+        The input :class:`mule.FieldsFile` must be on a fixed
+        resolution grid (see the TRIM utility for working with a
+        variable grid)
+
+    """
+    # Setup printing
+    if stdout is None:
+        stdout = sys.stdout
+
+    # Get the pole co-ordinates from the file
+    pole_lon = ff_src.real_constants.north_pole_lon
+    pole_lat = ff_src.real_constants.north_pole_lat
+
+    stdout.write(_banner("Processing co-ordinates")+"\n")
+
+    stdout.write(
+        "Requested area ({0:.2f} E {1:.2f} N) to ({2:.2f} E {3:.2f} N)\n"
+        .format(sw_lon % 360.0, sw_lat, ne_lon % 360.0, ne_lat))
+
+    # Check to see if it's a rotated grid (unless this has been disabled)
+    rotated = False
+    if native_grid:
+        stdout.write("\nNative grid setting active, will assume given "
+                     "co-ordinates are already on the correct grid.\n")
+    elif pole_lat != 90.0 or pole_lon != 0.0:
+        # If it is translate the co-ordinates onto the grid
+        coord_rotator = CoordRotator(pole_lon, pole_lat)
+
+        # Calculate the other (not user provided) corner points
+        nw_lon, nw_lat = coord_rotator.rotate(sw_lon, ne_lat)
+        se_lon, se_lat = coord_rotator.rotate(ne_lon, sw_lat)
+
+        # As well as the original corner points
+        sw_lon, sw_lat = coord_rotator.rotate(sw_lon, sw_lat)
+        ne_lon, ne_lat = coord_rotator.rotate(ne_lon, ne_lat)
+
+        # Now, adjust the corners to ensure the domain covers as much
+        # of the area as possible
+        sw_lon = min([sw_lon, ne_lon, nw_lon, se_lon])
+        ne_lon = max([sw_lon, ne_lon, nw_lon, se_lon])
+        sw_lat = min([sw_lat, ne_lat, nw_lat, se_lat])
+        ne_lat = max([sw_lat, ne_lat, nw_lat, se_lat])
+
+        # Save a flag indicating that a transform was performed (for checking
+        # later)
+        rotated = True
+
+        stdout.write(
+            "\nSource grid is rotated with pole at ({0:.2f} E {1:.2f} N)\n  "
+            "Rotated request ({2:.2f} E {3:.2f} N) to ({4:.2f} E {5:.2f} N)\n"
+            .format(pole_lon, pole_lat,
+                    sw_lon % 360.0, sw_lat,
+                    ne_lon % 360.0, ne_lat))
+
+    # Make sure the longitudes are in the range 0-360
+    sw_lon = sw_lon % 360.0
+    ne_lon = ne_lon % 360.0
+
+    # Get the grid spacing and the first value of the P-grid
+    dx = ff_src.real_constants.col_spacing
+    dy = ff_src.real_constants.row_spacing
+    zx = ff_src.real_constants.start_lon % 360.0
+    zy = ff_src.real_constants.start_lat
+
+    # Get the grid staggering
+    if ff_src.fixed_length_header.grid_staggering not in GRID_STAGGER:
+        msg = "Grid staggering {0} not supported"
+        raise ValueError(msg.format(
+            ff_src.fixed_length_header.grid_staggering))
+    stagger = GRID_STAGGER[ff_src.fixed_length_header.grid_staggering]
+
+    # Adjust the starting indices if required
+    if ff_src.fixed_length_header.grid_staggering == "endgame":
+        zx += 0.5*dx
+        zy += 0.5*dy
+
+    # Work out the appropriate X arguments for cutout; if the grid is
+    # a wrapping grid account for the area possibly spanning the meridian
+    wrapping = (ff_src.fixed_length_header.horiz_grid_type % 100) != 3
+    if wrapping:
+        if ne_lon < sw_lon:
+            ne_lon += 360.0
+
+    x_start = int(np.floor(((sw_lon - zx) % 360.0)/dx))
+    x_points = int(np.ceil(((ne_lon - sw_lon) % 360.0)/dx))
+
+    y_start = int(np.floor((sw_lat - zy)/dy))
+    y_points = int(np.ceil((ne_lat - sw_lat)/dy))
+
+    # If these points were calculated from a rotated grid, the transformation
+    # applied above might have pushed the request beyond the limits of the
+    # source grid - reel the request back in here to avoid problems
+    if rotated:
+        # If the request breaches the lower edges of the source domain,
+        # change it to begin at the start of the domain
+        if x_start < 1:
+            stdout.write("  X lower boundary exceeded by {0} points, "
+                         "adjusting...\n".format(-x_start))
+            x_points = x_points + x_start
+            x_start = 1
+        if y_start < 1:
+            stdout.write("  Y lower boundary exceeded by {0} points, "
+                         "adjusting...\n".format(-y_start))
+            y_points = y_points + y_start
+            y_start = 1
+
+        # Similarly, if the request (after the adjustment above) breaches the
+        # upper edges of the source domain, change it to stop at those edges
+        nx = ff_src.integer_constants.num_cols
+        ny = ff_src.integer_constants.num_rows
+        if not wrapping and x_start + x_points - 1 > nx:
+            stdout.write(
+                "  X upper boundary exceeded by {0} points, adjusting...\n"
+                .format(x_start + x_points - 1 - nx))
+            x_points = nx - x_start + 1
+        if y_start + y_points - 1 > ny:
+            stdout.write(
+                "  Y upper boundary exceeded by {0} points, adjusting...\n"
+                .format(y_start + y_points - 1 - ny))
+            y_points = ny - y_start + 1
+
+    stdout.write("\n")
+
+    return cutout(ff_src, x_start, y_start, x_points, y_points,
+                  stashmaster, stdout)
+
+
+def cutout(ff_src, x_start, y_start, x_points, y_points,
+           stashmaster=None, stdout=None):
+    """
+    Cutout a sub-region from a :class:`mule.FieldsFile` object, based on
+    a set of indices describing the region's location in the original file.
 
     Args:
         * ff_src:
@@ -153,6 +453,9 @@ def cutout(ff_src, x_start, y_start, x_points, y_points,
             (assuming a UM install exists).  If omitted
             cutout will try to take the version number from
             the headers in the input file.
+        * stdout:
+            The open file-like object to write informational output to,
+            default is to use sys.stdout.
 
     .. Warning::
         The input :class:`mule.FieldsFile` must be on a fixed
@@ -160,6 +463,9 @@ def cutout(ff_src, x_start, y_start, x_points, y_points,
         variable grid)
 
     """
+    # Setup printing
+    if stdout is None:
+        stdout = sys.stdout
 
     def check_regular_grid(dx, dy, fail_context, mdi=0.0):
         # Raise error if dx or dy values indicate an 'irregular' grid.
@@ -169,15 +475,22 @@ def cutout(ff_src, x_start, y_start, x_points, y_points,
             raise ValueError(msg.format(fail_context))
 
     # Determine the grid staggering
-    stagger = {3: "new_dynamics", 6: "endgame"}
-    if ff_src.fixed_length_header.grid_staggering not in stagger:
+    if ff_src.fixed_length_header.grid_staggering not in GRID_STAGGER:
         msg = "Grid staggering {0} not supported"
         raise ValueError(msg.format(
             ff_src.fixed_length_header.grid_staggering))
-    stagger = stagger[ff_src.fixed_length_header.grid_staggering]
+    stagger = GRID_STAGGER[ff_src.fixed_length_header.grid_staggering]
 
     # Remove empty fields before processing
     ff_src.remove_empty_lookups()
+
+    stdout.write(_banner("Extracting sub-region")+"\n")
+
+    stdout.write(
+        "Requested region:\n"
+        "  X: cutout {0} points from index {1}\n"
+        "  Y: cutout {2} points from index {3}\n"
+        .format(x_points, x_start, y_points, y_start))
 
     # Retrieve the stashmaster from the file if one wasn't provided
     if stashmaster is None:
@@ -217,13 +530,19 @@ def cutout(ff_src, x_start, y_start, x_points, y_points,
     nx0 = ff_src.integer_constants.num_cols
     ny0 = ff_src.integer_constants.num_rows
 
+    stdout.write(
+        "\nSource grid is {0}x{1} points starting at ({2:.2f}E {3:.2f}N)\n"
+        .format(nx0, ny0,
+                ff_src.real_constants.start_lon,
+                ff_src.real_constants.start_lat))
+
     # Ensure the requested points fit within the target domain (it is allowed
     # to exceed the domain in the X direction provided the domain wraps)
     horiz_grid = ff_src.fixed_length_header.horiz_grid_type
     msg = ("The given cutout parameters extend outside the dimensions of the "
            "grid contained in the source file.")
-    if y_start + y_points > ny0 or (x_start + x_points > nx0
-                                    and horiz_grid % 10 == 3):
+    if y_start + y_points - 1 > ny0 or (x_start + x_points - 1 > nx0
+                                        and horiz_grid % 100 == 3):
         raise ValueError(msg)
 
     # Create a new fieldsfile to store the cutout fields
@@ -240,28 +559,36 @@ def cutout(ff_src, x_start, y_start, x_points, y_points,
         ff_dest.real_constants.start_lon = zx0 + ((x_start - 1.5) * dx)
 
     # The new grid type will be a LAM, and its size is whatever the size of
-    # the specified cutout domain is going to be
-    ff_dest.fixed_length_header.horiz_grid_type = 3
+    # the specified cutout domain is going to be.  Remember to preserve the
+    # rotated/non-rotated status of the grid
+    ff_dest.fixed_length_header.horiz_grid_type = 100*(horiz_grid//100) + 3
     ff_dest.integer_constants.num_cols = x_points
     ff_dest.integer_constants.num_rows = y_points
+
+    stdout.write(
+        "Extracted grid is {0}x{1} points starting at ({2:.2f}E {3:.2f}N)\n"
+        .format(x_points, y_points, ff_dest.real_constants.start_lon,
+                ff_dest.real_constants.start_lat))
+
+    stdout.write("Performing cutout...\n")
 
     # Ready to begin processing of each field
     for i_field, field_src in enumerate(ff_src.fields):
 
         # Ensure this field is on a regular grid
         check_regular_grid(field_src.bdx, field_src.bdy,
-                           fail_context='field#{0:d}'.format(i_field),
+                           fail_context='Field {0}'.format(i_field),
                            mdi=field_src.bmdi)
 
         # In case the field has extra data, abort
         if field_src.lbext != 0:
-            msg = ('field#{0} has extra data, which cutout '
+            msg = ('Field {0} has extra data, which cutout '
                    'does not support')
             raise ValueError(msg.format(i_field))
 
         # If the grid is not a regular lat-lon grid, abort
         if field_src.lbcode % 10 != 1:
-            msg = ('field#{0} is not on a regular lat/lon grid')
+            msg = ('Field {0} is not on a regular lat/lon grid')
             raise ValueError(msg.format(i_field))
 
         # Retrieve the grid-type for this field from the STASHmaster and
@@ -269,8 +596,10 @@ def cutout(ff_src, x_start, y_start, x_points, y_points,
         if field_src.lbuser4 in stashm:
             grid_type = stashm[field_src.lbuser4].grid
         else:
-            msg = "STASH code ({0}) not found in STASHmaster: {1}"
-            raise ValueError(msg.format(field_src.lbuser4, stashm.filename))
+            msg = ("Field {0} STASH code ({1}) not found in STASHmaster; "
+                   "this field will not appear in the output")
+            warnings.warn(msg.format(i_field, field_src.lbuser4))
+            continue
 
         if grid_type == 19:  # V Points
             if stagger == "new_dynamics":
@@ -333,7 +662,6 @@ def _main():
                 BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
 
     parser = argparse.ArgumentParser(
-        usage="%(prog)s [options] input_file output_file zx zy nx ny",
         description="""
         CUTOUT-II - Cutout tool for UM Files, version II (using the Mule API).
 
@@ -343,30 +671,6 @@ def _main():
         formatter_class=BlankLinesHelpFormatter,
         )
 
-    # No need to output help text for the files (it's obvious)
-    parser.add_argument("input_file", help=argparse.SUPPRESS)
-    parser.add_argument("output_file", help=argparse.SUPPRESS)
-
-    parser.add_argument("zx",
-                        help="the starting x (column) index of the region "
-                        "to cutout from the original file",
-                        type=int
-                        )
-    parser.add_argument("zy",
-                        help="the starting y (row) index of the region "
-                        "to cutout from the original file",
-                        type=int
-                        )
-    parser.add_argument("nx",
-                        help="the number of x (column) points to cutout "
-                        "from the original file",
-                        type=int,
-                        )
-    parser.add_argument("ny",
-                        help="the number of y (row) points to cutout "
-                        "from the original file",
-                        type=int,
-                        )
     parser.add_argument("--stashmaster",
                         help="either the full path to a valid stashmaster "
                         "file, or a UM version number e.g. '10.2'; if given "
@@ -374,7 +678,78 @@ def _main():
                         "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
                         )
 
+    # The cutout command has 2 forms; the user may describe the region using
+    # a series of indices or using the co-ordinates of two opposing corners
+    subparsers = parser.add_subparsers()
+
+    # Options for indices
+    parser_index = subparsers.add_parser(
+        'indices', help='cutout by indices (run "%(prog)s indices --help" for '
+        'specific help on this command)',
+        formatter_class=BlankLinesHelpFormatter)
+
+    parser_index.add_argument("input_file", help="File containing source")
+    parser_index.add_argument("output_file", help="File for output")
+
+    parser_index.add_argument(
+        "zx", help="the starting x (column) index of the region to cutout "
+        "from the source file", type=int)
+
+    parser_index.add_argument(
+        "zy", help="the starting y (row) index of the region to cutout from "
+        "the source file", type=int)
+
+    parser_index.add_argument(
+        "nx", help="the number of x (column) points to cutout from the "
+        "source file", type=int)
+
+    parser_index.add_argument(
+        "ny", help="the number of y (row) points to cutout from the "
+        "source file", type=int)
+
+    # Options for co-ordinates
+    parser_coords = subparsers.add_parser(
+        'coords', help='cutout by coordinates (run "%(prog)s coords --help" '
+        'for specific help on this command)',
+        formatter_class=BlankLinesHelpFormatter)
+
+    parser_coords.add_argument("input_file", help="File containing source")
+    parser_coords.add_argument("output_file", help="File for output")
+
+    parser_coords.add_argument(
+        "--native-grid", help="if set, cutout will take the provided "
+        "co-ordinates to be on the file's native grid (otherwise it will "
+        "assume they are regular co-ordinates and apply any needed rotations "
+        "automatically). Therefore it does nothing for non-rotated grids.",
+        action="store_true")
+
+    parser_coords.add_argument(
+        "SW_lon", help="the longitude of the South-West corner point of the "
+        "region to cutout from the source file", type=float)
+
+    parser_coords.add_argument(
+        "SW_lat", help="the latitude of the South-West corner point of the "
+        "region to cutout from the source file", type=float)
+
+    parser_coords.add_argument(
+        "NE_lon", help="the longitude of the North-East corner point of the "
+        "region to cutout from the source file", type=float)
+
+    parser_coords.add_argument(
+        "NE_lat", help="the latitude of the North-East corner point of the "
+        "region to cutout from the source file", type=float)
+
+    # If the user supplied no arguments, print the help text and exit
+    if len(sys.argv) == 1:
+        parser.print_help()
+        parser.exit(1)
+
     args = parser.parse_args()
+
+    # Print version information
+    print(_banner("(CUTOUT-II) Module Information")),
+    report_modules()
+    print ""
 
     filename = args.input_file
     if os.path.exists(filename):
@@ -383,8 +758,14 @@ def _main():
         ff = mule.FieldsFile.from_file(filename)
 
         # Perform the cutout
-        ff_out = cutout(ff, args.zx, args.zy, args.nx, args.ny,
-                        args.stashmaster)
+        if hasattr(args, "zx"):
+            ff_out = cutout(ff, args.zx, args.zy, args.nx, args.ny,
+                            args.stashmaster)
+        else:
+            ff_out = cutout_coords(ff,
+                                   args.SW_lon, args.SW_lat,
+                                   args.NE_lon, args.NE_lat,
+                                   args.native_grid, args.stashmaster)
 
         # Write the result out to the new file
         ff_out.to_file(args.output_file)
