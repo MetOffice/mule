@@ -58,13 +58,13 @@ File: None
 %%%%%%%%%%%%%%
 * Field 1/1  *
 %%%%%%%%%%%%%%
-  (1) lbyr     : -99    (2) lbmon    : -99    (3) lbdat    : -99  
+  (1) lbyr     : 1      (2) lbmon    : -99    (3) lbdat    : -99  
   (4) lbhr     : -99    (5) lbmin    : -99    (6) lbsec    : -99  
   (7) lbyrd    : -99    (8) lbmond   : -99    (9) lbdatd   : -99  
   (10) lbhrd   : -99    (11) lbmind  : -99    (12) lbsecd  : -99  
   (13) lbtim   : -99    (14) lbft    : -99    (15) lblrec  : -99  
   (16) lbcode  : -99    (17) lbhem   : -99    (18) lbrow   : 3    
-  (19) lbnpt   : 4      (20) lbext   : -99    (21) lbpack  : -99  
+  (19) lbnpt   : 4      (20) lbext   : 0      (21) lbpack  : -99  
   (22) lbrel   : 3      (23) lbfc    : -99    (24) lbcfc   : -99  
   (25) lbproc  : 0      (26) lbvc    : -99    (27) lbrvc   : -99  
   (28) lbexp   : -99    (29) lbegin  : -99    (30) lbnrec  : -99  
@@ -77,7 +77,7 @@ File: None
   (49) brsvd4  : 0.0    (50) bdatum  : 0.0    (51) bacc    : 0.0  
   (52) blev    : 0.0    (53) brlev   : 0.0    (54) bhlev   : 0.0  
   (55) bhrlev  : 0.0    (56) bplat   : 0.0    (57) bplon   : 0.0  
-  (58) bgor    : 0.0    (59) bzy     : -60.0  (60) bdy     : 0.2  
-  (61) bzx     : 10.0   (62) bdx     : 0.1    (63) bmdi    : 0.0  
+  (58) bgor    : 0.0    (59) bzy     : -60.2  (60) bdy     : 0.2  
+  (61) bzx     : 9.9    (62) bdx     : 0.1    (63) bmdi    : 0.0  
   (64) bmks    : 0.0    maximum      : 11     minimum      : 1    
 

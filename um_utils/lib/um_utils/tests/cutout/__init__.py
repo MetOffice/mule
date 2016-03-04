@@ -14,6 +14,6 @@
 # You should have received a copy of the Modified BSD License
 # along with these utilities.
 # If not, see <http://opensource.org/licenses/BSD-3-Clause>.
-"""Tests for the pumf utility in the :mod:`um_utils` module."""
+"""Tests for the cutout utility in the :mod:`um_utils` module."""
 
 from __future__ import (absolute_import, division, print_function)

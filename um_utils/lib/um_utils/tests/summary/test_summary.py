@@ -34,7 +34,8 @@ warnings.filterwarnings("ignore", r".*unable to load STASHmaster file.*")
 # exist (for development work which adds a new test file)
 _ADD_NEW_TESTS = False
 
-class TestSummary(tests.UMUtilsTest):
+
+class TestSummary(tests.UMUtilsNDTest):
 
     def run_comparison(self, testname, n_fields=50, **kwargs):
         """
@@ -43,21 +44,24 @@ class TestSummary(tests.UMUtilsTest):
         the output to the expected result.
 
         """
-        # Create a very simple test case - minimal FieldsFile with one
-        # minimal field
-        ff = self._minimal_valid_ff()
-        ff.fields = [self._minimal_valid_field() for _ in range(n_fields)]
+        # Create a very simple test case - minimal FieldsFile with some fields
+        nx, ny, nz = 4, 3, 5
+        x0, y0, dx, dy = 10.0, -60.0, 0.1, 0.2
+        stagger = 3
+        ff = self._minimal_valid_ff(nx, ny, nz, x0, y0, dx, dy, stagger)
+        for _ in range(n_fields):
+            self.new_p_field(ff)
 
         # Vary the "stash code" of the fields and add an lbproc code
         lbuser4 = 0
         for field in ff.fields:
-            lbuser4 += 100            
+            lbuser4 += 100
             field.lbuser4 = lbuser4
             field.lbproc = 0
             field.lbyr = 2001
             field.lbmon = 1
             field.lbdat = 1
-            field.lbhr  = 12
+            field.lbhr = 12
             field.lbmin = 0
             field.lbsec = 0
 
@@ -85,7 +89,7 @@ class TestSummary(tests.UMUtilsTest):
                 fh = open(expected_output, "w")
                 fh.write(strbuffer.getvalue())
             else:
-                msg = "Test file not found: {0}"            
+                msg = "Test file not found: {0}"
                 raise ValueError(msg.format(expected_output))
 
     def test_default(self):
@@ -96,21 +100,21 @@ class TestSummary(tests.UMUtilsTest):
         # Test of output changing column names
         self.run_comparison("column_names",
                             column_names=["lbuser4", "lbproc"])
-        
+
     def test_field_index(self):
         # Test of output using the field index
         self.run_comparison("field_index", n_fields=10,
-                            field_index=[1,2,7])
+                            field_index=[1, 2, 7])
 
     def test_field_property(self):
         # Test of output using the field property
         self.run_comparison("field_property", n_fields=10,
-                            field_property={"lbuser4":200, "lbproc":0})
+                            field_property={"lbuser4": 200, "lbproc": 0})
 
     def test_heading_freq(self):
         # Testing repetition of headings
         self.run_comparison("heading_freq", heading_frequency=20)
-        
+
 
 if __name__ == "__main__":
     tests.main()

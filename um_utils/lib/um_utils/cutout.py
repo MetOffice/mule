@@ -46,6 +46,7 @@ Usage:
 
 """
 import os
+import re
 import sys
 import mule
 import argparse
@@ -373,7 +374,7 @@ def cutout_coords(ff_src, sw_lon, sw_lat, ne_lon, ne_lat,
     stagger = GRID_STAGGER[ff_src.fixed_length_header.grid_staggering]
 
     # Adjust the starting indices if required
-    if ff_src.fixed_length_header.grid_staggering == "endgame":
+    if stagger == "endgame":
         zx += 0.5*dx
         zy += 0.5*dy
 
@@ -384,11 +385,11 @@ def cutout_coords(ff_src, sw_lon, sw_lat, ne_lon, ne_lat,
         if ne_lon < sw_lon:
             ne_lon += 360.0
 
-    x_start = int(np.floor(((sw_lon - zx) % 360.0)/dx))
-    x_points = int(np.ceil(((ne_lon - sw_lon) % 360.0)/dx))
+    x_start = int(np.floor(((sw_lon - zx) % 360.0)/dx)) + 1
+    x_points = int(np.ceil(((ne_lon - sw_lon) % 360.0)/dx)) + 1
 
-    y_start = int(np.floor((sw_lat - zy)/dy))
-    y_points = int(np.ceil((ne_lat - sw_lat)/dy))
+    y_start = int(np.floor((sw_lat - zy)/dy)) + 1
+    y_points = int(np.ceil((ne_lat - sw_lat)/dy)) + 1
 
     # If these points were calculated from a rotated grid, the transformation
     # applied above might have pushed the request beyond the limits of the

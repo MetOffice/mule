@@ -36,7 +36,8 @@ warnings.filterwarnings("ignore", r".*unable to load STASHmaster file.*")
 # exist (for development work which adds a new test file)
 _ADD_NEW_TESTS = False
 
-class TestCumf(tests.UMUtilsTest):
+
+class TestCumf(tests.UMUtilsNDTest):
 
     def run_comparison(self, ff1, ff2, testname, **kwargs):
         """
@@ -72,24 +73,29 @@ class TestCumf(tests.UMUtilsTest):
                 fh = open(expected_output, "w")
                 fh.write(strbuffer.getvalue())
             else:
-                msg = "Test file not found: {0}"            
+                msg = "Test file not found: {0}"
                 raise ValueError(msg.format(expected_output))
 
     def create_2_different_files(self):
-        ff1 = self._minimal_valid_ff()
-        ff1.fields = [self._minimal_valid_field() for _ in range(6)]
+        nx, ny, nz = 4, 3, 5
+        x0, y0, dx, dy = 10.0, -60.0, 0.1, 0.2
+        stagger = 3
+        ff1 = self._minimal_valid_ff(nx, ny, nz, x0, y0, dx, dy, stagger)
+        for _ in range(6):
+            self.new_p_field(ff1)
 
         for field in ff1.fields:
             # Make sure the first element is set - or remove_empty_lookups
             # will delete the fields!
             field.raw[1] = 2015
 
-        ff2 = self._minimal_valid_ff()
-        ff2.fields = [self._minimal_valid_field() for _ in range(6)]
+        ff2 = self._minimal_valid_ff(nx, ny, nz, x0, y0, dx, dy, stagger)
+        for _ in range(6):
+            self.new_p_field(ff2)
 
         for field in ff2.fields:
             # Make sure the first element is set - or remove_empty_lookups
-            # will delete the fields!            
+            # will delete the fields!
             field.raw[1] = 2015
 
         # Break the headers of field #2 - this field will then fail to be
@@ -99,7 +105,7 @@ class TestCumf(tests.UMUtilsTest):
 
         # Field #3 will have different data
         nx, ny = ff1.fields[3].lbnpt, ff1.fields[3].lbrow
-        provider = mule.ArrayDataProvider(5.0*np.arange(nx*ny).reshape(nx,ny))
+        provider = mule.ArrayDataProvider(5.0*np.arange(nx*ny).reshape(ny, nx))
         ff2.fields[3].set_data_provider(provider)
 
         # Field #4 will have positional differences
@@ -113,7 +119,7 @@ class TestCumf(tests.UMUtilsTest):
         ff2.level_dependent_constants.raw[:, 1] = np.arange(
             ff2.integer_constants.num_p_levels + 1)*5.0
         ff2.integer_constants.num_p_levels = 70
-        
+
         return ff1, ff2
 
     def test_default(self):

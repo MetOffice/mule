@@ -17,7 +17,3 @@
 """Tests for the cumf utility in the :mod:`um_utils` module."""
 
 from __future__ import (absolute_import, division, print_function)
-
-
-
-

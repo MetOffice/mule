@@ -14,7 +14,7 @@ File: None
 %%%%%%%%%%%%%%
 * Field 1/1  *
 %%%%%%%%%%%%%%
-  (1) lbyr     : -99  
+  (1) lbyr     : 1    
   (2) lbmon    : -99  
   (3) lbdat    : -99  
   (4) lbhr     : -99  
@@ -33,7 +33,7 @@ File: None
   (17) lbhem   : -99  
   (18) lbrow   : 3    
   (19) lbnpt   : 4    
-  (20) lbext   : -99  
+  (20) lbext   : 0    
   (21) lbpack  : -99  
   (22) lbrel   : 3    
   (23) lbfc    : -99  
@@ -72,9 +72,9 @@ File: None
   (56) bplat   : 0.0  
   (57) bplon   : 0.0  
   (58) bgor    : 0.0  
-  (59) bzy     : -60.0
+  (59) bzy     : -60.2
   (60) bdy     : 0.2  
-  (61) bzx     : 10.0 
+  (61) bzx     : 9.9  
   (62) bdx     : 0.1  
   (63) bmdi    : 0.0  
   (64) bmks    : 0.0  
