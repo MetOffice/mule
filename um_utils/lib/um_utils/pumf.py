@@ -336,7 +336,11 @@ def _print_field(field, stdout, print_settings=PRINT_SETTINGS):
         # Get the field data and calculate and extra quantities
         data = field.get_data()
         # Mask out missing values first
-        masked_data = np.ma.masked_array(data, data == field.bmdi)
+        if hasattr(field, "bmdi"):
+            masked_data = np.ma.masked_array(data, data == field.bmdi)
+        else:
+            masked_data = data
+
         for name, func in [("maximum", np.max),
                            ("minimum", np.min)]:
             valstr = str(func(masked_data))

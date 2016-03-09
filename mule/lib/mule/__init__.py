@@ -138,6 +138,7 @@ _LOOKUP_HEADER_DEFAULT = [
     ('lbrel',   22),
     ('lbegin',  29),
     ('lbnrec',  30),
+    ('bacc',    51),
     ]
 
 # UM FieldsFile/PP LOOKUP header names and positions for header release vn.2

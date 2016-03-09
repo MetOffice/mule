@@ -226,7 +226,8 @@ class DifferenceField3(mule.Field3, DifferenceField):
 # Maps header release version number onto a difference field class
 _DIFFERENCE_FIELDS = {2: DifferenceField2,
                       3: DifferenceField3,
-                      -99: DifferenceField}
+                      -99: DifferenceField,
+                      mule._INTEGER_MDI: DifferenceField3}
 
 
 class DifferenceOperator(mule.DataOperator):

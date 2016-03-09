@@ -118,6 +118,21 @@ _FF_COLUMN_DEPENDENT_CONSTANTS = [
     ('lambda_u', (slice(None), 2)),
     ]
 
+# When the UM is configured to output certain special types of STASH mean,
+# accumulation or trajectory diagnostics, the dump saves partial versions of
+# the fields - these are not intended for interaction but we need to know
+# about them in case a dump is being modified in-place
+_DUMP_SPECIAL_LOOKUP_HEADER = [
+    ('lbpack',  21),
+    ('lbegin',  29),
+    ('lbnrec',  30),
+    ('lbuser1', 39),
+    ('lbuser2', 40),
+    ('lbuser4', 42),
+    ('lbuser7', 45),
+    ('bacc',    51),
+    ]
+
 # Maps word size and then lbuser1 (i.e. the field's data type) to a dtype.
 _DATA_DTYPES = {4: {1: '>f4', 2: '>i4', 3: '>i4'},
                 8: {1: '>f8', 2: '>i8', 3: '>i8'}}
@@ -166,9 +181,16 @@ class _ReadFFProviderUnpacked(mule.RawReadProvider):
         field = self.source
         data_bytes = self._read_bytes()
         dtype = _DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
-        data = np.fromstring(data_bytes, dtype,
-                             count=field.lbrow*field.lbnpt)
-        data = data.reshape(field.lbrow, field.lbnpt)
+        # If the number of rows and columns aren't available read the
+        # data as a simple array instead
+        size_present = hasattr(field, "lbrow") and hasattr(field, "lbnpt")
+        if size_present:
+            count = field.lbrow*field.lbnpt
+        else:
+            count = field.lblrec
+        data = np.fromstring(data_bytes, dtype, count=count)
+        if size_present:
+            data = data.reshape(field.lbrow, field.lbnpt)
         return data
 
 
@@ -374,6 +396,17 @@ class _WriteFFOperatorCray32SeaPacked(_WriteFFOperatorSeaPacked):
     WORD_SIZE = _CRAY32_SIZE
 
 
+# Additional fieldclass specific to dumps
+class DumpSpecialField(mule.Field):
+    """
+    Field which represents a "special" dump field; these fields hold the
+    partially complete contents of quantities such as means, accumulations
+    and trajectories.
+
+    """
+    HEADER_MAPPING = _DUMP_SPECIAL_LOOKUP_HEADER
+
+
 # An exception class to use when raising validation errors
 class ValidateError(ValueError):
     def __init__(self, message):
@@ -419,6 +452,10 @@ class FieldsFile(mule.UMFile):
                        122: _WriteFFOperatorCray32LandPacked,
                        222: _WriteFFOperatorCray32SeaPacked,
                        }
+
+    # Add an additional field type, to handle special dump fields
+    FIELD_CLASSES = dict(mule.UMFile.FIELD_CLASSES.items()
+                         + [(mule._INTEGER_MDI, DumpSpecialField)])
 
     def validate(self):
         """
@@ -509,7 +546,14 @@ class FieldsFile(mule.UMFile):
         # be strictly necessary to exmaine this in full detail) we will
         # make a few assumptions when checking the grid
         for ifield, field in enumerate(self.fields):
-            if field.lbrel not in (2, 3):
+            if dt_found in (1, 2) and field.lbrel == mule._INTEGER_MDI:
+                # In dumps, some headers are special mean fields
+                if (field.lbpack // 1000) != 2:
+                    raise ValidateError(
+                        "Field {0} is special dump field but does not have"
+                        "lbpack N4 == 2".format(ifield))
+
+            elif field.lbrel not in (2, 3):
                 # If the field release number isn't one of the recognised
                 # values, or -99 (a missing/padding field) error
                 if field.lbrel != -99:

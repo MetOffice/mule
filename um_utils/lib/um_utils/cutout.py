@@ -576,6 +576,14 @@ def cutout(ff_src, x_start, y_start, x_points, y_points,
     # Ready to begin processing of each field
     for i_field, field_src in enumerate(ff_src.fields):
 
+        # Discard any fields which aren't from a valid release header, since
+        # we need to be able to assume certain attributes are present later
+        if field_src.lbrel not in (2, 3):
+            msg = ('Field {0} has release number {1}, which cutout does not '
+                   'support; this field will not appear in the output')
+            warnings.warn(msg.format(i_field, field_src.lbrel))
+            continue
+
         # Ensure this field is on a regular grid
         check_regular_grid(field_src.bdx, field_src.bdy,
                            fail_context='Field {0}'.format(i_field),
