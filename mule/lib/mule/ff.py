@@ -25,8 +25,10 @@ This module provides the elements specific to UM FieldsFiles (and dumps)
 from __future__ import (absolute_import, division, print_function)
 
 import mule
-import numpy as np
+import mule.validators as validators
 from mule.packing import wgdos_pack_field, wgdos_unpack_field
+
+import numpy as np
 
 # UM FieldsFile integer constant names
 _FF_INTEGER_CONSTANTS = [
@@ -407,13 +409,6 @@ class DumpSpecialField(mule.Field):
     HEADER_MAPPING = _DUMP_SPECIAL_LOOKUP_HEADER
 
 
-# An exception class to use when raising validation errors
-class ValidateError(ValueError):
-    def __init__(self, message):
-        message = "FieldsFile failed to validate: " + message
-        super(ValidateError, self).__init__(message)
-
-
 # The FieldsFile definition itself
 class FieldsFile(mule.UMFile):
     """Represents a single UM FieldsFile."""
@@ -457,188 +452,94 @@ class FieldsFile(mule.UMFile):
     FIELD_CLASSES = dict(mule.UMFile.FIELD_CLASSES.items()
                          + [(mule._INTEGER_MDI, DumpSpecialField)])
 
-    def validate(self):
+    def validate(self, filename=None):
         """
         FieldsFile validation method, ensures that certain quantities are the
         expected sizes and different header quantities are self-consistent.
 
+        Kwargs:
+            * filename:
+                If provided, this filename will be included in any
+                validation error messages raised by this method.
+
         """
         # File must have its dataset_type set correctly
-        dt_found = self.fixed_length_header.dataset_type
-        dt_valid = [1, 2, 3]
-        if dt_found not in dt_valid:
-            raise ValidateError(
-                "Incorrect dataset_type (found {0}, should be one of {1})"
-                .format(dt_found, dt_valid))
+        validators.validate_dataset_type(self, (1, 2, 3), filename)
 
         # Only grid-staggerings of 3 (NewDynamics) or 6 (ENDGame) are valid
-        gs_found = self.fixed_length_header.grid_staggering
-        gs_valid = [3, 6]
-        if gs_found not in gs_valid:
-            raise ValidateError(
-                "Unsupported grid_staggering (found {0}, can support one of"
-                "{1})".format(gs_found, gs_valid))
+        validators.validate_grid_staggering(self, (3, 6), filename)
 
-        # Integer, real and level dependent constants are mandatory
-        if self.integer_constants is None:
-            raise ValidateError(
-                "Integer constants not found")
-        if self.real_constants is None:
-            raise ValidateError(
-                "Real constants not found")
-        if self.level_dependent_constants is None:
-            raise ValidateError(
-                "Level dependent constants not found")
+        # Integer, real and level dependent constants are mandatory and
+        # have particular lengths that must be matched
+        validators.validate_integer_constants(
+            self, FF_IntegerConstants.CREATE_DIMS[0], filename)
 
-        # Length of integer constants
-        ic_length = self.integer_constants.shape[0]
-        ic_valid = FF_IntegerConstants.CREATE_DIMS[0]
-        if ic_length != ic_valid:
-            raise ValidateError(
-                "Incorrect number of integer constants, "
-                "(found {0}, should be {1})".format(ic_length, ic_valid))
+        validators.validate_real_constants(
+            self, FF_RealConstants.CREATE_DIMS[0], filename)
 
-        # Length of real constants
-        rc_length = self.real_constants.shape[0]
-        rc_valid = FF_RealConstants.CREATE_DIMS[0]
-        if rc_length != rc_valid:
-            raise ValidateError(
-                "Incorrect number of real constants, "
-                "(found {0}, should be {1})".format(rc_length, rc_valid))
+        validators.validate_level_dependent_constants(
+            self, (self.integer_constants.num_p_levels + 1,
+                   FF_LevelDependentConstants.CREATE_DIMS[1]), filename)
 
-        # Shape of level dependent constants
-        ldc_shape = self.level_dependent_constants.shape
-        ldc_valid = (self.integer_constants.num_p_levels + 1,
-                     FF_LevelDependentConstants.CREATE_DIMS[1])
-        if ldc_shape != ldc_valid:
-            raise ValidateError(
-                "Incorrectly shaped level dependent constants based on "
-                "file type and number of levels in integer_constants "
-                "(found {0}, should be {1})".format(ldc_shape, ldc_valid))
-
-        # Sizes for row and column dependent constants
+        # Sizes for row dependent constants (if present)
         if self.row_dependent_constants is not None:
-            rdc_shape = self.row_dependent_constants.shape
+            dim1 = self.integer_constants.num_rows
             # ENDGame row dependent constants have an extra point
             if self.fixed_length_header.grid_staggering == 6:
-                rdc_valid = (self.integer_constants.num_rows + 1,
-                             FF_RowDependentConstants.CREATE_DIMS[1])
-            else:
-                rdc_valid = (self.integer_constants.num_rows,
-                             FF_RowDependentConstants.CREATE_DIMS[1])
-            if rdc_shape != rdc_valid:
-                raise ValidateError(
-                    "Incorrectly shaped row dependent constants based on "
-                    "file type and number of rows in integer_constants "
-                    "(found {0}, should be {1})".format(rdc_shape, rdc_valid))
+                dim1 += 1
 
+            validators.validate_row_dependent_constants(
+                self, (dim1,
+                       FF_RowDependentConstants.CREATE_DIMS[1]), filename)
+
+        # Sizes for column dependent constants (if present)
         if self.column_dependent_constants is not None:
-            cdc_shape = self.column_dependent_constants.shape
-            cdc_valid = (self.integer_constants.num_cols,
-                         FF_ColumnDependentConstants.CREATE_DIMS[1])
-            if cdc_shape != cdc_valid:
-                raise ValidateError(
-                    "Incorrectly shaped column dependent constants based on "
-                    "file type and number of columns in integer_constants "
-                    "(found {0}, should be {1})".format(cdc_shape, cdc_valid))
+            validators.validate_column_dependent_constants(
+                self, (self.integer_constants.num_cols,
+                       FF_ColumnDependentConstants.CREATE_DIMS[1]), filename)
 
         # Since we don't have access to the STASHmaster (which would
         # be strictly necessary to exmaine this in full detail) we will
         # make a few assumptions when checking the grid
         for ifield, field in enumerate(self.fields):
-            if dt_found in (1, 2) and field.lbrel == mule._INTEGER_MDI:
+            if (self.fixed_length_header.dataset_type in (1, 2) and 
+                field.lbrel == mule._INTEGER_MDI):
                 # In dumps, some headers are special mean fields
                 if (field.lbpack // 1000) != 2:
-                    raise ValidateError(
-                        "Field {0} is special dump field but does not have"
-                        "lbpack N4 == 2".format(ifield))
+                    msg = ("Field {0} is special dump field but does not"
+                           "have lbpack N4 == 2")
+                    raise validators.ValidateError(
+                        filename,
+                        msg.format(ifield))
 
             elif field.lbrel not in (2, 3):
                 # If the field release number isn't one of the recognised
                 # values, or -99 (a missing/padding field) error
                 if field.lbrel != -99:
-                    raise ValidateError(
-                        "Field {0} has unrecognised release number {1}"
-                        .format(ifield, field.lbrel))
+                    msg = "Field {0} has unrecognised release number {1}"
+                    raise validators.ValidateError(
+                        filename, msg.format(ifield, field.lbrel))
             else:
                 # Land packed fields shouldn't set their rows or columns
                 if (field.lbpack % 100)//10 == 2:
                     if field.lbrow != 0:
-                        raise ValidateError(
-                            "Field {0} rows not set to zero for land/sea "
-                            "packed field".format(ifield))
+                        msg = ("Field {0} rows not set to zero for land/sea "
+                               "packed field")
+                        raise validators.ValidateError(
+                            filename, msg.format(ifield))
+
                     if field.lbnpt != 0:
-                        raise ValidateError(
-                            "Field {0} columns not set to zero for "
-                            "land/sea packed field".format(ifield))
+                        msg = ("Field {0} columns not set to zero for "
+                               "land/sea packed field")
+                        raise validators.ValidateError(
+                            filename, msg.format(ifield))
 
                 elif (self.row_dependent_constants is not None and
                       self.column_dependent_constants is not None):
-                    # Fields on a variable resolution grid should simply
-                    # contain the correct number of rows/columns (actually
-                    # these can be within +/- 1 of the header value to account
-                    # for the different grid-offsets)
-                    col_diff = np.abs(field.lbnpt -
-                                      self.integer_constants.num_cols)
-                    if col_diff > 1:
-                        raise ValidateError(
-                            "Field {0} column count inconsistent with variable"
-                            " resolution grid constants".format(ifield))
-                    row_diff = np.abs(field.lbrow -
-                                      self.integer_constants.num_rows)
-                    if row_diff > 1:
-                        raise ValidateError(
-                            "Field {0} row count inconsistent with variable "
-                            "resolution grid constants".format(ifield))
-
-                    # Fields on variable grids should also have these values
-                    # set specifically to RMDI
-                    if field.bzx != self.real_constants.real_mdi:
-                        raise ValidateError(
-                            "Field {0} start longitude (bzx) not RMDI "
-                            "in variable resolution file".format(ifield))
-                    if field.bzy != self.real_constants.real_mdi:
-                        raise ValidateError(
-                            "Field {0} start latitude (bzy) not RMDI "
-                            "in variable resolution file".format(ifield))
-                    if field.bdx != self.real_constants.real_mdi:
-                        raise ValidateError(
-                            "Field {0} longitude interval (bdx) not RMDI "
-                            "in variable resolution file".format(ifield))
-                    if field.bdy != self.real_constants.real_mdi:
-                        raise ValidateError(
-                            "Field {0} latitude interval (bdy) not RMDI "
-                            "in variable resolution file".format(ifield))
-
+                    # Check that the headers are set appropriately
+                    validators.validate_variable_resolution_field(
+                        self, field, ifield, filename)
                 else:
-                    # For normal fields, the easiest way to get an idea of if
-                    # all grid aspects are right is to check that the field's
-                    # definition of the grid extent matches the file's
-                    field_end_lon = field.bzx + field.lbnpt*field.bdx
-                    file_end_lon = (self.real_constants.start_lon +
-                                    self.integer_constants.num_cols *
-                                    self.real_constants.col_spacing)
-                    lon_diff_steps = (np.abs(field_end_lon - file_end_lon) /
-                                      self.real_constants.col_spacing)
-
-                    # For the longitude the field's result must be within 1.5
-                    # grid-spacings of the P grid in the header (allow an
-                    # additional 1% tolerance for rounding errors)
-                    if lon_diff_steps > 1.51:
-                        raise ValidateError(
-                            "Field {0} grid longitudes inconsistent"
-                            .format(ifield))
-
-                    field_end_lat = field.bzy + field.lbrow*field.bdy
-                    file_end_lat = (self.real_constants.start_lat +
-                                    self.integer_constants.num_rows *
-                                    self.real_constants.row_spacing)
-                    lat_diff_steps = (np.abs(field_end_lat - file_end_lat) /
-                                      self.real_constants.row_spacing)
-
-                    # Similarly for the latitudes 1.5 grid spacings with a
-                    # 1% tolerance
-                    if lat_diff_steps > 1.51:
-                        raise ValidateError(
-                            "Field {0} grid latitudes inconsistent"
-                            .format(ifield))
+                    # Check that the grids are consistent
+                    validators.validate_regular_field(
+                        self, field, ifield, filename)

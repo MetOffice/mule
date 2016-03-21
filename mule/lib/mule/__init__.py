@@ -1215,7 +1215,7 @@ class UMFile(object):
             new_umf.remove_empty_lookups()
 
         # Validate the new object, to check it has been created properly
-        new_umf.validate()
+        new_umf.validate(filename=new_umf._source_path)
 
         return new_umf
 
@@ -1290,7 +1290,7 @@ class UMFile(object):
 
         return new_umf
 
-    def validate(self):
+    def validate(self, filename=None):
         """
         Apply any consistency checks to check the file is "valid".
 
@@ -1329,7 +1329,10 @@ class UMFile(object):
         # Call validate - to ensure the file about to be written out doesn't
         # contain obvious errors.  This is done here before any new file is
         # created so that we don't create a blank file if the validation fails
-        self.validate()
+        if isinstance(output_file_or_path, basestring):
+            self.validate(filename=output_file_or_path)
+        else:
+            self.validate(filename=output_file_or_path.name)
 
         if isinstance(output_file_or_path, basestring):
             with open(output_file_or_path, 'wb') as output_file:
