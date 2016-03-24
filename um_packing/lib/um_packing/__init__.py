@@ -16,4 +16,4 @@
 
 from um_packing import wgdos_pack, wgdos_unpack, get_um_version
 
-__version__ = 1.0
+__version__ = 1.2

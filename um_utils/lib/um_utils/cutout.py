@@ -762,9 +762,15 @@ def _main():
 
     filename = args.input_file
     if os.path.exists(filename):
-        # Load the file using Mule - note we explicitly load a FieldsFile
-        # as we don't expect cutout to work properly on anything else
-        ff = mule.FieldsFile.from_file(filename)
+        # Load the file using Mule - filter it according to the file types
+        # which cutout can handle
+        ff = mule.load_umfile(filename)
+        if ff.fixed_length_header.dataset_type not in (1, 2, 3, 4):
+            msg = (
+                "Invalid dataset type ({0}) for file: {1}\nCutout is only "
+                "compatible with FieldsFiles (3), Dumps (1|2) and Ancils (4)"
+                .format(ff.fixed_length_header.dataset_type, filename))
+            raise ValueError(msg)
 
         # Perform the cutout
         if hasattr(args, "zx"):

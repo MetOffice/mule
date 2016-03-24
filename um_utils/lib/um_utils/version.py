@@ -41,8 +41,8 @@ def _print_module_source(module):
     which contains it.
 
     """
-    report = "{0:10s} : {1}\n"
-    return report.format(module.__name__, module.__file__)
+    report = "{0:10s} : {1} (version {2})"
+    return report.format(module.__name__, module.__file__, module.__version__)
 
 
 def report_modules(stdout=None):
@@ -60,13 +60,15 @@ def report_modules(stdout=None):
         stdout = sys.stdout
 
     # Report the location of mule and the utilities module
-    stdout.write(_print_module_source(mule))
-    stdout.write(_print_module_source(um_utils))
+    stdout.write(_print_module_source(mule) + "\n")
+    stdout.write(_print_module_source(um_utils) + "\n")
 
     # The packing module is more variable, so report on whatever
     # the copy of mule above has ended up importing
     if hasattr(mule.packing, "um_packing"):
         stdout.write(_print_module_source(mule.packing.um_packing))
+        stdout.write(" (packing lib from UM: {0})\n".format(
+            mule.packing.um_packing.get_um_version()))
     elif hasattr(mule.packing, "mo_pack"):
         stdout.write(_print_module_source(mule.packing.mo_pack))
     else:

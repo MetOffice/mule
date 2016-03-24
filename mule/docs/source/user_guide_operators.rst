@@ -418,7 +418,7 @@ exists to perform this reverse-translation:
     >>> data.shape
     (38, 272)
 
-As dicussed above the modular nature of the operators means that for LBC files
+As discussed above the modular nature of the operators means that for LBC files
 a common pattern will be to apply the :class:`LBCToMaskedArrayOperator` to a
 field from an input file, followed by an operator of your own and then 
 eventually use the :class:`MaskedArrayToLBCOperator` to prepare it for output.

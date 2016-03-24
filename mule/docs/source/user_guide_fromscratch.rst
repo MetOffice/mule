@@ -116,8 +116,8 @@ standard fields-file it might look something like this:
 
 This sets up slightly more of the headers (though it could still go further), 
 it also illustrates how the arrays in the level dependent constants can be set 
-in this way (though in the exmaple we aren't setting them to anything 
-meaningful).  Note that we are also now explciitly setting the "dataset_type"
+in this way (though in the example we aren't setting them to anything 
+meaningful).  Note that we are also now explicitly setting the "dataset_type"
 to indicate that this is a template for a fields-file; therefore a file object
 constructed from this template will no longer validate unless it is of the 
 specified type (:class:`mule.FieldsFile` in this case).
@@ -125,7 +125,7 @@ specified type (:class:`mule.FieldsFile` in this case).
 Creating Fields from Scratch
 ----------------------------
 A new file object on its own isn't of much use - so we now need to put some
-:class:`mule.Field` objets into it.  Similar to the creation of the files some 
+:class:`mule.Field` objects into it.  Similar to the creation of the files some 
 manual work will be required to produce field's which are *completely* valid.  
 
 Unlike the file objects there is no templating system for the fields, instead 
@@ -188,7 +188,7 @@ Note however that the provider can technically be any class you choose to
 create - as long as it defines a suitable :meth:`get_data` method which 
 returns a 2d numpy array.  For example suppose you wish to make use of data
 contained in a separate NetCDF file using the Python module which can read it
-(the netCDF4 module syntax should be understandable but please refer to its 
+(the `netCDF4` module syntax should be understandable but please refer to its 
 documentation if anything isn't clear):
 
 .. code-block:: python
@@ -237,7 +237,7 @@ field and you gain the same benefits of deferred access.
 .. Note::
     The example above isn't perfect either; if it were a real example it would
     probably make more sense to have the class accept the 
-    :class:`NetCDF4.Dataset` object at initialistation instead of the path to
+    :class:`NetCDF4.Dataset` object at initialisation instead of the path to
     the file, though it depends on how many different variables this is being
     applied to. (Currently every call to :meth:`get_data` opens and closes the
     file, which may be inefficient if done too frequently).

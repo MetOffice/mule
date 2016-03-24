@@ -63,7 +63,7 @@ Component differences:
 Lookup compares, data DOES NOT compare
 Compared 62/64 lookup values.
 File_1 lookup info: 
-  t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-98)
+  t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-99)
 Data differences:
   Number of point differences  : 11/12
   Maximum absolute difference  : 44.0

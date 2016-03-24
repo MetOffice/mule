@@ -27,6 +27,7 @@ import numpy as np
 import um_packing.tests as tests
 from um_packing import wgdos_unpack, wgdos_pack
 
+
 def get_random_data(mdi):
     # Returns some random test data to use for the testing
     array = np.random.random((500, 700))
@@ -42,11 +43,12 @@ def get_random_data(mdi):
 
     return array
 
+
 class Test_packing(tests.UMPackingTest):
     # Values of missing data and accuracy to use
     MDI = -1.23456789
     ACCURACY = -10
-    
+
     def test_1_pack(self):
         # The first test packs the array
         array = get_random_data(self.MDI)
@@ -58,11 +60,11 @@ class Test_packing(tests.UMPackingTest):
         # The second test unpacks it again and checks that the degradation
         # in accuracy is within the expected amount it should be
         array, packed_bytes = self.test_1_pack()
-        
+
         unpacked_array = wgdos_unpack(packed_bytes, self.MDI)
 
         self.assertArrayLess(np.abs(array - unpacked_array),
-                             (2**self.ACCURACY)/2)        
+                             (2**self.ACCURACY)/2)
 
         return unpacked_array
 
@@ -70,7 +72,7 @@ class Test_packing(tests.UMPackingTest):
         # The third test re-packs the data and then unpacks it once again,
         # but this time the data should be exactly the same afterwards
         unpacked_array = self.test_2_unpack()
-        
+
         packed_bytes = wgdos_pack(unpacked_array, self.MDI, self.ACCURACY)
 
         reunpacked_array = wgdos_unpack(packed_bytes, self.MDI)
@@ -79,4 +81,3 @@ class Test_packing(tests.UMPackingTest):
 
 if __name__ == "__main__":
     tests.main()
-

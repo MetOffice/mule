@@ -117,7 +117,7 @@ class to look internally for the correct sizing information.  Thus if you run:
 
 You'll see that you *still* get a second dimension of 8 - because for a 
 :class:`mule.FieldsFile` that is the valid size for that dimension.  However
-the number of levels is an unkown dimension, so either of these commands will
+the number of levels is an unknown dimension, so either of these commands will
 not work:
 
 .. code-block:: python
@@ -145,7 +145,7 @@ appear to match the grid defined by one (or more) of the fields.
 
 When Mule does this part of the validation, it uses the field's grid 
 definition to calculate the *final point* in the domain, and compares this
-to the equivalent calcualtion based on the file's grid definition.  Assuming
+to the equivalent calculation based on the file's grid definition.  Assuming
 we have a field failing to validate stating that it's longitudes are 
 inconsistent; we can investigate it as follows:
 

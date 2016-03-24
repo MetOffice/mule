@@ -335,8 +335,7 @@ class STASHmaster(dict):
 
     def has_key(self, key):
         """Overrides parent dict method to apply cutom key processor."""
-        key = self._key_process(key)
-        return super(STASHmaster, self).has_key(key)
+        return self.__contains__(key)
 
     def __contains__(self, key):
         """Overrides parent dict method to apply cutom key processor."""

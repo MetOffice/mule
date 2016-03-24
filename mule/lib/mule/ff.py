@@ -502,8 +502,8 @@ class FieldsFile(mule.UMFile):
         # be strictly necessary to exmaine this in full detail) we will
         # make a few assumptions when checking the grid
         for ifield, field in enumerate(self.fields):
-            if (self.fixed_length_header.dataset_type in (1, 2) and 
-                field.lbrel == mule._INTEGER_MDI):
+            if (self.fixed_length_header.dataset_type in (1, 2)
+                    and field.lbrel == mule._INTEGER_MDI):
                 # In dumps, some headers are special mean fields
                 if (field.lbpack // 1000) != 2:
                     msg = ("Field {0} is special dump field but does not"

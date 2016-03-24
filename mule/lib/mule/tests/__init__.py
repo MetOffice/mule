@@ -28,16 +28,6 @@ import unittest as tests
 
 from mule import Field
 
-try:
-    import mo_pack
-except ImportError:
-    # Disable specific tests if mo_pack is not installed.
-    mo_pack = None
-
-skip_mo_pack = tests.skipIf(mo_pack is None,
-                            'Test(s) require "mo_pack", '
-                            'which is not available.')
-
 
 def _testdata_path():
     """Define the path to the directory containing testing datafiles."""

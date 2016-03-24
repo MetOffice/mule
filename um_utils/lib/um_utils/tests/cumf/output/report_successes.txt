@@ -129,7 +129,7 @@ File_1 lookup info:
   (22) lbrel   : 3    
   (23) lbfc    : -99  
   (24) lbcfc   : -99  
-  (25) lbproc  : -98  
+  (25) lbproc  : -99  
   (26) lbvc    : -99  
   (27) lbrvc   : -99  
   (28) lbexp   : -99  
@@ -201,7 +201,7 @@ File_1 lookup info:
   (22) lbrel   : 3    
   (23) lbfc    : -99  
   (24) lbcfc   : -99  
-  (25) lbproc  : -98  
+  (25) lbproc  : -99  
   (26) lbvc    : -99  
   (27) lbrvc   : -99  
   (28) lbexp   : -99  
@@ -273,7 +273,7 @@ File_1 lookup info:
   (22) lbrel   : 3    
   (23) lbfc    : -99  
   (24) lbcfc   : -99  
-  (25) lbproc  : -98  
+  (25) lbproc  : -99  
   (26) lbvc    : -99  
   (27) lbrvc   : -99  
   (28) lbexp   : -99  
@@ -351,7 +351,7 @@ File_1 lookup info:
   (22) lbrel   : 3    
   (23) lbfc    : -99  
   (24) lbcfc   : -99  
-  (25) lbproc  : -98  
+  (25) lbproc  : -99  
   (26) lbvc    : -99  
   (27) lbrvc   : -99  
   (28) lbexp   : -99  
@@ -425,7 +425,7 @@ File_1 lookup info:
   (22) lbrel   : 3    
   (23) lbfc    : -99  
   (24) lbcfc   : -99  
-  (25) lbproc  : -98  
+  (25) lbproc  : -99  
   (26) lbvc    : -99  
   (27) lbrvc   : -99  
   (28) lbexp   : -99  

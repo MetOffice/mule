@@ -17,26 +17,22 @@
 import setuptools
 import numpy as np
 
-setuptools.setup(name='um_packing',
-      version='1.1',
-      description='Unified Model packing library extension',
-      author='UM Systems Team',
-      url='https://code.metoffice.gov.uk/trac/um',
-      package_dir = {'': 'lib'},
-      packages=['um_packing',
-                'um_packing.tests'],
-      features={
-          'packing': setuptools.Feature(
-              "UM Packing library (requires UM Licence)",
-              standard=True,
-              ext_modules=[
-                  setuptools.Extension(
-                      'um_packing.um_packing',
-                      ['lib/um_packing/um_packing.c'],
-                      include_dirs=[np.get_include()],
-                      )
-                  ]
-              )
-          },      
-     )
-
+setuptools.setup(
+    name='um_packing',
+    version='1.2',
+    description='Unified Model packing library extension',
+    author='UM Systems Team',
+    url='https://code.metoffice.gov.uk/trac/um',
+    package_dir={'': 'lib'},
+    packages=['um_packing',
+              'um_packing.tests'],
+    features={
+        'packing': setuptools.Feature(
+            "UM Packing library (requires UM Licence)",
+            standard=True,
+            ext_modules=[
+                setuptools.Extension(
+                    'um_packing.um_packing',
+                    ['lib/um_packing/um_packing.c'],
+                    include_dirs=[np.get_include()])
+                ])})

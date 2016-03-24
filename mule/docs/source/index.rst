@@ -19,6 +19,7 @@ Guides and Tutorials:
    :maxdepth: 1
 
    user_guide
+   examples
 
 API Documentation:
 
@@ -30,6 +31,7 @@ API Documentation:
    mule/lbc
    mule/ancil
    mule/packing
+   mule/operators
 
 Indices and tables
 ==================

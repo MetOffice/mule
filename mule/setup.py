@@ -18,17 +18,15 @@ from glob import glob
 from setuptools import setup
 
 setup(name='mule',
-      version='1.1',
+      version='1.2',
       description='Unified Model Fields File interface',
       author='UM Systems Team',
       url='https://code.metoffice.gov.uk/trac/um',
-      package_dir = {'': 'lib'},
+      package_dir={'': 'lib'},
       packages=['mule',
                 'mule.tests',
                 'mule.tests.unit',
                 'mule.tests.integration',
                 'mule.example_code'],
       data_files=[('mule/tests/test_datafiles',
-                       glob('lib/mule/tests/test_datafiles/*'))],
-     )
-
+                   glob('lib/mule/tests/test_datafiles/*'))])

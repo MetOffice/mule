@@ -26,6 +26,7 @@ import numpy as np
 import tempfile
 import unittest as tests
 
+
 class UMPackingTest(tests.TestCase):
     """An extension of unittest.TestCase with extra test methods."""
 
@@ -35,7 +36,8 @@ class UMPackingTest(tests.TestCase):
 
     def assertArrayLess(self, a, b, err_msg=''):
         """Check that numpy array is less than value."""
-        np.testing.assert_array_less(a, b, err_msg=err_msg)        
+        np.testing.assert_array_less(a, b, err_msg=err_msg)
+
 
 def main():
     """
@@ -44,4 +46,4 @@ def main():
     Allows um_packing.tests to be imported in place of unittest
 
     """
-    tests.main()    
+    tests.main()

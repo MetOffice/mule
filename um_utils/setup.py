@@ -18,23 +18,24 @@ from glob import glob
 from setuptools import setup
 
 setup(name='um_utils',
-      version='1.1',
+      version='1.2',
       description='Unified Model Fields File utilities',
       author='UM Systems Team',
       url='https://code.metoffice.gov.uk/trac/um',
-      package_dir = {'': 'lib'},
+      package_dir={'': 'lib'},
       packages=['um_utils',
                 'um_utils.tests',
                 'um_utils.tests.pumf',
                 'um_utils.tests.summary',
                 'um_utils.tests.cumf',
+                'um_utils.tests.cutout',
                 ],
       data_files=[('um_utils/tests/pumf/output',
-                       glob('lib/um_utils/tests/pumf/output/*.txt')),
+                   glob('lib/um_utils/tests/pumf/output/*.txt')),
                   ('um_utils/tests/summary/output',
-                       glob('lib/um_utils/tests/summary/output/*.txt')),
+                   glob('lib/um_utils/tests/summary/output/*.txt')),
                   ('um_utils/tests/cumf/output',
-                       glob('lib/um_utils/tests/cumf/output/*.txt'))],
+                   glob('lib/um_utils/tests/cumf/output/*.txt'))],
       entry_points={
           'console_scripts': [
               'mule-pumf = um_utils.pumf:_main',
@@ -44,4 +45,3 @@ setup(name='um_utils',
               'mule-trim = um_utils.trim:_main',
               'mule-version = um_utils.version:_main',
               ]})
-

@@ -329,10 +329,10 @@ class DifferenceOperator(mule.DataOperator):
         if new_field.lbrel in (2, 3):
             new_field.lbproc += 1
 
-        # Turn off WGDOS packing - we can't guarantee that it will be able
-        # to pack the difference values - all other field types are okay
-        if new_field.lbpack == 1:
-            new_field.lbpack = 0
+        # Turn off packing - we can't guarantee that the difference fields
+        # will be able to be packed using the original codes
+        new_field.lbpack = 0
+        new_field.bacc = -99.0
 
         return new_field
 
@@ -1047,7 +1047,7 @@ def full_report(comparison, stdout=None, **kwargs):
 
         # Print some extra information about the fields
         stdout.write("File_1 lookup info: \n")
-        print_lookups(comp_field, stdout)
+        print_lookups(comp_field.lookup_comparison.component_1, stdout)
 
         # Report if there was a difference in the ordering of the fields
         if comp_field.file_1_index != comp_field.file_2_index:

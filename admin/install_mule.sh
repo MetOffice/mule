@@ -48,7 +48,7 @@ BIN_DEST=$2
 PACKING_LIB=$3
 
 # A few hardcoded settings
-PYTHONEXEC=python2.7
+PYTHONEXEC=${PYTHONEXEC:-python2.7}
 SCRATCHDIR=$(mktemp -d)
 SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
 
@@ -87,7 +87,8 @@ if [ ! -d $PACKING_LIB ] ; then
 fi
 
 # Make a temporary directory to hold the installs
-mkdir -p $SCRATCHLIB
+mkdir -p $SCRATCHLIB 
+ln -s $SCRATCHDIR/lib $SCRATCHDIR/lib64
 
 # The install command will complain if this directory isn't on the path
 # so add it to the path here

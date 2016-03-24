@@ -27,7 +27,7 @@ UM file of the fieldsfile-like type, as covered in document UMDP F03.
 This enables any file of this general form to be handled.
 
 In practice, most files will be of a specific known subtype and it is then
-simpler and safer to use the approriate subclass, :class:`~mule.ff.FieldsFile`
+simpler and safer to use the appropriate subclass, :class:`~mule.ff.FieldsFile`
 or :class:`~mule.lbc.LBCFile` :  These perform type-specific sanity checking,
 and provide named attributes to access all of the header elements.
 
@@ -54,7 +54,7 @@ import numpy as np
 import numpy.ma
 from contextlib import contextmanager
 
-__version__ = 1.0
+__version__ = 1.2
 
 # UM fixed length header names and positions
 _UM_FIXED_LENGTH_HEADER = [
@@ -291,7 +291,7 @@ class BaseHeaderComponent(object):
     """
     __metaclass__ = _HeaderMetaclass
 
-    # The values in this base class should be overidden as they will
+    # The values in this base class should be overridden as they will
     # not do anything useful if left set to None.
     MDI = None
     """The value to use to indicate missing header values."""
@@ -866,7 +866,7 @@ class DataOperator(object):
 
     def __init__(self, *args, **kwargs):
         """
-        Initialise the operator object - this should be overidden by the user.
+        Initialise the operator object - this should be overridden by the user.
 
         This method should accept any user arguments to be "baked" into the
         operator or to otherwise initialise it as-per the user's requirements;
@@ -875,7 +875,7 @@ class DataOperator(object):
 
         """
         msg = ("The __init__ method of the DataOperator baseclass should be "
-               "overidden by the user")
+               "overridden by the user")
         raise NotImplementedError(msg)
 
     def __call__(self, source, *args, **kwargs):
@@ -925,7 +925,7 @@ class DataOperator(object):
     def new_field(self, source, *args, **kwargs):
         """
         Produce a new output :class:`Field` from a source object
-        - this method should be overidden by the user.
+        - this method should be overridden by the user.
 
         This method encodes how to produce a new field, which is typically
         derived by calculation from an existing source field or fields.
@@ -949,15 +949,15 @@ class DataOperator(object):
 
         """
         msg = ("The new_field method of the DataOperator baseclass should be "
-               "overidden by the user")
+               "overridden by the user")
         raise NotImplementedError(msg)
 
     def transform(self, source, result_field):
         """
         Calculate the data payload for a result field
-        - this method should be overidden by the user.
+        - this method should be overridden by the user.
 
-        This method must return a 2d numpy array containing the field data.
+        This method must return a 2D numpy array containing the field data.
         Typically it will extract the data payload from a source field and
         manipulate it in some way.
 
@@ -980,7 +980,7 @@ class DataOperator(object):
 
         """
         msg = ("The transform method of the DataOperator baseclass should be "
-               "overidden by the user")
+               "overridden by the user")
         raise NotImplementedError(msg)
 
 
@@ -1618,11 +1618,6 @@ class UMFile(object):
         # the data and lookup
         single_headers_end = output_file.tell() // self.WORD_SIZE
         self._calc_lookup_and_data_positions(single_headers_end + 1)
-
-        # Reset the total field count (we don't have a way of calculating
-        # the correct value for it, and if we copied from an existing file
-        # which did have it set it will appear incorrect now)
-        flh.total_prognostic_fields = flh.MDI
 
         if self.fields:
             # Skip the LOOKUP component and write the DATA component.
