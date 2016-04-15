@@ -1,0 +1,202 @@
+# (C) Crown Copyright 2016, Met Office. All rights reserved.
+#
+# This file is part of the UM utilities module, which use the Mule API.
+#
+# Mule and these utilities are free software: you can redistribute it and/or
+# modify them under the terms of the Modified BSD License, as published by the
+# Open Source Initiative.
+#
+# These utilities are distributed in the hope that they will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Modified BSD License for more details.
+#
+# You should have received a copy of the Modified BSD License
+# along with these utilities.
+# If not, see <http://opensource.org/licenses/BSD-3-Clause>.
+"""
+Fixframe is a utility to convert a MakeBC frame file to a
+CreateBC compatible frame file.
+
+The file headers in a MakeBC frame file contain the grid information
+of the original fields rather than the cutout frame fields.
+
+Fixframe will create a new :class:`mule.FieldsFile` object that uses
+the grid information from the frame fields to update the file headers.
+
+Usage:
+
+ * Take a :class:`mule.UMFile` or :class:`mule.FieldsFile` object
+   and return a :class:`mule.FieldsFile` object that is compatible
+   with CreateBC
+
+   >>> fieldsfile_object = fixframe.fixframe(umfile_object)
+
+"""
+import os
+import sys
+import mule
+import argparse
+import mule.validators as validators
+from um_utils.version import report_modules
+from um_utils.pumf import _banner
+
+
+def fixframe(origfile):
+    """
+    Given a MakeBC frame file as a UMFile or FieldsFile object
+    return a FieldsFile object which is compatible with CreateBC.
+
+    Args:
+        * origfile:
+            A UM file object of class :class:`mule.UMFile` or
+            :class:`mule.FieldsFile`
+
+    """
+    # Create empty fieldsfile object to hold the new fixed frame file
+    fixedfile = mule.FieldsFile()
+    # Copy headers. MakeBC frames only contain fixed_length,integer
+    # and real headers and the level dependent constants.
+    fixedfile.fixed_length_header = origfile.fixed_length_header
+    fixedfile.integer_constants = mule.ff.FF_IntegerConstants(
+        origfile.integer_constants.raw[1:])
+    fixedfile.real_constants = mule.ff.FF_RealConstants(
+        origfile.real_constants.raw[1:])
+    fixedfile.level_dependent_constants = mule.ff.FF_LevelDependentConstants(
+        origfile.level_dependent_constants.raw[:, 1:])
+    # Copy fields
+    fixedfile.fields = origfile.fields
+
+    # Check that file has orography, which should always be the first field
+    # in a MakeBC frame
+    orog_field = fixedfile.fields[0]
+    if (orog_field.lbrel not in (2, 3)):
+        msg = "First field in file has unrecognised release number {0}"
+        raise ValueError(msg.format(orog_field.lbrel))
+    if (orog_field.lbuser4 != 33):
+        msg = ("First field in file has stashcode {0} but expected orography "
+               "(stashcode 33) for a MakeBC frame file")
+        raise ValueError(msg.format(orog_field.lbuser4))
+    # Check that file is a fieldsfile - MakeBC frames hardwires this to 3
+    # even if input file was a dump
+    validators.validate_dataset_type(fixedfile, (3,), origfile._source_path)
+
+    # Copy the rows and row_length from field header to file header
+    fixedfile.integer_constants.num_rows = orog_field.lbrow
+    fixedfile.integer_constants.num_cols = orog_field.lbnpt
+
+    # Only grid-staggerings of 3 (New Dynamics) or 6 (ENDGame) are valid
+    validators.validate_grid_staggering(fixedfile, (3, 6),
+                                        origfile._source_path)
+    # Copy the start lat and start long. Convert from zeroth P point
+    # to start lat/long (origin) of grid
+    if fixedfile.fixed_length_header.grid_staggering == 6:
+        # ENDGame - Add half grid spacing
+        stagger_factor = 0.5
+    else:
+        # New Dynamics - Add single grid spacing
+        stagger_factor = 1
+    fixedfile.real_constants.start_lat = orog_field.bzy + \
+        (stagger_factor * orog_field.bdy)
+    fixedfile.real_constants.start_lon = orog_field.bzx + \
+        (stagger_factor * orog_field.bdx)
+
+    # Set hemisphere indicator/grid type
+    if orog_field.lbcode == 1:  # Regular lat/lon
+        fixedfile.fixed_length_header.horiz_grid_type = orog_field.lbhem
+    elif orog_field.lbcode == 101:  # Rotated regular lat/lon
+        fixedfile.fixed_length_header.horiz_grid_type = orog_field.lbhem + \
+            100
+    else:
+        msg = ("LBCODE = {0} indicates that frame file is not on a "
+               "regular lat/lon grid.")
+        raise ValueError(msg.format(orog_field.lbcode))
+    # Frames files have lblrec set incorrectly using 32 bit words
+    for field in fixedfile.fields:
+        # Convert from num 32 to 64 bit words
+        field.lblrec = (field.lblrec + 1)/2
+    return fixedfile
+
+
+def _printgrid(umfile, filename, stdout=None):
+    """
+    Print grid information to stdout
+
+    """
+    # Setup output
+    if stdout is None:
+        stdout = sys.stdout
+
+    msg = ("\n Grid information for file: {0}\n\n"
+           " Latitude of first row     : {1:12}\n"
+           " Longitude of first column : {2:12}\n"
+           " Number of rows            : {3:12}\n"
+           " Number of columns         : {4:12}\n")
+    stdout.write(msg.format(filename, umfile.real_constants.raw[3],
+                            umfile.real_constants.raw[4],
+                            umfile.integer_constants.raw[7],
+                            umfile.integer_constants.raw[6]))
+
+
+def _main():
+    """
+    Main function; accepts command line argument for paths to
+    the input and output files.
+
+    """
+    # Create a quick version of the regular raw description formatter which
+    # adds spaces between the option help text
+    class BlankLinesHelpFormatter(argparse.HelpFormatter):
+        def _split_lines(self, text, width):
+            return super(
+                BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
+
+    parser = argparse.ArgumentParser(
+        usage="%(prog)s [options]",
+        description="""
+        FixFrame takes a MakeBC generated frame file and produces
+        a CreateBC compatible frame file.
+        """,
+        formatter_class=BlankLinesHelpFormatter,
+        )
+
+    parser.add_argument("input_filename",
+                        help="First argument is the path and name of the "
+                        "MakeBC frames file to be fixed",
+                        metavar="/path/to/input.file")
+    parser.add_argument("output_filename",
+                        help="Second argument is the path and name of the "
+                        "CreateBC frames file to be produced",
+                        metavar="/path/for/output.file")
+    # If the user supplied no arguments, print the help text and exit
+    if len(sys.argv) == 1:
+        parser.print_help()
+        parser.exit(1)
+
+    args = parser.parse_args()
+
+    # Print version information
+    print(_banner("(fixframe) Module Information")),
+    report_modules()
+    print ""
+
+    input_filename = args.input_filename
+    if not os.path.exists(input_filename):
+        msg = "File not found: {0}".format(input_filename)
+        raise ValueError(msg)
+
+    output_filename = args.output_filename
+
+    # Read in file to generic class as MakeBC frames do not
+    # pass fieldsfile validation
+    origfile = mule.UMFile.from_file(input_filename)
+    _printgrid(origfile, input_filename)
+    # Fix the headers
+    fixedfile = fixframe(origfile)
+    _printgrid(fixedfile, output_filename)
+    # Write file
+    fixedfile.to_file(output_filename)
+
+
+if __name__ == "__main__":
+    _main()

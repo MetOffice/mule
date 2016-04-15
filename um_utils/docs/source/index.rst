@@ -16,6 +16,7 @@ This is the documentation for the UM utilities, which use the Mule API.
    um_utils/cumf
    um_utils/cutout
    um_utils/trim
+   um_utils/fixframe
 
 Indices and tables
 ==================

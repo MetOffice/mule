@@ -22,7 +22,7 @@ Usage:
  * Compare :class:`mule.UMFile` objects with the
    :class:`UMFileComparison` class:
 
-    >>> comp = UMFileComparsion(umfile_object1, umfile_object2)
+    >>> comp = UMFileComparison(umfile_object1, umfile_object2)
 
  * This object can be manually examined for details, or you can print either
    a short summary or a full report (note a full report is a super-set of a
