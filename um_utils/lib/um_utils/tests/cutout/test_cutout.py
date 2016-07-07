@@ -24,6 +24,7 @@ import um_utils.tests as tests
 
 from StringIO import StringIO
 from um_utils import cutout
+from mule.stashmaster import STASHmaster
 
 
 class _TestCutoutBase(object):
@@ -47,11 +48,14 @@ class _TestCutoutBase(object):
         ff.fixed_length_header.horiz_grid_type = 0
         addfield_method(ff)
 
+        # Attach stashmaster
+        sm = STASHmaster.from_file(tests.SAMPLE_STASHMASTER)
+        ff.attach_stashmaster_info(sm)
+
         # Call cutout (suppressing the output)
         strbuffer = StringIO()
         cutout_method = getattr(cutout, self.CUTOUT_METHOD)
-        cutout_ff = cutout_method(ff, *self.CUTOUT_PARAMS, stdout=strbuffer,
-                                  stashmaster=tests.SAMPLE_STASHMASTER)
+        cutout_ff = cutout_method(ff, *self.CUTOUT_PARAMS, stdout=strbuffer)
 
         # Extract and test the resulting field object
         field = cutout_ff.fields[0]

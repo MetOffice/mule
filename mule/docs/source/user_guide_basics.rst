@@ -344,6 +344,127 @@ You might have found that the API would not let you write the file without
 you also setting the number of rows and columns in the field to zero (which 
 is a requirement for land-packed fields).
 
+
+Working with STASHmaster files
+------------------------------
+Along with the basic file definition, a separate STASHmaster file exists at each
+UM version.  This provides additional information specific to each field type
+available to the UM, and can sometimes be useful for making sense of certain 
+aspects of the field.
+
+Mule provides a module which can read a STASHmaster file to help with this, and 
+will also automatically do this when loading a file (if possible).  There are 
+3 different ways to load a STASHmaster.  The simplest is to provide the path to
+the file directly:
+
+.. code-block:: python
+
+    >>> from mule.stashmaster import STASHmaster
+    >>> sm = STASHmaster.from_file("/path/to/stashmaster/file")
+
+Alternatively, if your STASHmaster files are stored in paths which contain the 
+relevant UM version number, you can load them from the version number:
+
+.. code-block:: python
+
+    >>> sm = STASHmaster.from_version("10.4")
+
+Note that this uses the pattern defined by 
+`mule.stashmaster.STASHMASTER_PATH_PATTERN` - you should customise this at
+the beginning of your script if it doesn't suit your configuration; by default
+it is set to:
+
+.. code-block:: python
+
+    >>> mule.stashmaster.STASHMASTER_PATH_PATTERN
+    '$UMDIR/vn{0}/ctldata/STASHmaster/STASHmaster_A'
+
+This mimics the location where the UM is traditionally installed.  Note that 
+any environment variables in the pattern will be expanded, and the pattern will
+expect to be passed to :meth:`str.format` to receive the version number.  
+
+The final method for loading the STASHmaster is to load it based on the UM 
+version from the header of a :class:`mule.UMFile` subclass instance:
+
+.. code-block:: python
+
+    >>> sm = STASHmaster.from_umfile(umfile_object)
+
+.. Note::
+
+   None of the methods for loading the STASHmaster result in a fatal error if
+   they are unsuccessful - this is because the data in the STASHmaster is 
+   useful but *not essential* and most operations in Mule will still work 
+   without access to a STASHmaster file.  In the event of failing a warning
+   will be printed and the returned object will be `None`.
+
+Whichever method is used, the returned object is the same; it behaves very much
+like a dictionary, accepting the STASH code of the desired entry as either an
+integer or string:
+
+.. code-block:: python
+
+    >>> sm[16004]
+    <stashmaster._STASHentry object: SC:16004 - "TEMPERATURE ON THETA LEVELS">
+    >>> sm["10"]
+    <stashmaster._STASHentry object: SC:   10 - "SPECIFIC HUMIDITY AFTER TIMESTEP">
+    
+It can also be filtered to return a new :class:`mule.stashmaster.STASHmaster` 
+object containing a subset of the original (by either section code, item code,
+or a regular expression based on the STASH name entry):
+
+.. code-block:: python
+
+    >>> sm
+    <stashmaster.STASHmaster object: 3958 entries>
+    >>> sm.by_section(0)
+    <stashmaster.STASHmaster object: 375 entries>
+    >>> sm.by_item(4)
+    <stashmaster.STASHmaster object: 24 entries>
+    >>> sm.by_regex(r"(WIND|TEMPERATURE)")
+    <stashmaster.STASHmaster object: 151 entries>
+
+The elements of the dictionary are fairly simple objects which store the data,
+using the names taken from UMDP-C04.  Some of these are themselves dictionaries:
+
+.. code-block:: python
+
+    >>> entry = sm[16004]
+    >>> entry.grid, entry.levelT, entry.ppfc
+    (1, 2, 16)
+    >>> entry.packing_codes
+    {'PC8': -99, 'PC9': -99, 'PC2': -10, 'PC3': -3, 'PC1': -3, 'PC6': 21, 'PC7': -3, 'PC4': -3, 'PC5': -14, 'PCA': -99}
+
+To save time when working with files - Mule will automatically load the 
+STASHmaster when loading a :class:`mule.UMFile` subclass (assuming its UM 
+version number translates to a path that exists).  It will attach a `stash` 
+attribute to each field in the file found in the STASHmaster linking to its 
+STASH entry for easy access to the STASH properties.  You can override the 
+mechanism used to load the STASHmaster by passing an additional keyword to the
+file loading command:
+
+.. code-block:: python
+
+    >>> import mule
+    >>> ff = mule.FieldsFile.from_file("/path/to/your/file.ff", 
+                                       stashmaster="/path/to/your/stashmaster")
+
+.. Note::
+
+    Since trying to load a non-existent STASHmaster file does not result in a 
+    failure you can effectively "disable" the automatic loading by passing a 
+    false path here.
+
+You can also attach valid STASHmaster entries from any 
+:class:`mule.stashmaster.STASHmaster` object after loading a file (all existing
+attached entries will be replaced):
+
+.. code-block:: python
+
+    >>> ff.attach_stashmaster_info(sm)
+
+Please see UMDP-CO4 for further details on the contents of the STASH entries.
+
 Conclusion
 ----------
 Having worked through this section you should now be familiar with the basic 

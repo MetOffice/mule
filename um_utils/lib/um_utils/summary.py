@@ -62,12 +62,6 @@ Global print settings:
         meet in order to be printed (e.g. {"lbuser4": 16004, "lbft": 3} would
         print fields with STASH 16004 at forecast time 3) (defaults to all).
 
-    * stashmaster:
-        Either the full path to the STASHmaster file to use instead of trying
-        to take the version from the file, or the version number (e.g. "10.2",
-        requires UMDIR environment variable to be set and a suitable install
-        to exist there) (default: take from file).
-
 """
 import os
 import re
@@ -87,7 +81,6 @@ PRINT_SETTINGS = {
     "heading_frequency": 100,
     "field_index": [],
     "field_property": {},
-    "stashmaster": None,
     }
 
 
@@ -134,21 +127,6 @@ def field_summary(umf, stdout=None, **kwargs):
     field_property = print_settings["field_property"]
     heading_frequency = print_settings["heading_frequency"]
     properties = print_settings["column_names"]
-
-    # Setup the STASHmaster; if the user didn't supply an override
-    # try to take the version from the file:
-    stashmaster = print_settings["stashmaster"]
-    if stashmaster is None:
-        # If the user hasn't set anything, load the STASHmaster for the
-        # version of the UM defined in the first file
-        stashm = STASHmaster.from_umfile(umf)
-    else:
-        # If the settings looks like a version number, try to load the
-        # STASHmaster from that version, otherwise assume it is the path
-        if re.match(r"\d+.\d+", stashmaster):
-            stashm = STASHmaster.from_version(stashmaster)
-        else:
-            stashm = STASHmaster.from_file(stashmaster)
 
     # Summary cannot handle empty field entrys
     umf.remove_empty_lookups()
@@ -235,8 +213,8 @@ def field_summary(umf, stdout=None, **kwargs):
 
         # If the stash name was requested, get it here (if possible)
         if stash_name_index is not None:
-            if stashm is not None and field.lbuser4 in stashm:
-                stash_name = stashm[field.lbuser4].name
+            if field.stash is not None:
+                stash_name = field.stash.name
             else:
                 stash_name = "UNKNOWN STASH CODE"
             array[array_ind][stash_name_index] = stash_name
@@ -365,7 +343,9 @@ def _main():
     parser.add_argument("--stashmaster",
                         help="either the full path to a valid stashmaster "
                         "file, or a UM version number e.g. '10.2'; if given "
-                        "a number summary will look in the following path: "
+                        "a number summary will look in the path defined by "
+                        "mule.stashmaster.STASHMASTER_PATH_PATTERN which by "
+                        "default is : "
                         "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
                         )
 
@@ -411,9 +391,16 @@ def _main():
                 raise ValueError(msg.format(arg))
     PRINT_SETTINGS["field_property"] = field_property
 
-    # Process stashmaster option
+    # If provided, load the given stashmaster
+    stashm = None
     if args.stashmaster is not None:
-        PRINT_SETTINGS["stashmaster"] = args.stashmaster
+        if re.match(r"\d+.\d+", args.stashmaster):
+            stashm = STASHmaster.from_version(args.stashmaster)
+        else:
+            stashm = STASHmaster.from_file(args.stashmaster)
+        if stashm is None:
+            msg = "Cannot load user supplied STASHmaster"
+            raise ValueError(msg)
 
     # Process heading lines
     if args.heading_frequency is not None:
@@ -423,7 +410,7 @@ def _main():
     filename = args.input_file
 
     if os.path.exists(filename):
-        um_file = mule.load_umfile(filename)
+        um_file = mule.load_umfile(filename, stashmaster=stashm)
         # Now print the object to stdout, if a SIGPIPE is received handle
         # it appropriately
         try:

@@ -33,6 +33,7 @@ Usage:
 
 """
 import os
+import re
 import sys
 import mule
 import argparse
@@ -109,8 +110,7 @@ def _get_fixed_indices(array, tolerance=1.0e-9):
     return region_indices
 
 
-def trim_fixed_region(ff_src, region_x, region_y,
-                      stashmaster=None, stdout=None):
+def trim_fixed_region(ff_src, region_x, region_y, stdout=None):
     """
     Extract a fixed resolution sub-region from a variable resolution
     :class:`mule.FieldsFile` object.
@@ -124,15 +124,14 @@ def trim_fixed_region(ff_src, region_x, region_y,
             The y index of the desired sub-region (starting from 1)
 
     Kwargs:
-        * stashmaster:
-            May be the complete path to a valid STASHmaster
-            file, or just the UM version number e.g. "10.2"
-            (assuming a UM install exists).  If omitted
-            cutout will try to take the version number from
-            the headers in the input file.
         * stdout:
             The open file-like object to write informational output to,
             default is to use sys.stdout.
+
+    .. Warning::
+
+        The :class:`mule.FieldsFile` object *must* have an attached set of
+        STASHmaster information, or trim cannot operate correctly.
 
     """
     # Setup printing
@@ -216,22 +215,9 @@ def trim_fixed_region(ff_src, region_x, region_y,
     stagger = {3: "new_dynamics", 6: "endgame"}
     stagger = stagger[ff.fixed_length_header.grid_staggering]
 
-    # Setup the STASHmaster; if the user didn't supply an override
-    # try to take the version from the file:
-    if stashmaster is None:
-        # If the user hasn't set anything, load the STASHmaster for the
-        # version of the UM defined in the first file
-        stashm = STASHmaster.from_umfile(ff_src)
-    else:
-        # If the settings looks like a version number, try to load the
-        # STASHmaster from that version, otherwise assume it is the path
-        if re.match(r"\d+.\d+", stashmaster):
-            stashm = STASHmaster.from_version(stashmaster)
-        else:
-            stashm = STASHmaster.from_file(stashmaster)
-
+    # Check that the file has a STASHmaster attached to it
     # Trim *cannot* continue without the STASHmaster
-    if stashm is None:
+    if ff.stashmaster is None:
         msg = "Cannot trim regions from a file without a valid STASHmaster"
         raise ValueError(msg)
 
@@ -263,11 +249,11 @@ def trim_fixed_region(ff_src, region_x, region_y,
         field.bdy = new_dy
 
         # The origin point depends on the staggering and the type of field
-        if field.lbuser4 in stashm:
-            grid_type = stashm[field.lbuser4].grid
+        if field.stash is not None:
+            grid_type = field.stash.grid
         else:
-            msg = "STASH code ({0}) not found in STASHmaster: {1}"
-            raise ValueError(msg.format(field_src.lbuser4, stashm.filename))
+            # Skip this field (it won't be output by cutout in the end anyway)
+            continue
 
         if grid_type == 19:  # V Points
             if stagger == "new_dynamics":
@@ -301,8 +287,7 @@ def trim_fixed_region(ff_src, region_x, region_y,
     # Should now be able to hand things off to cutout - note that since
     # normally cutout expects the start indices to be 1-based we have to adjust
     # the inputs slightly here to end up with the correct output
-    ff_out = cutout(ff, x_start + 1, y_start + 1, x_size, y_size,
-                    stashmaster, stdout)
+    ff_out = cutout(ff, x_start + 1, y_start + 1, x_size, y_size, stdout)
 
     return ff_out
 
@@ -350,7 +335,9 @@ def _main():
     parser.add_argument("--stashmaster",
                         help="either the full path to a valid stashmaster "
                         "file, or a UM version number e.g. '10.2'; if given "
-                        "a number pumf will look in the following path: "
+                        "a number trim will look in the path defined by "
+                        "mule.stashmaster.STASHMASTER_PATH_PATTERN which by "
+                        "default is : "
                         "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
                         )
 
@@ -368,9 +355,20 @@ def _main():
 
     filename = args.input_file
     if os.path.exists(filename):
+        # If provided, load the given stashmaster
+        stashm = None
+        if args.stashmaster is not None:
+            if re.match(r"\d+.\d+", args.stashmaster):
+                stashm = STASHmaster.from_version(args.stashmaster)
+            else:
+                stashm = STASHmaster.from_file(args.stashmaster)
+            if stashm is None:
+                msg = "Cannot load user supplied STASHmaster"
+                raise ValueError(msg)
+
         # Load the file using Mule - filter it according to the file types
         # which cutout can handle
-        ff = mule.load_umfile(filename)
+        ff = mule.load_umfile(filename, stashmaster=stashm)
         if ff.fixed_length_header.dataset_type not in (1, 2, 3, 4):
             msg = (
                 "Invalid dataset type ({0}) for file: {1}\nTrim is only "

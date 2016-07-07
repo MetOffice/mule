@@ -65,12 +65,6 @@ Global comparison settings:
         sections which are simply stating that they agree.  (This cuts down
         on the amount of output for larger files). (default:True)
 
-    * stashmaster:
-        Either the full path to the STASHmaster file to use instead of trying
-        to take the version from the file, or the version number (e.g. "10.2",
-        requires UMDIR environment variable to be set and a suitable install
-        to exist there) (default: take from file).
-
     * lookup_print_func:
         A callback function which is called for each printed field comparison
         to provide extra information about the fields.  It will be passed 2
@@ -121,7 +115,6 @@ COMPARISON_SETTINGS = {
         },
     "ignore_missing": False,
     "only_report_failures": True,
-    "stashmaster": None,
     "lookup_print_func": _print_lookup,
     }
 
@@ -269,6 +262,9 @@ class DifferenceOperator(mule.DataOperator):
         new_field = diff_field_class(fields[0]._lookup_ints,
                                      fields[0]._lookup_reals,
                                      None)
+
+        # Copy the STASH entry (if it exists)
+        new_field.stash = fields[0].stash
 
         # Get the data from the fields and check if it matches
         # Note: this is an abnormal use of the operator; usually
@@ -631,14 +627,21 @@ class UMFileComparison(object):
         if comp_settings["ignore_missing"]:
             lookup_ignores.extend(_INDEX_IGNORE_MISSING_FIELDS)
 
+        # Initialise the elements which hold the field comparison objects
+        self.field_comparisons = []
+        self.max_rms_diff_1 = [0, 0]
+        self.max_rms_diff_2 = [0, 0]
+
+        # If there aren't any fields in the first file, there isn't anything
+        # to compare
+        if len(um_file1.fields) == 0:
+            return
+
         # Create a mapping which relates the lookups in the two files (in
         # case the ordering of fields has changed)
         index = self._create_index(um_file1, um_file2, lookup_ignores)
 
         # Now iterate through the fields whose lookups appear to match
-        self.field_comparisons = []
-        self.max_rms_diff_1 = [0, 0]
-        self.max_rms_diff_2 = [0, 0]
         for ifield_1, ifield_2 in index:
 
             field_1 = um_file1.fields[ifield_1]
@@ -812,9 +815,12 @@ def summary_report(comparison, stdout=None):
 
     # Summarise the field differences
     fields_compared = len(comparison.field_comparisons)
-    total_fields = (fields_compared
-                    + len(comparison.unmatched_file_1)
-                    + len(comparison.unmatched_file_2))
+    if comparison.unmatched_file_1 is None:
+        total_fields = 0
+    else:
+        total_fields = (fields_compared
+                        + len(comparison.unmatched_file_1)
+                        + len(comparison.unmatched_file_2))
     stdout.write("Compared {0}/{1} fields\n"
                  .format(fields_compared, total_fields))
 
@@ -903,21 +909,6 @@ def full_report(comparison, stdout=None, **kwargs):
 
     # Get the verbosity setting from the dictionary
     only_report_failures = comp_settings["only_report_failures"]
-
-    # Retrieve the stashmaster from the settings (if set)
-    stashmaster = comp_settings["stashmaster"]
-    if stashmaster is None:
-        # If the user hasn't set anything, load the STASHmaster for the
-        # version of the UM defined in the first file
-        umf = comparison.file_1
-        stashm = STASHmaster.from_umfile(umf)
-    else:
-        # If the settings looks like a version number, try to load the
-        # STASHmaster from that version, otherwise assume it is the path
-        if re.match(r"\d+.\d+", stashmaster):
-            stashm = STASHmaster.from_version(stashmaster)
-        else:
-            stashm = STASHmaster.from_file(stashmaster)
 
     # Define a quick function for convenience since it's used in a two
     # places below - this is used to format the index report nicely
@@ -1020,8 +1011,8 @@ def full_report(comparison, stdout=None, **kwargs):
 
         # First a simple message explaining if the field broadly compares
         heading = "Field {0}/{1} ".format(ifield + 1, fields_compared)
-        if stashm is not None and comp_field.lbuser4 in stashm:
-            heading += "- " + stashm[comp_field.lbuser4].name
+        if comp_field.stash is not None:
+            heading += "- " + comp_field.stash.name
 
         if comp_field.match:
             # If the field compares report this and continue
@@ -1149,8 +1140,10 @@ def _main():
     parser.add_argument("--stashmaster",
                         help="either the full path to a valid stashmaster "
                         "file, or a UM version number e.g. '10.2'; if given "
-                        "a number cumf will look in the following path: "
-                        "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
+                        "a number cumf will look in the path defined by "
+                        "mule.stashmaster.STASHMASTER_PATH_PATTERN which by "
+                        "default is : "
+                        "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A"
                         )
 
     # If the user supplied no arguments, print the help text and exit
@@ -1184,15 +1177,23 @@ def _main():
     # Process the ignore missing flag
     COMPARISON_SETTINGS["ignore_missing"] = args.ignore_missing
 
+    # If provided, load the given stashmaster
+    stashm = None
     if args.stashmaster is not None:
-        COMPARISON_SETTINGS["stashmaster"] = args.stashmaster
+        if re.match(r"\d+.\d+", args.stashmaster):
+            stashm = STASHmaster.from_version(args.stashmaster)
+        else:
+            stashm = STASHmaster.from_file(args.stashmaster)
+        if stashm is None:
+            msg = "Cannot load user supplied STASHmaster"
+            raise ValueError(msg)
 
     if args.full:
         COMPARISON_SETTINGS["only_report_failures"] = False
 
     # Get the filenames
-    file_1 = mule.load_umfile(args.file_1)
-    file_2 = mule.load_umfile(args.file_2)
+    file_1 = mule.load_umfile(args.file_1, stashmaster=stashm)
+    file_2 = mule.load_umfile(args.file_2, stashmaster=stashm)
 
     comparison = UMFileComparison(file_1, file_2)
 

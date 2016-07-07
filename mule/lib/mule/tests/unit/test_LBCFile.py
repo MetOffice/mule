@@ -81,6 +81,7 @@ class Test_validate(tests.MuleTest):
         lbc = LBCFile()
         lbc.fixed_length_header.dataset_type = 5
         lbc.fixed_length_header.grid_staggering = 3
+        lbc.fixed_length_header.horiz_grid_type = 0
         lbc.integer_constants = LBC_IntegerConstants.empty()
         lbc.integer_constants.num_cols = nx
         lbc.integer_constants.num_rows = ny
@@ -101,6 +102,8 @@ class Test_validate(tests.MuleTest):
         # Construct a mock 'minimal' field that passes the validation tests.
         fld = Field3.empty()
         fld.lbrel = 3
+        fld.lbcode = 1
+        fld.lbhem = 0
         fld.lbrow = ny
         fld.bzy = y0 - dy
         fld.bdy = dy
@@ -265,7 +268,7 @@ class Test_validate(tests.MuleTest):
         fld.lbrel = 4
         lbc.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 has unrecognised release number 4"):
+                ValidateError, "Field has unrecognised release number 4"):
             lbc.validate()
 
     # Test a variable resolution field passes
@@ -292,7 +295,7 @@ class Test_validate(tests.MuleTest):
         fld.lbnpt = 6
         lbc.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 column count inconsistent"):
+                ValidateError, "Field column count inconsistent"):
             lbc.validate()
 
     # Test a variable resolution field with bad row count fails
@@ -305,7 +308,7 @@ class Test_validate(tests.MuleTest):
         fld.lbrow = 5
         lbc.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 row count inconsistent"):
+                ValidateError, "Field row count inconsistent"):
             lbc.validate()
 
     # Test a variable resolution field with non RMDI bzx fails
@@ -321,7 +324,7 @@ class Test_validate(tests.MuleTest):
         fld.bdy = lbc.real_constants.real_mdi
         lbc.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 start longitude \(bzx\) not RMDI"):
+                ValidateError, "Field start longitude \(bzx\) not RMDI"):
             lbc.validate()
 
     # Test a variable resolution field with non RMDI bzy fails
@@ -337,7 +340,7 @@ class Test_validate(tests.MuleTest):
         fld.bdy = lbc.real_constants.real_mdi
         lbc.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 start latitude \(bzy\) not RMDI"):
+                ValidateError, "Field start latitude \(bzy\) not RMDI"):
             lbc.validate()
 
     # Test a variable resolution field with non RMDI bdx fails
@@ -353,7 +356,7 @@ class Test_validate(tests.MuleTest):
         fld.bdy = lbc.real_constants.real_mdi
         lbc.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 longitude interval \(bdx\) not RMDI"):
+                ValidateError, "Field longitude interval \(bdx\) not RMDI"):
             lbc.validate()
 
     # Test a variable resolution field with non RMDI bdy fails
@@ -369,7 +372,7 @@ class Test_validate(tests.MuleTest):
         fld.bdy = 0.1
         lbc.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 latitude interval \(bdy\) not RMDI"):
+                ValidateError, "Field latitude interval \(bdy\) not RMDI"):
             lbc.validate()
 
     # Test lower boundary x value just within tolerance passes
@@ -395,7 +398,7 @@ class Test_validate(tests.MuleTest):
     def test_basic_regular_max_x_ok(self):
         lbc = self._minimal_valid_lbc()
         fld = self._minimal_valid_field()
-        fld.bdx = fld.bdx*2.01
+        fld.bdx = fld.bdx*1.5
         fld.bzx = lbc.real_constants.start_lon - fld.bdx
         lbc.fields = [fld]
         lbc.validate()
@@ -404,7 +407,7 @@ class Test_validate(tests.MuleTest):
     def test_basic_regular_max_x_fail(self):
         lbc = self._minimal_valid_lbc()
         fld = self._minimal_valid_field()
-        fld.bdx = fld.bdx*2.02
+        fld.bdx = fld.bdx*1.51
         fld.bzx = lbc.real_constants.start_lon - fld.bdx
         lbc.fields = [fld]
         with self.assertRaisesRegexp(ValidateError, 'longitudes inconsistent'):
@@ -433,7 +436,7 @@ class Test_validate(tests.MuleTest):
     def test_basic_regular_max_y_ok(self):
         lbc = self._minimal_valid_lbc()
         fld = self._minimal_valid_field()
-        fld.bdy = fld.bdy*3.03
+        fld.bdy = fld.bdy*2.02
         fld.bzy = lbc.real_constants.start_lat - fld.bdy
         lbc.fields = [fld]
         lbc.validate()
@@ -442,7 +445,7 @@ class Test_validate(tests.MuleTest):
     def test_basic_regular_max_y_fail(self):
         lbc = self._minimal_valid_lbc()
         fld = self._minimal_valid_field()
-        fld.bdy = fld.bdy*3.04
+        fld.bdy = fld.bdy*2.03
         fld.bzy = lbc.real_constants.start_lat - fld.bdy
         lbc.fields = [fld]
         with self.assertRaisesRegexp(ValidateError, 'latitudes inconsistent'):

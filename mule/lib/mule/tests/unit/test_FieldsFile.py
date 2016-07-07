@@ -155,6 +155,7 @@ class Test_validate(tests.MuleTest):
         ff = FieldsFile()
         ff.fixed_length_header.dataset_type = 3
         ff.fixed_length_header.grid_staggering = 3
+        ff.fixed_length_header.horiz_grid_type = 0
         ff.integer_constants = FF_IntegerConstants.empty()
         ff.integer_constants.num_cols = nx
         ff.integer_constants.num_rows = ny
@@ -174,6 +175,8 @@ class Test_validate(tests.MuleTest):
         # Construct a mock 'minimal' field that passes the validation tests.
         fld = Field3.empty()
         fld.lbrel = 3
+        fld.lbcode = 1
+        fld.lbhem = 0
         fld.lbrow = ny
         fld.bzy = y0 - dy
         fld.bdy = dy
@@ -334,7 +337,7 @@ class Test_validate(tests.MuleTest):
         fld.lbrel = 4
         ff.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 has unrecognised release number 4"):
+                ValidateError, "Field has unrecognised release number 4"):
             ff.validate()
 
     # Test a land/sea packed field
@@ -355,7 +358,7 @@ class Test_validate(tests.MuleTest):
         fld.lbnpt = 0
         ff.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 rows not set to zero"):
+                ValidateError, "Field rows not set to zero"):
             ff.validate()
 
     # Test a land/sea packed field with bad column setting fails
@@ -366,7 +369,7 @@ class Test_validate(tests.MuleTest):
         fld.lbrow = 0
         ff.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 columns not set to zero"):
+                ValidateError, "Field columns not set to zero"):
             ff.validate()
 
     # Test a variable resolution field passes
@@ -391,7 +394,7 @@ class Test_validate(tests.MuleTest):
         fld.lbnpt = 6
         ff.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 column count inconsistent"):
+                ValidateError, "Field column count inconsistent"):
             ff.validate()
 
     # Test a variable resolution field with bad row count fails
@@ -403,7 +406,7 @@ class Test_validate(tests.MuleTest):
         fld.lbrow = 5
         ff.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 row count inconsistent"):
+                ValidateError, "Field row count inconsistent"):
             ff.validate()
 
     # Test a variable resolution field with non RMDI bzx fails
@@ -418,7 +421,7 @@ class Test_validate(tests.MuleTest):
         fld.bdy = ff.real_constants.real_mdi
         ff.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 start longitude \(bzx\) not RMDI"):
+                ValidateError, "Field start longitude \(bzx\) not RMDI"):
             ff.validate()
 
     # Test a variable resolution field with non RMDI bzy fails
@@ -433,7 +436,7 @@ class Test_validate(tests.MuleTest):
         fld.bdy = ff.real_constants.real_mdi
         ff.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 start latitude \(bzy\) not RMDI"):
+                ValidateError, "Field start latitude \(bzy\) not RMDI"):
             ff.validate()
 
     # Test a variable resolution field with non RMDI bdx fails
@@ -448,7 +451,7 @@ class Test_validate(tests.MuleTest):
         fld.bdy = ff.real_constants.real_mdi
         ff.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 longitude interval \(bdx\) not RMDI"):
+                ValidateError, "Field longitude interval \(bdx\) not RMDI"):
             ff.validate()
 
     # Test a variable resolution field with non RMDI bdy fails
@@ -463,7 +466,7 @@ class Test_validate(tests.MuleTest):
         fld.bdy = 0.1
         ff.fields = [fld]
         with self.assertRaisesRegexp(
-                ValidateError, "Field 0 latitude interval \(bdy\) not RMDI"):
+                ValidateError, "Field latitude interval \(bdy\) not RMDI"):
             ff.validate()
 
     # Test lower boundary x value just within tolerance passes
@@ -489,7 +492,7 @@ class Test_validate(tests.MuleTest):
     def test_basic_regular_max_x_ok(self):
         ff = self._minimal_valid_ff()
         fld = self._minimal_valid_field()
-        fld.bdx = fld.bdx*2.01
+        fld.bdx = fld.bdx*1.5
         fld.bzx = ff.real_constants.start_lon - fld.bdx
         ff.fields = [fld]
         ff.validate()
@@ -498,7 +501,7 @@ class Test_validate(tests.MuleTest):
     def test_basic_regular_max_x_fail(self):
         ff = self._minimal_valid_ff()
         fld = self._minimal_valid_field()
-        fld.bdx = fld.bdx*2.02
+        fld.bdx = fld.bdx*1.51
         fld.bzx = ff.real_constants.start_lon - fld.bdx
         ff.fields = [fld]
         with self.assertRaisesRegexp(ValueError, 'longitudes inconsistent'):
@@ -527,7 +530,7 @@ class Test_validate(tests.MuleTest):
     def test_basic_regular_max_y_ok(self):
         ff = self._minimal_valid_ff()
         fld = self._minimal_valid_field()
-        fld.bdy = fld.bdy*3.03
+        fld.bdy = fld.bdy*2.02
         fld.bzy = ff.real_constants.start_lat - fld.bdy
         ff.fields = [fld]
         ff.validate()
@@ -536,7 +539,7 @@ class Test_validate(tests.MuleTest):
     def test_basic_regular_max_y_fail(self):
         ff = self._minimal_valid_ff()
         fld = self._minimal_valid_field()
-        fld.bdy = fld.bdy*3.04
+        fld.bdy = fld.bdy*2.03
         fld.bzy = ff.real_constants.start_lat - fld.bdy
         ff.fields = [fld]
         with self.assertRaisesRegexp(ValueError, 'latitudes inconsistent'):

@@ -32,6 +32,8 @@ API Documentation:
    mule/ancil
    mule/packing
    mule/operators
+   mule/stashmaster
+   mule/validators
 
 Indices and tables
 ==================

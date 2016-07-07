@@ -19,7 +19,6 @@ Unit tests for :class:`mule.Field`.
 """
 
 from __future__ import (absolute_import, division, print_function)
-from six.moves import (filter, input, map, range, zip)  # noqa
 
 import mule.tests as tests
 
@@ -32,7 +31,8 @@ class XSampler(DataOperator):
 
     def new_field(self, source_field):
         fld = source_field.copy()
-        fld.lbnpt /= self.factor
+        fld.lbnpt = fld.lbnpt // self.factor
+        fld.bzx += fld.bdx - fld.bdx*self.factor
         fld.bdx *= self.factor
         return fld
 
@@ -44,21 +44,25 @@ class XSampler(DataOperator):
 class Test_Subsample(tests.MuleTest):
     def test(self):
         ff = FieldsFile.from_file(tests.COMMON_N48_TESTDATA_PATH)
-        self.assertEqual(ff.integer_constants.num_cols, 96)
-        self.assertEqual(ff.real_constants.col_spacing, 3.75)
-        self.assertEqual(ff.fields[0].lbnpt, 96)
-        self.assertEqual(ff.fields[0].bdx, 3.75)
+        num_cols = ff.integer_constants.num_cols
+        col_spacing = ff.real_constants.col_spacing
+        self.assertEqual(num_cols, 96)
+        self.assertEqual(col_spacing, 3.75)
+        self.assertEqual(ff.fields[0].lbnpt, num_cols)
+        self.assertEqual(ff.fields[0].bdx, col_spacing)
         XStep4 = XSampler(factor=4)
-        ff.fields = [ff.fields[0], XStep4(ff.fields[1])]
+        ff.fields = [XStep4(ff.fields[0]), XStep4(ff.fields[1])]
+        ff.integer_constants.num_cols = num_cols // 4
+        ff.real_constants.col_spacing = col_spacing*4
         with self.temp_filename() as temp_path:
             ff.to_file(temp_path)
             ff_back = FieldsFile.from_file(temp_path)
-            self.assertEqual(ff_back.integer_constants.num_cols, 96)
-            self.assertEqual(ff_back.real_constants.col_spacing, 3.75)
-            self.assertEqual(ff_back.fields[0].lbnpt, 96)
-            self.assertEqual(ff_back.fields[0].bdx, 3.75)
-            self.assertEqual(ff_back.fields[1].lbnpt, 24)
-            self.assertEqual(ff_back.fields[1].bdx, 15.0)
+            self.assertEqual(ff_back.integer_constants.num_cols, num_cols // 4)
+            self.assertEqual(ff_back.real_constants.col_spacing, col_spacing*4)
+            self.assertEqual(ff_back.fields[0].lbnpt, num_cols // 4)
+            self.assertEqual(ff_back.fields[0].bdx, col_spacing*4)
+            self.assertEqual(ff_back.fields[1].lbnpt, num_cols//4)
+            self.assertEqual(ff_back.fields[1].bdx, col_spacing*4)
             self.assertEqual(ff_back.fields[1].get_data().shape, (73, 24))
 
 

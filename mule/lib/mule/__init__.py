@@ -53,6 +53,7 @@ import os
 import numpy as np
 import numpy.ma
 from contextlib import contextmanager
+from mule.stashmaster import STASHmaster
 
 __version__ = 1.2
 
@@ -660,6 +661,10 @@ class Field(object):
         # Save the reference to the given data provider.
         self._data_provider = data_provider
 
+        # Initialise an empty stash entry (this may optionally be set by
+        # the containing file object later on)
+        self.stash = None
+
     @classmethod
     def empty(cls):
         """
@@ -702,6 +707,7 @@ class Field(object):
         new_field = type(self)(self._lookup_ints.copy(),
                                self._lookup_reals.copy(),
                                self._data_provider)
+        new_field.stash = self.stash
         return new_field
 
     def set_data_provider(self, data_provider):
@@ -1162,6 +1168,9 @@ class UMFile(object):
         for name, _ in self.COMPONENTS:
             setattr(self, name, None)
 
+        # Add a blank entry for the associated stashmaster
+        self.stashmaster = None
+
         # Initialise the field list.
         self.fields = []
 
@@ -1188,7 +1197,8 @@ class UMFile(object):
         return fmt.format(type(self).__name__, len(self.fields))
 
     @classmethod
-    def from_file(cls, file_or_filepath, remove_empty_lookups=False):
+    def from_file(cls, file_or_filepath, remove_empty_lookups=False,
+                  stashmaster=None):
         """
         Initialise a UMFile, populated using the contents of a file.
 
@@ -1200,6 +1210,11 @@ class UMFile(object):
                 If set to True, will remove any "empty" lookup headers from
                 the field-list (UM files often have pre-allocated numbers
                 of lookup entries, some of which are left unused).
+            * stashmaster:
+                A :class:`mule.stashmaster.STASHMaster` object containing
+                the details of the STASHmaster to associate with the fields
+                in the file (if not provided will attempt to load a central
+                STASHmaster based on the version in the fixed length header).
 
         .. Note::
             As part of this the "validate" method will be called. For the
@@ -1214,8 +1229,18 @@ class UMFile(object):
         if remove_empty_lookups:
             new_umf.remove_empty_lookups()
 
+        # Try to attach STASH entries to the fields, using the STASHmaster
+        # associated with the model version found in the header (note that
+        # this doesn't work for ancillary files)
+        if stashmaster is not None:
+            new_umf.attach_stashmaster_info(stashmaster)
+        else:
+            stashmaster = STASHmaster.from_umfile(new_umf)
+            if stashmaster is not None:
+                new_umf.attach_stashmaster_info(stashmaster)
+
         # Validate the new object, to check it has been created properly
-        new_umf.validate(filename=new_umf._source_path)
+        new_umf.validate(filename=new_umf._source_path, warn=True)
 
         return new_umf
 
@@ -1263,6 +1288,25 @@ class UMFile(object):
         new_umf._apply_template(template)
         return new_umf
 
+    def attach_stashmaster_info(self, stashmaster):
+        """
+        Attach references to the relevant entries in a provided
+        :class:mule.stashmaster.STASHmaster object to each of the fields
+        in this object.
+
+        Args:
+            * stashmaster:
+                A :class:mule.stashmaster.STASHmaster instance which should
+                be parsed and attached to any fields in the file.
+
+        """
+        self.stashmaster = stashmaster
+        for field in self.fields:
+            if hasattr(field, "lbuser4") and field.lbuser4 in stashmaster:
+                field.stash = stashmaster[field.lbuser4]
+            else:
+                field.stash = None
+
     def copy(self, include_fields=False):
         """
         Make a copy of a UMFile object including all of its headers,
@@ -1285,12 +1329,14 @@ class UMFile(object):
             else:
                 setattr(new_umf, name, component)
 
+        new_umf.stashmaster = self.stashmaster
+
         if include_fields:
             new_umf.fields = [field.copy() for field in self.fields]
 
         return new_umf
 
-    def validate(self, filename=None):
+    def validate(self, filename=None, warn=False):
         """
         Apply any consistency checks to check the file is "valid".
 
@@ -1475,7 +1521,7 @@ class UMFile(object):
                 self.fields.append(field)
 
                 # If this object was the Land-Sea mask, save a reference to it
-                if hasattr(field, "lbuser4"):
+                if hasattr(field, "lbuser4") and land_sea_mask is None:
                     if field.lbuser4 == 30:
                         land_sea_mask = field
 
@@ -1747,7 +1793,7 @@ DATASET_TYPE_MAPPING = {
 }
 
 
-def load_umfile(unknown_umfile):
+def load_umfile(unknown_umfile, stashmaster=None):
     """
     Load a UM file of undetermined type, by checking its dataset type and
     attempting to load it as the correct class.
@@ -1756,6 +1802,13 @@ def load_umfile(unknown_umfile):
         * unknown_umfile:
             A file or file-like object containing an unknown file
             to be loaded based on its dataset_type.
+
+    Kwargs:
+        * stashmaster:
+            A :class:`mule.stashmaster.STASHMaster` object containing
+            the details of the STASHmaster to associate with the fields
+            in the file (if not provided will attempt to load a central
+            STASHmaster based on the version in the fixed length header).
 
     """
     def _load_umfile(file_path, open_file):
@@ -1768,7 +1821,7 @@ def load_umfile(unknown_umfile):
             msg = ("Unknown dataset_type {0}, supported types are {1}"
                    .format(flh.dataset_type, str(DATASET_TYPE_MAPPING.keys())))
             raise ValueError(msg)
-        umf_new = file_class.from_file(file_path)
+        umf_new = file_class.from_file(file_path, stashmaster=stashmaster)
         return umf_new
 
     # Handle the case of the file being either the path to a file to be opened

@@ -269,7 +269,7 @@ class CoordRotator(object):
 
 
 def cutout_coords(ff_src, sw_lon, sw_lat, ne_lon, ne_lat,
-                  native_grid=False, stashmaster=None, stdout=None):
+                  native_grid=False, stdout=None):
     """
     Cutout a sub-region from a :class:`mule.FieldsFile` object, based on
     the lat-lon co-ordinates of the region.
@@ -291,12 +291,6 @@ def cutout_coords(ff_src, sw_lon, sw_lat, ne_lon, ne_lat,
             If set to True, assumes that the given co-ordinates are on the
             same grid as the source (otherwise, assumes they are regular
             lat/lon co-ordinates and applies any required rotations).
-        * stashmaster:
-            May be the complete path to a valid STASHmaster
-            file, or just the UM version number e.g. "10.2"
-            (assuming a UM install exists).  If omitted
-            cutout will try to take the version number from
-            the headers in the input file.
         * stdout:
             The open file-like object to write informational output to,
             default is to use sys.stdout.
@@ -425,12 +419,10 @@ def cutout_coords(ff_src, sw_lon, sw_lat, ne_lon, ne_lat,
 
     stdout.write("\n")
 
-    return cutout(ff_src, x_start, y_start, x_points, y_points,
-                  stashmaster, stdout)
+    return cutout(ff_src, x_start, y_start, x_points, y_points, stdout)
 
 
-def cutout(ff_src, x_start, y_start, x_points, y_points,
-           stashmaster=None, stdout=None):
+def cutout(ff_src, x_start, y_start, x_points, y_points, stdout=None):
     """
     Cutout a sub-region from a :class:`mule.FieldsFile` object, based on
     a set of indices describing the region's location in the original file.
@@ -448,12 +440,6 @@ def cutout(ff_src, x_start, y_start, x_points, y_points,
             The number of points to extract in the y direction.
 
     Kwargs:
-        * stashmaster:
-            May be the complete path to a valid STASHmaster
-            file, or just the UM version number e.g. "10.2"
-            (assuming a UM install exists).  If omitted
-            cutout will try to take the version number from
-            the headers in the input file.
         * stdout:
             The open file-like object to write informational output to,
             default is to use sys.stdout.
@@ -493,21 +479,8 @@ def cutout(ff_src, x_start, y_start, x_points, y_points,
         "  Y: cutout {2} points from index {3}\n"
         .format(x_points, x_start, y_points, y_start))
 
-    # Retrieve the stashmaster from the file if one wasn't provided
-    if stashmaster is None:
-        # If the user hasn't set anything, load the STASHmaster for the
-        # version of the UM defined in the first file
-        stashm = STASHmaster.from_umfile(ff_src)
-    else:
-        # If the settings looks like a version number, try to load the
-        # STASHmaster from that version, otherwise assume it is the path
-        if re.match(r"\d+.\d+", stashmaster):
-            stashm = STASHmaster.from_version(stashmaster)
-        else:
-            stashm = STASHmaster.from_file(stashmaster)
-
     # Cutout *cannot* continue without the STASHmaster
-    if stashm is None:
+    if ff_src.stashmaster is None:
         msg = "Cannot cutout from file without a valid STASHmaster"
         raise ValueError(msg)
 
@@ -602,8 +575,8 @@ def cutout(ff_src, x_start, y_start, x_points, y_points,
 
         # Retrieve the grid-type for this field from the STASHmaster and
         # use it to adjust the indices to extract for the non-P grids
-        if field_src.lbuser4 in stashm:
-            grid_type = stashm[field_src.lbuser4].grid
+        if field_src.stash is not None:
+            grid_type = field_src.stash.grid
         else:
             msg = ("Field {0} STASH code ({1}) not found in STASHmaster; "
                    "this field will not appear in the output")
@@ -683,7 +656,9 @@ def _main():
     parser.add_argument("--stashmaster",
                         help="either the full path to a valid stashmaster "
                         "file, or a UM version number e.g. '10.2'; if given "
-                        "a number pumf will look in the following path: "
+                        "a number cutout will look in the path defined by "
+                        "mule.stashmaster.STASHMASTER_PATH_PATTERN which by "
+                        "default is : "
                         "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
                         )
 
@@ -762,9 +737,20 @@ def _main():
 
     filename = args.input_file
     if os.path.exists(filename):
+        # If provided, load the given stashmaster
+        stashm = None
+        if args.stashmaster is not None:
+            if re.match(r"\d+.\d+", args.stashmaster):
+                stashm = STASHmaster.from_version(args.stashmaster)
+            else:
+                stashm = STASHmaster.from_file(args.stashmaster)
+            if stashm is None:
+                msg = "Cannot load user supplied STASHmaster"
+                raise ValueError(msg)
+
         # Load the file using Mule - filter it according to the file types
         # which cutout can handle
-        ff = mule.load_umfile(filename)
+        ff = mule.load_umfile(filename, stashmaster=stashm)
         if ff.fixed_length_header.dataset_type not in (1, 2, 3, 4):
             msg = (
                 "Invalid dataset type ({0}) for file: {1}\nCutout is only "
@@ -774,13 +760,13 @@ def _main():
 
         # Perform the cutout
         if hasattr(args, "zx"):
-            ff_out = cutout(ff, args.zx, args.zy, args.nx, args.ny,
-                            args.stashmaster)
+            ff_out = cutout(ff, args.zx, args.zy, args.nx, args.ny)
+
         else:
             ff_out = cutout_coords(ff,
                                    args.SW_lon, args.SW_lat,
                                    args.NE_lon, args.NE_lat,
-                                   args.native_grid, args.stashmaster)
+                                   args.native_grid)
 
         # Write the result out to the new file
         ff_out.to_file(args.output_file)
