@@ -325,10 +325,11 @@ class DifferenceOperator(mule.DataOperator):
         if new_field.lbrel in (2, 3):
             new_field.lbproc += 1
 
-        # Turn off packing - we can't guarantee that the difference fields
-        # will be able to be packed using the original codes
-        new_field.lbpack = 0
-        new_field.bacc = -99.0
+        # Turn off WGDOS packing if used - we can't guarantee that the
+        # differences will be able to be packed to the original accuracy
+        if new_field.lbpack == 1:
+            new_field.lbpack = 0
+            new_field.bacc = -99.0
 
         return new_field
 
@@ -1007,6 +1008,7 @@ def full_report(comparison, stdout=None, **kwargs):
 
     # Each field is treated individually for both its lookup and data parts
     for ifield, comp_field in enumerate(comparison.field_comparisons):
+
         comp_lookup = comp_field.lookup_comparison
 
         # First a simple message explaining if the field broadly compares
@@ -1214,6 +1216,21 @@ def _main():
         new_ff = file_1.copy()
         new_ff.fields = [field for field in comparison.field_comparisons
                          if not field.data_match and field.data_shape_match]
+
+        # If any of these fields require the land-sea-mask to be written out
+        # add it to the start of the file list here
+        mask_required = [field.lbpack % 100 != 0 for field in new_ff.fields]
+        if any(mask_required):
+            lsm = None
+            for field in file_1.fields:
+                if field.lbrel in (2, 3) and field.lbuser4 == 30:
+                    lsm = field
+                    break
+            if lsm is None:
+                msg = "Unable to write diff file, land-sea mask not present"
+                raise ValueError(msg)
+            new_ff.fields.insert(0, lsm)
+
         if len(new_ff.fields) > 0:
             new_ff.to_file(diff_file)
 
