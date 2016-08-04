@@ -636,11 +636,23 @@ class UMFileComparison(object):
         # If there aren't any fields in the first file, there isn't anything
         # to compare
         if len(um_file1.fields) == 0:
+            # And unless this is allowed or expected, it's also a failure
+            if (len(um_file2.fields) != 0
+                    and not comp_settings["ignore_missing"]):
+                self.match = False
             return
 
         # Create a mapping which relates the lookups in the two files (in
         # case the ordering of fields has changed)
         index = self._create_index(um_file1, um_file2, lookup_ignores)
+
+        # If the matchings don't account for all fields, the files cannot
+        # completely match (unless the user has specified that this is okay)
+        n_indices = len(index)
+        if ((n_indices != len(um_file1.fields) or
+                n_indices != len(um_file2.fields))
+                and not comp_settings["ignore_missing"]):
+            self.match = False
 
         # Now iterate through the fields whose lookups appear to match
         for ifield_1, ifield_2 in index:
@@ -822,11 +834,22 @@ def summary_report(comparison, stdout=None):
         total_fields = (fields_compared
                         + len(comparison.unmatched_file_1)
                         + len(comparison.unmatched_file_2))
-    stdout.write("Compared {0}/{1} fields\n"
-                 .format(fields_compared, total_fields))
+    matches = sum([fcomp.match for fcomp in comparison.field_comparisons])
+    stdout.write("Compared {0}/{1} fields, with {2} matches\n"
+                 .format(fields_compared, total_fields, matches))
 
-    # If no fields were compared, exit here
-    if fields_compared == 0:
+    # If not all the fields were matched, report on the distribution of the
+    # mis-match
+    if len(comparison.unmatched_file_1) > 0:
+        msg = "{0} fields found in file 1 were not in file 2\n"
+        stdout.write(msg.format(len(comparison.unmatched_file_1)))
+    if len(comparison.unmatched_file_2) > 0:
+        msg = "{0} fields found in file 2 were not in file 1\n"
+        stdout.write(msg.format(len(comparison.unmatched_file_2)))
+
+    # If not all fields were compared, report here, and exit if none were
+    # compared
+    if fields_compared != total_fields and fields_compared == 0:
         stdout.write("\n")
         return
 
@@ -855,15 +878,6 @@ def summary_report(comparison, stdout=None):
         stdout.write(
             "Maximum RMS diff as % of data in file 2: {0} (field {1})\n"
             .format(*comparison.max_rms_diff_2))
-
-    # If not all the fields were matched, report on the distribution of the
-    # mis-match
-    if len(comparison.unmatched_file_1) > 0:
-        msg = "{0} fields found in file 1 were not in file 2\n"
-        stdout.write(msg.format(len(comparison.unmatched_file_1)))
-    if len(comparison.unmatched_file_2) > 0:
-        msg = "{0} fields found in file 2 were not in file 1\n"
-        stdout.write(msg.format(len(comparison.unmatched_file_2)))
     stdout.write("\n")
 
 

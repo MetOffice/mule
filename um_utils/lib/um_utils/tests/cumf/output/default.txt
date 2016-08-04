@@ -10,11 +10,11 @@ Files DO NOT compare
   * 5 differences in level_dependent_constants (with 0 ignored indices)
   * 2 field differences, of which 1 are in data
 
-Compared 5/7 fields
-Maximum RMS diff as % of data in file 1: 400.0 (field 4)
-Maximum RMS diff as % of data in file 2: 80.0 (field 4)
+Compared 5/7 fields, with 3 matches
 1 fields found in file 1 were not in file 2
 1 fields found in file 2 were not in file 1
+Maximum RMS diff as % of data in file 1: 400.0 (field 4)
+Maximum RMS diff as % of data in file 2: 80.0 (field 4)
 
 %%%%%%%%%%%%%%%%%%%%%%%
 * fixed_length_header *

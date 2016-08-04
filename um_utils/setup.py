@@ -18,7 +18,7 @@ from glob import glob
 from setuptools import setup
 
 setup(name='um_utils',
-      version='1.2',
+      version='1.3',
       description='Unified Model Fields File utilities',
       author='UM Systems Team',
       url='https://code.metoffice.gov.uk/trac/um',

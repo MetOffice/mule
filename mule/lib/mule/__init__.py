@@ -55,7 +55,7 @@ import numpy.ma
 from contextlib import contextmanager
 from mule.stashmaster import STASHmaster
 
-__version__ = 1.2
+__version__ = 1.3
 
 # UM fixed length header names and positions
 _UM_FIXED_LENGTH_HEADER = [

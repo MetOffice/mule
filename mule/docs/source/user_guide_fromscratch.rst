@@ -185,7 +185,7 @@ Once you do this, you should be able to call the :meth:`get_data()` method of
 the field and it will return the array. 
 
 Note however that the provider can technically be any class you choose to
-create - as long as it defines a suitable :meth:`get_data` method which 
+create - as long as it defines a suitable :meth:`_data_array` method which 
 returns a 2d numpy array.  For example suppose you wish to make use of data
 contained in a separate NetCDF file using the Python module which can read it
 (the `netCDF4` module syntax should be understandable but please refer to its 
@@ -210,7 +210,7 @@ documentation if anything isn't clear):
             self.filename = ncdf_file
             self.variable_name = variable_name
     
-        def get_data(self):
+        def _data_array(self):
             """
             Provides the data as an array when requested by accessing the
             stored file and variable name.
@@ -231,16 +231,16 @@ documentation if anything isn't clear):
     new_q_field.set_data_provider(ncdf_q_provider)
 
 The advantage in this case is that since the file and data access are all
-within the :meth:`get_data` method, the data isn't stored in memory for every
-field and you gain the same benefits of deferred access.  
+within the :meth:`_data_array` method, the data isn't stored in memory for 
+every field and you gain the same benefits of deferred access.  
 
 .. Note::
     The example above isn't perfect either; if it were a real example it would
     probably make more sense to have the class accept the 
     :class:`NetCDF4.Dataset` object at initialisation instead of the path to
     the file, though it depends on how many different variables this is being
-    applied to. (Currently every call to :meth:`get_data` opens and closes the
-    file, which may be inefficient if done too frequently).
+    applied to. (Currently every call to :meth:`_data_array` opens and closes 
+    the file, which may be inefficient if done too frequently).
 
 Putting it all Together
 -----------------------

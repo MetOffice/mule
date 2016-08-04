@@ -484,8 +484,13 @@ def cutout(ff_src, x_start, y_start, x_points, y_points, stdout=None):
         msg = "Cannot cutout from file without a valid STASHmaster"
         raise ValueError(msg)
 
+    # Get the value of real MDI (Note: ancil files don't set it)
+    if ff_src.fixed_length_header.dataset_type == 4:
+        rmdi = mule._REAL_MDI
+    else:
+        rmdi = ff_src.real_constants.real_mdi
+
     # Grid-spacing in degrees, ensure this is a regular grid
-    rmdi = ff_src.real_constants.real_mdi
     dx = ff_src.real_constants.col_spacing
     dy = ff_src.real_constants.row_spacing
     check_regular_grid(dx, dy, fail_context='header', mdi=rmdi)
