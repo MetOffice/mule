@@ -26,9 +26,8 @@ the grid information from the frame fields to update the file headers.
 
 Usage:
 
- * Take a :class:`mule.UMFile` or :class:`mule.FieldsFile` object
-   and return a :class:`mule.FieldsFile` object that is compatible
-   with CreateBC
+ * Take a :class:`mule.FieldsFile` object and return a :class:`mule.FieldsFile`
+   object that is compatible with CreateBC.
 
    >>> fieldsfile_object = fixframe.fixframe(umfile_object)
 
@@ -37,7 +36,6 @@ import os
 import sys
 import mule
 import argparse
-import mule.validators as validators
 from um_utils.version import report_modules
 from um_utils.pumf import _banner
 
@@ -49,23 +47,11 @@ def fixframe(origfile):
 
     Args:
         * origfile:
-            A UM file object of class :class:`mule.UMFile` or
-            :class:`mule.FieldsFile`
+            A :class:`mule.FieldsFile` object.
 
     """
-    # Create empty fieldsfile object to hold the new fixed frame file
-    fixedfile = mule.FieldsFile()
-    # Copy headers. MakeBC frames only contain fixed_length,integer
-    # and real headers and the level dependent constants.
-    fixedfile.fixed_length_header = origfile.fixed_length_header
-    fixedfile.integer_constants = mule.ff.FF_IntegerConstants(
-        origfile.integer_constants.raw[1:])
-    fixedfile.real_constants = mule.ff.FF_RealConstants(
-        origfile.real_constants.raw[1:])
-    fixedfile.level_dependent_constants = mule.ff.FF_LevelDependentConstants(
-        origfile.level_dependent_constants.raw[:, 1:])
-    # Copy fields
-    fixedfile.fields = origfile.fields
+    # Copy the original file in its entirety
+    fixedfile = origfile.copy(include_fields=True)
 
     # Check that file has orography, which should always be the first field
     # in a MakeBC frame
@@ -77,17 +63,11 @@ def fixframe(origfile):
         msg = ("First field in file has stashcode {0} but expected orography "
                "(stashcode 33) for a MakeBC frame file")
         raise ValueError(msg.format(orog_field.lbuser4))
-    # Check that file is a fieldsfile - MakeBC frames hardwires this to 3
-    # even if input file was a dump
-    validators.validate_dataset_type(fixedfile, (3,), origfile._source_path)
 
     # Copy the rows and row_length from field header to file header
     fixedfile.integer_constants.num_rows = orog_field.lbrow
     fixedfile.integer_constants.num_cols = orog_field.lbnpt
 
-    # Only grid-staggerings of 3 (New Dynamics) or 6 (ENDGame) are valid
-    validators.validate_grid_staggering(fixedfile, (3, 6),
-                                        origfile._source_path)
     # Copy the start lat and start long. Convert from zeroth P point
     # to start lat/long (origin) of grid
     if fixedfile.fixed_length_header.grid_staggering == 6:
@@ -111,10 +91,14 @@ def fixframe(origfile):
         msg = ("LBCODE = {0} indicates that frame file is not on a "
                "regular lat/lon grid.")
         raise ValueError(msg.format(orog_field.lbcode))
-    # Frames files have lblrec set incorrectly using 32 bit words
+
+    # Frames files have lblrec set incorrectly for WGDOS packed fields
+    # (using 32 bit words when it should be 64 bit)
     for field in fixedfile.fields:
-        # Convert from num 32 to 64 bit words
-        field.lblrec = (field.lblrec + 1)/2
+        if field.lbpack % 10 == 1:
+            # Convert from num 32 to 64 bit words
+            field.lblrec = (field.lblrec + 1)/2
+
     return fixedfile
 
 
@@ -187,9 +171,9 @@ def _main():
 
     output_filename = args.output_filename
 
-    # Read in file to generic class as MakeBC frames do not
-    # pass fieldsfile validation
-    origfile = mule.UMFile.from_file(input_filename)
+    # Read in file as a FieldsFile - MakeBC frames do not pass fieldsfile
+    # validation so will generate some warnings
+    origfile = mule.FieldsFile.from_file(input_filename)
     _printgrid(origfile, input_filename)
     # Fix the headers
     fixedfile = fixframe(origfile)
