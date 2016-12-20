@@ -223,33 +223,37 @@ class _ReadFFProviderLandPacked(mule.RawReadProvider):
 
     .. Note::
         This requires that a reference to the Land-Sea mask Field has
-        been set as the "lsm_source" attribute.
+        been added via the :meth:`set_lsm_source` method.
 
     """
     WORD_SIZE = mule._DEFAULT_WORD_SIZE
     _LAND = True
 
+    def __init__(self, *args, **kwargs):
+        super(_ReadFFProviderLandPacked, self).__init__(*args, **kwargs)
+        self._lsm_source = None
+
+    def set_lsm_source(self, lsm_source):
+        self._lsm_source = lsm_source
+
     def _data_array(self):
         field = self.source
         data_bytes = self._read_bytes()
-        if self.lsm_source is not None:
-            lsm = self.lsm_source.get_data()
-        else:
+        if self._lsm_source is None:
             msg = ("Land Packed Field cannot be unpacked as it "
                    "has no associated Land-Sea mask")
             raise ValueError(msg)
         dtype = _DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
         data_p = np.fromstring(data_bytes, dtype, count=field.lblrec)
         if self._LAND:
-            mask = np.where(lsm.ravel() == 1.0)[0]
+            mask = np.where(self._lsm_source.ravel() == 1.0)[0]
         else:
-            mask = np.where(lsm.ravel() == 0.0)[0]
+            mask = np.where(self._lsm_source.ravel() == 0.0)[0]
         if len(mask) != len(data_p):
             msg = "Number of points in mask is incompatible; {0} != {1}"
             raise ValueError(msg.format(len(mask), len(data_p)))
 
-        rows = self.lsm_source.lbrow
-        cols = self.lsm_source.lbnpt
+        rows, cols = self._lsm_source.shape
 
         data = np.empty((rows*cols), dtype)
         data[:] = field.bmdi
@@ -265,7 +269,7 @@ class _ReadFFProviderSeaPacked(_ReadFFProviderLandPacked):
 
     .. Note::
         This requires that a reference to the Land-Sea mask Field has
-        been set as the "lsm_source" attribute.
+        been added via the :meth:`set_lsm_source` method.
 
     """
     _LAND = False
@@ -278,7 +282,7 @@ class _ReadFFProviderCray32LandPacked(_ReadFFProviderLandPacked):
 
     .. Note::
         This requires that a reference to the Land-Sea mask Field has
-        been set as the "lsm_source" attribute.
+        been added via the :meth:`set_lsm_source` method.
 
     """
     WORD_SIZE = _CRAY32_SIZE
@@ -291,7 +295,7 @@ class _ReadFFProviderCray32SeaPacked(_ReadFFProviderSeaPacked):
 
     .. Note::
         This requires that a reference to the Land-Sea mask Field has
-        been set as the "lsm_source" attribute.
+        been added via the :meth:`set_lsm_source` method.
 
     """
     WORD_SIZE = _CRAY32_SIZE
@@ -305,9 +309,6 @@ class _WriteFFOperatorUnpacked(object):
 
     """
     WORD_SIZE = mule._DEFAULT_WORD_SIZE
-
-    def __init__(self, file_obj):
-        self.file = file_obj
 
     def to_bytes(self, field):
         data = field.get_data()
@@ -352,18 +353,29 @@ class _WriteFFOperatorLandPacked(_WriteFFOperatorUnpacked):
     the output file, as unpacked FieldsFile data defined only on land points.
 
     """
-    LAND = True
+    _LAND = True
+
+    def __init__(self, *args, **kwargs):
+        super(_WriteFFOperatorLandPacked, self).__init__(*args, **kwargs)
+        self._lsm_source = None
+
+    def set_lsm_source(self, lsm_source):
+        self._lsm_source = lsm_source
+
+    def set_lsm_source(self, lsm_source):
+        self._lsm_source = lsm_source
 
     def to_bytes(self, field):
         data = field.get_data()
-        if self.LAND and hasattr(self.file, "land_mask"):
-            mask = self.file.land_mask
-        elif hasattr(self.file, "sea_mask"):
-            mask = self.file.sea_mask
-        else:
+        if self._lsm_source is None:
             msg = ("Cannot land/sea pack fields on output without a valid "
                    "land-sea-mask")
             raise ValueError(msg)
+
+        if self._LAND:
+            mask = np.where(self._lsm_source.ravel() == 1.0)[0]
+        else:
+            mask = np.where(self._lsm_source.ravel() == 0.0)[0]
 
         data = data.ravel()[mask]
         dtype = _DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
@@ -377,7 +389,7 @@ class _WriteFFOperatorSeaPacked(_WriteFFOperatorLandPacked):
     the output file, as unpacked FieldsFiled data defiend only on sea points.
 
     """
-    LAND = False
+    _LAND = False
 
 
 class _WriteFFOperatorCray32LandPacked(_WriteFFOperatorLandPacked):
@@ -453,6 +465,44 @@ class FieldsFile(mule.UMFile):
     # Add an additional field type, to handle special dump fields
     FIELD_CLASSES = dict(mule.UMFile.FIELD_CLASSES.items()
                          + [(mule._INTEGER_MDI, DumpSpecialField)])
+
+    def _write_to_file(self, output_file):
+        """Write out to an open output file."""
+        # We want to extend the UMFile version of this routine to extract the
+        # land-sea mask info for the relevant operators
+        lsm = None
+        for field in self.fields:
+            if hasattr(field, "lbuser4") and field.lbuser4 == 30:
+                lsm = field.get_data()
+                break
+
+        # Assuming a valid mask was found above; attach it to the operators
+        if lsm is not None:
+            for _, operator in self._write_operators.items():
+                if hasattr(operator, "_LAND"):
+                    operator.set_lsm_source(lsm)
+
+        # Now call the usual method
+        super(FieldsFile, self)._write_to_file(output_file)
+
+    def _read_file(self, file_or_filepath):
+        """Populate the class from an existing file object or file"""
+        # Similarly we want to append some land-sea mask logic to this routine
+        # Start by calling the usual routine
+        super(FieldsFile, self)._read_file(file_or_filepath)
+
+        # Look for the land-sea mask
+        lsm = None
+        for field in self.fields:
+            if hasattr(field, "lbuser4") and field.lbuser4 == 30:
+                lsm = field.get_data()
+                break
+
+        # If a land-sea mask was found, attach it to the relevant fields
+        if lsm is not None:
+            for field in self.fields:
+                if hasattr(field._data_provider, "_LAND"):
+                    field._data_provider.set_lsm_source(lsm)
 
     def validate(self, filename=None, warn=False):
         """

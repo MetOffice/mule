@@ -25,7 +25,6 @@ This module provides a class for interacting with Ancillary files.
 from __future__ import (absolute_import, division, print_function)
 
 import mule
-import mule.ff
 import mule.validators as validators
 import warnings
 from collections import defaultdict
@@ -102,8 +101,9 @@ class Ancil_ColumnDependentConstants(mule.ColumnDependentConstants):
     CREATE_DIMS = (None, 2)
 
 
-# Define the ancil file class itself
-class AncilFile(mule.UMFile):
+# Define the ancil file class itself - it inherits from a FieldsFile rather
+# than a UMFile, because it inherits many parts from the FieldsFile class
+class AncilFile(mule.FieldsFile):
     """Represents a single UM Ancillary File."""
     # The components of the file
     COMPONENTS = (
@@ -120,13 +120,9 @@ class AncilFile(mule.UMFile):
         ('compressed_field_index3', mule.UnsupportedHeaderItem1D),
         )
 
-    # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
-    # equivalent _DataProvider to use for the reading.  Note that ancillary
-    # files simply support the exact same read providers as FieldsFiles
-    READ_PROVIDERS = mule.ff.FieldsFile.READ_PROVIDERS
-
-    # And it also supports the same write operators
-    WRITE_OPERATORS = mule.ff.FieldsFile.WRITE_OPERATORS
+    # Set the field classes back to the standard set (only FieldsFiles need
+    # the special dump fields)
+    FIELD_CLASSES = mule.UMFile.FIELD_CLASSES
 
     def validate(self, filename=None, warn=False):
         """

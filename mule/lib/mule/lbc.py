@@ -117,9 +117,6 @@ class _WriteLBCOperatorUnpacked(object):
     """
     WORD_SIZE = mule._DEFAULT_WORD_SIZE
 
-    def __init__(self, file_obj):
-        self.file = file_obj
-
     def to_bytes(self, field):
         data = field.get_data()
         dtype = mule.ff._DATA_DTYPES[self.WORD_SIZE][field.lbuser1]

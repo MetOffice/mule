@@ -52,6 +52,7 @@ from __future__ import (absolute_import, division, print_function)
 import os
 import numpy as np
 import numpy.ma
+import weakref
 from contextlib import contextmanager
 from mule.stashmaster import STASHmaster
 
@@ -825,6 +826,48 @@ class ArrayDataProvider(object):
         return self._array
 
 
+class _OperatorDataProvider(object):
+    """
+    A :class:`Field` data provider that fetches its data from a
+    :class:`DataOperator`, by calling :meth:`transform`.
+
+    ..Note: This should only really ever be instantiated from within
+            the :class:`DataOperator`.
+
+    """
+    def __init__(self, operator, source, new_field):
+        """
+        Create a wrapper, including references to the operator,
+        the original source data and and the result field.
+
+        Args:
+            * operator:
+                A reference to the :class:`DataOperator` instance which
+                created this provider (to allow its :meth:`transform`
+                method to be accessed in :meth:`_data_array` below).
+            * source:
+                The source object for the above :class:`DataOperator` -
+                this can be anything, and is required here so that it can
+                be passed onto the operator's meth:`transform` method below.
+            * new_field:
+                The new field returned by the above :class:`DataOperator` -
+                this is again needed by the operator's meth:`transform` method.
+
+        """
+        self.operator = operator
+        self.source = source
+        # The reference which is passed to the transform below must be a
+        # weakref.  The reason for this is to avoid a circular dependency
+        # that will interfere with Python's garbage collection.  Since the
+        # operator will ultimately be attached to the new_field object, it
+        # *must not* hold a reference to it as well.
+        self.result_field = weakref.ref(new_field)
+
+    def _data_array(self):
+        """Return the data using the provided operator."""
+        return self.operator.transform(self.source, self.result_field)
+
+
 class DataOperator(object):
     """
     Base class which should be sub-classed to perform manipulations on the
@@ -903,28 +946,8 @@ class DataOperator(object):
                 :meth:`transform` method.
 
         """
-        class OperatorDataProvider(object):
-            """
-            A :class:`Field` data provider that fetches its data from a
-            DataOperator, by calling :meth:`transform`.
-
-            """
-            def __init__(self, operator, source, new_field):
-                """
-                Create a wrapper, including references to the operator,
-                the original source data and and the result field.
-
-                """
-                self.operator = operator
-                self.source = source
-                self.result_field = new_field
-
-            def _data_array(self):
-                """Return the data using the provided operator."""
-                return self.operator.transform(self.source, self.result_field)
-
         new_field = self.new_field(source, *args, **kwargs)
-        provider = OperatorDataProvider(self, source, new_field)
+        provider = _OperatorDataProvider(self, source, new_field)
         new_field.set_data_provider(provider)
         return new_field
 
@@ -1152,14 +1175,14 @@ class UMFile(object):
         self._source = None
         self._source_path = None
 
-        # Always create the output writing operators - these need to be
-        # instantiated  and passed a reference to this object.
-        # This is so the writers can access precalculated per-file information
-        # (currently used for land and sea masks).
+        # At the class definition level, WRITE_OPERATORS is a mapping onto the
+        # write operator classes.  Before these can be used to output data
+        # they need to be instantiated; the instances are then re-attached to
+        # WRITE_OPERATORS to be called upon later.
         self._write_operators = {}
         for lbpack_write in self.WRITE_OPERATORS.keys():
             self._write_operators[lbpack_write] = (
-                self.WRITE_OPERATORS[lbpack_write](self))
+                self.WRITE_OPERATORS[lbpack_write]())
 
         # Attach an empty fixed length header
         self.fixed_length_header = FixedLengthHeader.empty()
@@ -1458,11 +1481,6 @@ class UMFile(object):
                 running_offset = ((self.fixed_length_header.data_start - 1) *
                                   self.WORD_SIZE)
 
-            # A list to store references to land packed fields, and a dummy
-            # variable to hold the reference to the land-sea mask (if found)
-            land_packed_fields = []
-            land_sea_mask = None
-
             for raw_headers in lookup.T:
                 # Populate the default field class first - for now we only
                 # need the minimum information about the field.
@@ -1520,29 +1538,9 @@ class UMFile(object):
                 field.set_data_provider(provider)
                 self.fields.append(field)
 
-                # If this object was the Land-Sea mask, save a reference to it
-                if hasattr(field, "lbuser4") and land_sea_mask is None:
-                    if field.lbuser4 == 30:
-                        land_sea_mask = field
-
-                # If this object is using a form of Land/Sea packing, update
-                # its reference to the land_sea_mask (if available), otherwise
-                # save a reference to it for checking later
-                if hasattr(field._data_provider, "_LAND"):
-                    if land_sea_mask is not None:
-                        field._data_provider.lsm_source = land_sea_mask
-                    else:
-                        land_packed_fields.append(field)
-
                 # Update the running offset if required
                 if not is_well_formed:
                     running_offset += field.lblrec*self.WORD_SIZE
-
-            # If any fields were land-packed but encountered before the
-            # land/sea mask, update their references to it here
-            for field in land_packed_fields:
-                if land_sea_mask is not None:
-                    field._data_provider.lsm_source = land_sea_mask
 
     def _apply_template(self, template):
         """Apply the assignments specified in a template."""
@@ -1674,21 +1672,6 @@ class UMFile(object):
             # one go.
             output_file.seek((flh.data_start - 1) * self.WORD_SIZE)
             sector_size = self._WORDS_PER_SECTOR * self.WORD_SIZE
-
-            # If the land-sea mask is present, extract it here to save
-            # doing so for each field that might need it (for land/sea
-            # packing on output)
-            for field in self.fields:
-                if hasattr(field, "lbuser4"):
-                    if field.lbuser4 == 30:
-                        # Can only do this if the LSM is packed in a way
-                        # which this file object understands
-                        lbpack321 = (field.lbpack -
-                                     ((field.lbpack//1000) % 10)*1000)
-                        if lbpack321 in self.WRITE_OPERATORS:
-                            lsm = field.get_data().ravel()
-                            self.land_mask = np.where(lsm == 1)[0]
-                            self.sea_mask = np.where(lsm != 1)[0]
 
             # Write out all the field data payloads.
             for field in self.fields:
