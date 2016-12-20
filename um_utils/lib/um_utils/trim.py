@@ -174,6 +174,21 @@ def trim_fixed_region(ff_src, region_x, region_y, stdout=None):
         msg = "Region {0},{1} not found (1 - {2} regions in the Y-direction)"
         raise ValueError(msg.format(region_x, region_y, num_y_regions))
 
+    # We need to know the grid staggering for the next part
+    stagger = {3: "new_dynamics", 6: "endgame"}
+    stagger = stagger[ff.fixed_length_header.grid_staggering]
+
+    # Extend the eastern edge of each region by one on ENDGame; the reason for
+    # this is that all EG grids do not end on a U column - therefore the
+    # region where all grids are within the fixed part of the grid includes
+    # eastern-most P point (except for regions sharing their eastern column
+    # with the edge of the original domain)
+    if stagger == "endgame":
+        for i_region, region in enumerate(lambda_p_regions):
+            eastern_edge = region[-1]
+            if eastern_edge < len(lambda_p) - 1:
+                region.extend([eastern_edge + 1])
+
     stdout.write("X-regions:")
     for i_region, region in enumerate(lambda_p_regions):
         stdout.write(
@@ -210,10 +225,6 @@ def trim_fixed_region(ff_src, region_x, region_y, stdout=None):
     new_dy = phi_p[y_start + 1] - phi_p[y_start]
     ff.real_constants.row_spacing = new_dy
     ff.real_constants.col_spacing = new_dx
-
-    # We need to know the grid staggering for the next part
-    stagger = {3: "new_dynamics", 6: "endgame"}
-    stagger = stagger[ff.fixed_length_header.grid_staggering]
 
     # Check that the file has a STASHmaster attached to it
     # Trim *cannot* continue without the STASHmaster
