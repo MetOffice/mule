@@ -47,4 +47,5 @@ setup(name='um_utils',
               'mule-trim = um_utils.trim:_main',
               'mule-version = um_utils.version:_main',
               'mule-fixframe = um_utils.fixframe:_main',
+              'mule-unpack = um_utils.unpack:_main',
               ]})
