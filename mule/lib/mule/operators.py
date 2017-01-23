@@ -60,7 +60,7 @@ class AddScalarOperator(mule.DataOperator):
                 The :class:`mule.Field` subclass containing the input
                 field headers and data.
 
-        .. Note:
+        .. Note::
             Some downstream applications may expect the value of the field's
             "lbproc" header to be updated when its data is modified; it is
             your responsibility to ensure this is done if required.
@@ -80,7 +80,7 @@ class AddScalarOperator(mule.DataOperator):
                 The :class:`mule.Field` subclass returned by the
                 :meth:`new_field` method of this object.
 
-        .. Note:
+        .. Note::
             If the input field defines MDI in its "bdmi" header, any points
             set to this value will be omitted from the operation.
 
@@ -124,7 +124,7 @@ class ScaleFactorOperator(mule.DataOperator):
                 The :class:`mule.Field` subclass containing the input
                 field headers and data.
 
-        .. Note:
+        .. Note::
             Some downstream applications may expect the value of the field's
             "lbproc" header to be updated when its data is modified; it is
             your responsibility to ensure this is done if required.
@@ -144,7 +144,7 @@ class ScaleFactorOperator(mule.DataOperator):
                 The :class:`mule.Field` subclass returned by the
                 :meth:`new_field` method of this object.
 
-        .. Note:
+        .. Note::
             If the input field defines MDI in its "bdmi" header, any points
             set to this value will be omitted from the operation.
 
@@ -220,7 +220,7 @@ class HardLimitOperator(mule.DataOperator):
                 The :class:`mule.Field` subclass containing the input
                 field headers and data.
 
-        .. Note:
+        .. Note::
             Some downstream applications may expect the value of the field's
             "lbproc" header to be updated when its data is modified; it is
             your responsibility to ensure this is done if required.
@@ -240,7 +240,7 @@ class HardLimitOperator(mule.DataOperator):
                 The :class:`mule.Field` subclass returned by the
                 :meth:`new_field` method of this object.
 
-        .. Note:
+        .. Note::
             If the input field defines MDI in its "bdmi" header, any points
             set to this value will be omitted from the operation.
 
@@ -288,7 +288,7 @@ class ValueExchangeOperator(mule.DataOperator):
                 The :class:`mule.Field` subclass containing the input
                 field headers and data.
 
-        .. Note:
+        .. Note::
             Some downstream applications may expect the value of the field's
             "lbproc" header to be updated when its data is modified; it is
             your responsibility to ensure this is done if required.
@@ -308,7 +308,7 @@ class ValueExchangeOperator(mule.DataOperator):
                 The :class:`mule.Field` subclass returned by the
                 :meth:`new_field` method of this object.
 
-        .. Note:
+        .. Note::
             If the input field defines MDI in its "bdmi" header, any points
             set to this value will be omitted from the operation.
 
@@ -354,7 +354,7 @@ class _MultiFieldOperatorBase(mule.DataOperator):
                 A list containing at least 2 :class:`mule.Field` subclass
                 objects with the input field headers and data.
 
-        .. Note:
+        .. Note::
             Some downstream applications may expect the value of the field's
             "lbproc" header to be updated when its data is modified; it is
             your responsibility to ensure this is done if required.
@@ -380,7 +380,7 @@ class _MultiFieldOperatorBase(mule.DataOperator):
                 The :class:`mule.Field` subclass returned by the
                 :meth:`new_field` method of this object.
 
-        .. Note:
+        .. Note::
            MDI values will be treated differently depending on how the
            operator was initialised (see the docstrings for more details)
 

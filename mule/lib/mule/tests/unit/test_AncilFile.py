@@ -20,6 +20,8 @@ Unit tests for :class:`mule.ancil.AncilFile`.
 
 from __future__ import (absolute_import, division, print_function)
 
+import warnings
+
 import mule.tests as tests
 from mule import AncilFile, Field3, _REAL_MDI
 from mule.ancil import (Ancil_IntegerConstants, Ancil_RealConstants,
@@ -47,20 +49,23 @@ class Test___init__(tests.MuleTest):
 class Test_from_file(tests.MuleTest):
     """Checkout different creation routes for the same file."""
     def test_read_ancilfile(self):
-        anc = AncilFile.from_file(
-            tests.testdata_filepath("soil_params.anc"))
-        self.assertEqual(type(anc), AncilFile)
-        self.assertIsNotNone(anc.integer_constants)
-        self.assertEqual(anc.integer_constants.shape, (15,))
-        self.assertIsNotNone(anc.real_constants)
-        self.assertEqual(anc.real_constants.shape, (6,))
-        self.assertIsNotNone(anc.level_dependent_constants)
-        self.assertEqual(anc.level_dependent_constants.shape, (1, 4))
-        self.assertIsNone(anc.row_dependent_constants)
-        self.assertIsNone(anc.column_dependent_constants)
-        self.assertEqual(len(anc.fields), 11)
-        self.assertEqual([fld.lbrel for fld in anc.fields[:-1]], [2]*10)
-        self.assertEqual([fld.lbvc for fld in anc.fields[:-1]], [129]*10)
+        with warnings.catch_warnings():
+            msg_exp = r".*Ancillary files do not define.*"
+            warnings.filterwarnings("ignore", msg_exp)
+            anc = AncilFile.from_file(
+                tests.testdata_filepath("soil_params.anc"))
+            self.assertEqual(type(anc), AncilFile)
+            self.assertIsNotNone(anc.integer_constants)
+            self.assertEqual(anc.integer_constants.shape, (15,))
+            self.assertIsNotNone(anc.real_constants)
+            self.assertEqual(anc.real_constants.shape, (6,))
+            self.assertIsNotNone(anc.level_dependent_constants)
+            self.assertEqual(anc.level_dependent_constants.shape, (1, 4))
+            self.assertIsNone(anc.row_dependent_constants)
+            self.assertIsNone(anc.column_dependent_constants)
+            self.assertEqual(len(anc.fields), 11)
+            self.assertEqual([fld.lbrel for fld in anc.fields[:-1]], [2]*10)
+            self.assertEqual([fld.lbvc for fld in anc.fields[:-1]], [129]*10)
 
 
 class Test_validate(tests.MuleTest):

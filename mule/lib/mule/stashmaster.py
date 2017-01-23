@@ -36,7 +36,7 @@ There are 3 basic ways to load and access the STASHmaster:
 
    >>> stashm = STASHmaster.from_umfile(umfile_object)
 
-.. Note:
+.. Note::
     In the latter two cases above, it is assumed that a set of UM install
     directories exist in the location defined by the UMDIR environment
     variable (the location of the file is assumed to be
@@ -232,7 +232,7 @@ class STASHmaster(dict):
             * version:
                 The string giving the version number, e.g '10.2'.
 
-        .. Note:
+        .. Note::
             The rest of the path will be constructed using the value of
             mule.stashmaster.STASHMASTER_PATH_PATTERN; which will be passed
             to :meth:str.format with the given version number, and then have
@@ -268,18 +268,30 @@ class STASHmaster(dict):
                 its fixed length header and used to try and load the
                 correct STASHmaster file.
 
+        .. Note::
+            It is not possible to infer the UM version from an ancillary
+            file.  No STASHmaster file will be loaded for ancillaries.
+            None will be returned instead.
+
         """
-        um_int_version = umfile.fixed_length_header.model_version
-        if (um_int_version != umfile.fixed_length_header.MDI and
-                umfile.fixed_length_header.dataset_type != 4):
-            um_version = "{0}.{1}".format(um_int_version // 100,
-                                          um_int_version % 10)
-            return cls.from_version(um_version)
-        else:
-            msg = ("Fixed length header does not define the UM model "
-                   "version number, unable to load STASHmaster file")
+        if umfile.fixed_length_header.dataset_type == 4:
+            msg = ("Ancillary files do not define the UM version number "
+                   "in the Fixed Length Header. "
+                   "No STASHmaster file loaded: Fields will not have STASH "
+                   "entries attached.")
             warnings.warn(msg)
             return None
+
+        um_int_version = umfile.fixed_length_header.model_version
+        if um_int_version == umfile.fixed_length_header.MDI:
+            msg = ("Fixed length header does not define the UM model "
+                   "version number, unable to load STASHmaster file.")
+            warnings.warn(msg)
+            return None
+
+        um_version = "{0}.{1}".format(um_int_version // 100,
+                                      um_int_version % 10)
+        return cls.from_version(um_version)
 
     def by_section(self, section):
         """

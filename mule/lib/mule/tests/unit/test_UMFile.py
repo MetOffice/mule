@@ -25,6 +25,7 @@ from six.moves import (filter, input, map, range, zip)  # noqa
 import os.path
 import shutil
 import tempfile
+import warnings
 
 import mule.tests as tests
 from mule.tests import check_common_n48_testdata, COMMON_N48_TESTDATA_PATH
@@ -107,8 +108,11 @@ class Test_to_file__minimal(tests.MuleTest):
                 ffv.to_file(temp_file)
             assert os.path.exists(temp_path)
             # Read it back and repeat our basic "known content" tests
-            ffv_rb = UMFile.from_file(temp_path)
-            _check_minimal_file(self, ffv_rb)
+            with warnings.catch_warnings():
+                msg_exp = r".*Fixed length header does not define.*"
+                warnings.filterwarnings("ignore", msg_exp)
+                ffv_rb = UMFile.from_file(temp_path)
+                _check_minimal_file(self, ffv_rb)
 
 
 class Test__modifies(tests.MuleTest):
