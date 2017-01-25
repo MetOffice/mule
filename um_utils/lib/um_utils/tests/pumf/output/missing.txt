@@ -55,9 +55,9 @@ File: None
   (120) column_dependent_constants_start : -32768
   (121) column_dependent_constants_dim1  : -32768
   (122) column_dependent_constants_dim2  : -32768
-  (125) fields_of_constants_start        : -32768
-  (126) fields_of_constants_dim1         : -32768
-  (127) fields_of_constants_dim2         : -32768
+  (125) additional_parameters_start      : -32768
+  (126) additional_parameters_dim1       : -32768
+  (127) additional_parameters_dim2       : -32768
   (130) extra_constants_start            : -32768
   (131) extra_constants_length           : -32768
   (135) temp_historyfile_start           : -32768
@@ -217,9 +217,9 @@ File: None
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  --- 
 
-%%%%%%%%%%%%%%%%%%%%%%%
-* fields_of_constants *
-%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%
+* additional_parameters *
+%%%%%%%%%%%%%%%%%%%%%%%%%
  --- 
 
 %%%%%%%%%%%%%%%%%%%

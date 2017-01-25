@@ -74,382 +74,340 @@ class Test_validate(tests.MuleTest):
     _dflt_y0 = -60.0
     _dflt_dy = 0.2
 
-    @staticmethod
-    def _minimal_valid_lbc(nx=_dflt_nx, ny=_dflt_ny, nz=_dflt_nz,
-                           x0=_dflt_x0, dx=_dflt_dx, y0=_dflt_y0, dy=_dflt_dy):
-        # Construct a mock 'minimal' file that passes the validation tests.
-        lbc = LBCFile()
-        lbc.fixed_length_header.dataset_type = 5
-        lbc.fixed_length_header.grid_staggering = 3
-        lbc.fixed_length_header.horiz_grid_type = 0
-        lbc.integer_constants = LBC_IntegerConstants.empty()
-        lbc.integer_constants.num_cols = nx
-        lbc.integer_constants.num_rows = ny
-        lbc.integer_constants.num_p_levels = nz
-        lbc.real_constants = LBC_RealConstants.empty()
-        lbc.real_constants.start_lon = x0
-        lbc.real_constants.col_spacing = dx
-        lbc.real_constants.start_lat = y0
-        lbc.real_constants.row_spacing = dy
-        lbc.level_dependent_constants = (
-            LBC_LevelDependentConstants.empty(nz + 1))
-        return lbc
+    def setUp(self, *args, **kwargs):
+        # Call the original setup function
+        super(Test_validate, self).setUp(*args, **kwargs)
 
-    @staticmethod
-    def _minimal_valid_field(nx=_dflt_nx, ny=_dflt_ny,
-                             x0=_dflt_x0, dx=_dflt_dx,
-                             y0=_dflt_y0, dy=_dflt_dy):
+        # Construct a mock 'minimal' file that passes the validation tests.
+        self.lbc = LBCFile()
+        self.lbc.fixed_length_header.dataset_type = 5
+        self.lbc.fixed_length_header.grid_staggering = 3
+        self.lbc.fixed_length_header.horiz_grid_type = 0
+        self.lbc.integer_constants = LBC_IntegerConstants.empty()
+        self.lbc.integer_constants.num_cols = self._dflt_nx
+        self.lbc.integer_constants.num_rows = self._dflt_ny
+        self.lbc.integer_constants.num_p_levels = self._dflt_nz
+        self.lbc.real_constants = LBC_RealConstants.empty()
+        self.lbc.real_constants.start_lon = self._dflt_x0
+        self.lbc.real_constants.col_spacing = self._dflt_dx
+        self.lbc.real_constants.start_lat = self._dflt_y0
+        self.lbc.real_constants.row_spacing = self._dflt_dy
+        self.lbc.level_dependent_constants = (
+            LBC_LevelDependentConstants.empty(self._dflt_nz + 1))
+
         # Construct a mock 'minimal' field that passes the validation tests.
-        fld = Field3.empty()
-        fld.lbrel = 3
-        fld.lbcode = 1
-        fld.lbhem = 0
-        fld.lbrow = ny
-        fld.bzy = y0 - dy
-        fld.bdy = dy
-        fld.lbnpt = nx
-        fld.bzx = x0 - dx
-        fld.bdx = dx
-        return fld
+        self.fld = Field3.empty()
+        self.fld.lbrel = 3
+        self.fld.lbcode = 1
+        self.fld.lbhem = 0
+        self.fld.lbrow = self._dflt_ny
+        self.fld.bzy = self._dflt_y0 - self._dflt_dy
+        self.fld.bdy = self._dflt_dy
+        self.fld.lbnpt = self._dflt_nx
+        self.fld.bzx = self._dflt_x0 - self._dflt_dx
+        self.fld.bdx = self._dflt_dx
 
     # Test the the above minimal example file does indeed validate
     def test_basic_ok(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.validate()
+        self.lbc.validate()
 
     # Test that the accepted dataset types pass
     def test_dataset_types_ok(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.fixed_length_header.dataset_type = 5
-        lbc.validate()
+        self.lbc.fixed_length_header.dataset_type = 5
+        self.lbc.validate()
 
     # Test that some incorrect dataset types fail
     def test_dataset_types_fail(self):
-        lbc = self._minimal_valid_lbc()
         for dtype in (0, 1, 2, 4, -32768):
-            lbc.fixed_length_header.dataset_type = dtype
+            self.lbc.fixed_length_header.dataset_type = dtype
             with self.assertRaisesRegexp(ValidateError,
                                          "Incorrect dataset_type"):
-                lbc.validate()
+                self.lbc.validate()
 
     # Test that the accepted grid staggerings pass
     def test_grid_staggering_ok(self):
-        lbc = self._minimal_valid_lbc()
         for stagger in (3, 6):
-            lbc.fixed_length_header.grid_staggering = stagger
-            lbc.validate()
+            self.lbc.fixed_length_header.grid_staggering = stagger
+            self.lbc.validate()
 
     # Test that some incorrect grid staggerings fail
     def test_grid_staggering_fail(self):
-        lbc = self._minimal_valid_lbc()
         for stagger in (2, 5, 0, -32768):
-            lbc.fixed_length_header.grid_staggering = stagger
+            self.lbc.fixed_length_header.grid_staggering = stagger
             with self.assertRaisesRegexp(ValidateError,
                                          "Unsupported grid_staggering"):
-                lbc.validate()
+                self.lbc.validate()
 
     # Test that having no integer constants fails
     def test_missing_int_consts_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.integer_constants = None
+        self.lbc.integer_constants = None
         with self.assertRaisesRegexp(ValidateError,
                                      "Integer constants not found"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test that having no integer constants fails
     def test_missing_real_consts_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.real_constants = None
+        self.lbc.real_constants = None
         with self.assertRaisesRegexp(ValidateError,
                                      "Real constants not found"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test that having no integer constants fails
     def test_missing_lev_consts_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.level_dependent_constants = None
+        self.lbc.level_dependent_constants = None
         with self.assertRaisesRegexp(ValidateError,
                                      "Level dependent constants not found"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test that invalid shape integer constants fails
     def test_baddims_int_consts_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.integer_constants = LBC_IntegerConstants.empty(5)
+        self.lbc.integer_constants = LBC_IntegerConstants.empty(5)
         with self.assertRaisesRegexp(ValidateError,
                                      "Incorrect number of integer constants"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test that invalid shape real constants fails
     def test_baddims_real_consts_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.real_constants = LBC_RealConstants.empty(7)
+        self.lbc.real_constants = LBC_RealConstants.empty(7)
         with self.assertRaisesRegexp(ValidateError,
                                      "Incorrect number of real constants"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test that invalid shape level dependent constants fails (first dim)
     def test_baddim_1_lev_consts_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.level_dependent_constants = LBC_LevelDependentConstants.empty(7, 8)
+        self.lbc.level_dependent_constants = (
+            LBC_LevelDependentConstants.empty(7, 8))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped level dependent constants"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test that invalid shape level dependent constants fails (second dim)
     def test_baddim_2_lev_consts_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.level_dependent_constants = LBC_LevelDependentConstants.empty(6, 9)
+        self.lbc.level_dependent_constants = (
+            LBC_LevelDependentConstants.empty(6, 9))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped level dependent constants"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test a variable resolution case
     def test_basic_varres_ok(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.row_dependent_constants = LBC_RowDependentConstants.empty(3, 2)
-        lbc.column_dependent_constants = (
+        self.lbc.row_dependent_constants = (
+            LBC_RowDependentConstants.empty(3, 2))
+        self.lbc.column_dependent_constants = (
             LBC_ColumnDependentConstants.empty(4, 2))
-        lbc.validate()
+        self.lbc.validate()
 
     # Test that an invalid shape row dependent constants fails (first dim)
     def test_baddim_1_row_consts_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.row_dependent_constants = LBC_RowDependentConstants.empty(4, 2)
-        lbc.column_dependent_constants = (
+        self.lbc.row_dependent_constants = (
+            LBC_RowDependentConstants.empty(4, 2))
+        self.lbc.column_dependent_constants = (
             LBC_ColumnDependentConstants.empty(4, 2))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped row dependent constants"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test that an invalid shape row dependent constants fails (first dim)
     def test_baddim_2_row_consts_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.row_dependent_constants = LBC_RowDependentConstants.empty(3, 3)
-        lbc.column_dependent_constants = (
+        self.lbc.row_dependent_constants = (
+            LBC_RowDependentConstants.empty(3, 3))
+        self.lbc.column_dependent_constants = (
             LBC_ColumnDependentConstants.empty(4, 2))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped row dependent constants"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test that an invalid shape column dependent constants fails (first dim)
     def test_baddim_1_col_consts_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.row_dependent_constants = LBC_RowDependentConstants.empty(3, 2)
-        lbc.column_dependent_constants = (
+        self.lbc.row_dependent_constants = (
+            LBC_RowDependentConstants.empty(3, 2))
+        self.lbc.column_dependent_constants = (
             LBC_ColumnDependentConstants.empty(5, 2))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped column dependent const"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test that an invalid shape column dependent constants fails (first dim)
     def test_baddim_2_col_consts_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.row_dependent_constants = LBC_RowDependentConstants.empty(3, 2)
-        lbc.column_dependent_constants = (
+        self.lbc.row_dependent_constants = (
+            LBC_RowDependentConstants.empty(3, 2))
+        self.lbc.column_dependent_constants = (
             LBC_ColumnDependentConstants.empty(4, 3))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped column dependent const"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test that a file with a valid field passes
     def test_basic_field_ok(self):
-        lbc = self._minimal_valid_lbc()
-        fld = self._minimal_valid_field()
         for header_release in (2, 3, -99):
-            fld.lbrel = header_release
-            lbc.fields = [fld]
-            lbc.validate()
+            self.fld.lbrel = header_release
+            self.lbc.fields = [self.fld]
+            self.lbc.validate()
 
     # Test a field with an invalid header release fails
     def test_basic_field_release_fail(self):
-        lbc = self._minimal_valid_lbc()
-        fld = self._minimal_valid_field()
-        fld.lbrel = 4
-        lbc.fields = [fld]
+        self.fld.lbrel = 4
+        self.lbc.fields = [self.fld]
         with self.assertRaisesRegexp(
                 ValidateError, "Field has unrecognised release number 4"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test a variable resolution field passes
     def test_basic_varres_field_ok(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.row_dependent_constants = LBC_RowDependentConstants.empty(3, 2)
-        lbc.column_dependent_constants = (
+        self.lbc.row_dependent_constants = (
+            LBC_RowDependentConstants.empty(3, 2))
+        self.lbc.column_dependent_constants = (
             LBC_ColumnDependentConstants.empty(4, 2))
-        fld = self._minimal_valid_field()
-        fld.bzx = lbc.real_constants.real_mdi
-        fld.bzy = lbc.real_constants.real_mdi
-        fld.bdx = lbc.real_constants.real_mdi
-        fld.bdy = lbc.real_constants.real_mdi
-        lbc.fields = [fld]
-        lbc.validate()
+        self.fld.bzx = self.lbc.real_constants.real_mdi
+        self.fld.bzy = self.lbc.real_constants.real_mdi
+        self.fld.bdx = self.lbc.real_constants.real_mdi
+        self.fld.bdy = self.lbc.real_constants.real_mdi
+        self.lbc.fields = [self.fld]
+        self.lbc.validate()
 
     # Test a variable resolution field with bad column count fails
     def test_basic_varres_field_cols_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.row_dependent_constants = LBC_RowDependentConstants.empty(3, 2)
-        lbc.column_dependent_constants = (
+        self.lbc.row_dependent_constants = (
+            LBC_RowDependentConstants.empty(3, 2))
+        self.lbc.column_dependent_constants = (
             LBC_ColumnDependentConstants.empty(4, 2))
-        fld = self._minimal_valid_field()
-        fld.lbnpt = 6
-        lbc.fields = [fld]
+        self.fld.lbnpt = 6
+        self.lbc.fields = [self.fld]
         with self.assertRaisesRegexp(
                 ValidateError, "Field column count inconsistent"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test a variable resolution field with bad row count fails
     def test_basic_varres_field_rows_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.row_dependent_constants = LBC_RowDependentConstants.empty(3, 2)
-        lbc.column_dependent_constants = (
+        self.lbc.row_dependent_constants = (
+            LBC_RowDependentConstants.empty(3, 2))
+        self.lbc.column_dependent_constants = (
             LBC_ColumnDependentConstants.empty(4, 2))
-        fld = self._minimal_valid_field()
-        fld.lbrow = 5
-        lbc.fields = [fld]
+        self.fld.lbrow = 5
+        self.lbc.fields = [self.fld]
         with self.assertRaisesRegexp(
                 ValidateError, "Field row count inconsistent"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test a variable resolution field with non RMDI bzx fails
     def test_basic_varres_field_bzx_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.row_dependent_constants = LBC_RowDependentConstants.empty(3, 2)
-        lbc.column_dependent_constants = (
+        self.lbc.row_dependent_constants = (
+            LBC_RowDependentConstants.empty(3, 2))
+        self.lbc.column_dependent_constants = (
             LBC_ColumnDependentConstants.empty(4, 2))
-        fld = self._minimal_valid_field()
-        fld.bzx = 4
-        fld.bzy = lbc.real_constants.real_mdi
-        fld.bdx = lbc.real_constants.real_mdi
-        fld.bdy = lbc.real_constants.real_mdi
-        lbc.fields = [fld]
+        self.fld.bzx = 4
+        self.fld.bzy = self.lbc.real_constants.real_mdi
+        self.fld.bdx = self.lbc.real_constants.real_mdi
+        self.fld.bdy = self.lbc.real_constants.real_mdi
+        self.lbc.fields = [self.fld]
         with self.assertRaisesRegexp(
                 ValidateError, "Field start longitude \(bzx\) not RMDI"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test a variable resolution field with non RMDI bzy fails
     def test_basic_varres_field_bzy_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.row_dependent_constants = LBC_RowDependentConstants.empty(3, 2)
-        lbc.column_dependent_constants = (
+        self.lbc.row_dependent_constants = (
+            LBC_RowDependentConstants.empty(3, 2))
+        self.lbc.column_dependent_constants = (
             LBC_ColumnDependentConstants.empty(4, 2))
-        fld = self._minimal_valid_field()
-        fld.bzx = lbc.real_constants.real_mdi
-        fld.bzy = 5
-        fld.bdx = lbc.real_constants.real_mdi
-        fld.bdy = lbc.real_constants.real_mdi
-        lbc.fields = [fld]
+        self.fld.bzx = self.lbc.real_constants.real_mdi
+        self.fld.bzy = 5
+        self.fld.bdx = self.lbc.real_constants.real_mdi
+        self.fld.bdy = self.lbc.real_constants.real_mdi
+        self.lbc.fields = [self.fld]
         with self.assertRaisesRegexp(
                 ValidateError, "Field start latitude \(bzy\) not RMDI"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test a variable resolution field with non RMDI bdx fails
     def test_basic_varres_field_bdx_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.row_dependent_constants = LBC_RowDependentConstants.empty(3, 2)
-        lbc.column_dependent_constants = (
+        self.lbc.row_dependent_constants = (
+            LBC_RowDependentConstants.empty(3, 2))
+        self.lbc.column_dependent_constants = (
             LBC_ColumnDependentConstants.empty(4, 2))
-        fld = self._minimal_valid_field()
-        fld.bzx = lbc.real_constants.real_mdi
-        fld.bzy = lbc.real_constants.real_mdi
-        fld.bdx = 0.2
-        fld.bdy = lbc.real_constants.real_mdi
-        lbc.fields = [fld]
+        self.fld.bzx = self.lbc.real_constants.real_mdi
+        self.fld.bzy = self.lbc.real_constants.real_mdi
+        self.fld.bdx = 0.2
+        self.fld.bdy = self.lbc.real_constants.real_mdi
+        self.lbc.fields = [self.fld]
         with self.assertRaisesRegexp(
                 ValidateError, "Field longitude interval \(bdx\) not RMDI"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test a variable resolution field with non RMDI bdy fails
     def test_basic_varres_field_bdy_fail(self):
-        lbc = self._minimal_valid_lbc()
-        lbc.row_dependent_constants = LBC_RowDependentConstants.empty(3, 2)
-        lbc.column_dependent_constants = (
+        self.lbc.row_dependent_constants = (
+            LBC_RowDependentConstants.empty(3, 2))
+        self.lbc.column_dependent_constants = (
             LBC_ColumnDependentConstants.empty(4, 2))
-        fld = self._minimal_valid_field()
-        fld.bzx = lbc.real_constants.real_mdi
-        fld.bzy = lbc.real_constants.real_mdi
-        fld.bdx = lbc.real_constants.real_mdi
-        fld.bdy = 0.1
-        lbc.fields = [fld]
+        self.fld.bzx = self.lbc.real_constants.real_mdi
+        self.fld.bzy = self.lbc.real_constants.real_mdi
+        self.fld.bdx = self.lbc.real_constants.real_mdi
+        self.fld.bdy = 0.1
+        self.lbc.fields = [self.fld]
         with self.assertRaisesRegexp(
                 ValidateError, "Field latitude interval \(bdy\) not RMDI"):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test lower boundary x value just within tolerance passes
     def test_basic_regular_min_x_ok(self):
-        lbc = self._minimal_valid_lbc()
-        fld = self._minimal_valid_field()
-        fld.bzx += fld.bdx * (1.01 - 0.0001)
-        fld.lbnpt -= 1
-        lbc.fields = [fld]
-        lbc.validate()
+        self.fld.bzx += self.fld.bdx * (1.01 - 0.0001)
+        self.fld.lbnpt -= 1
+        self.lbc.fields = [self.fld]
+        self.lbc.validate()
 
     # Test lower boundary x value just outside tolerance fails
     def test_basic_regular_min_x_fail(self):
-        lbc = self._minimal_valid_lbc()
-        fld = self._minimal_valid_field()
-        fld.bzx += fld.bdx * (1.01 + 0.0001)
-        fld.lbnpt -= 1
-        lbc.fields = [fld]
+        self.fld.bzx += self.fld.bdx * (1.01 + 0.0001)
+        self.fld.lbnpt -= 1
+        self.lbc.fields = [self.fld]
         with self.assertRaisesRegexp(ValidateError, 'longitudes inconsistent'):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test upper boundary x value just within tolerance passes
     def test_basic_regular_max_x_ok(self):
-        lbc = self._minimal_valid_lbc()
-        fld = self._minimal_valid_field()
-        fld.bdx = fld.bdx*1.5
-        fld.bzx = lbc.real_constants.start_lon - fld.bdx
-        lbc.fields = [fld]
-        lbc.validate()
+        self.fld.bdx = self.fld.bdx*1.5
+        self.fld.bzx = self.lbc.real_constants.start_lon - self.fld.bdx
+        self.lbc.fields = [self.fld]
+        self.lbc.validate()
 
     # Test upper boundary x value just outside tolerance fails
     def test_basic_regular_max_x_fail(self):
-        lbc = self._minimal_valid_lbc()
-        fld = self._minimal_valid_field()
-        fld.bdx = fld.bdx*1.51
-        fld.bzx = lbc.real_constants.start_lon - fld.bdx
-        lbc.fields = [fld]
+        self.fld.bdx = self.fld.bdx*1.51
+        self.fld.bzx = self.lbc.real_constants.start_lon - self.fld.bdx
+        self.lbc.fields = [self.fld]
         with self.assertRaisesRegexp(ValidateError, 'longitudes inconsistent'):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test lower boundary y value just within tolerance passes
     def test_basic_regular_min_y_ok(self):
-        lbc = self._minimal_valid_lbc()
-        fld = self._minimal_valid_field()
-        fld.bzy += fld.bdy * (1.01 - 0.0001)
-        fld.lbrow -= 1
-        lbc.fields = [fld]
-        lbc.validate()
+        self.fld.bzy += self.fld.bdy * (1.01 - 0.0001)
+        self.fld.lbrow -= 1
+        self.lbc.fields = [self.fld]
+        self.lbc.validate()
 
     # Test lower boundary y value just outside tolerance fails
     def test_basic_regular_min_y_fail(self):
-        lbc = self._minimal_valid_lbc()
-        fld = self._minimal_valid_field()
-        fld.bzy += fld.bdy * (1.01 + 0.0001)
-        fld.lbrow -= 1
-        lbc.fields = [fld]
+        self.fld.bzy += self.fld.bdy * (1.01 + 0.0001)
+        self.fld.lbrow -= 1
+        self.lbc.fields = [self.fld]
         with self.assertRaisesRegexp(ValidateError, 'latitudes inconsistent'):
-            lbc.validate()
+            self.lbc.validate()
 
     # Test upper boundary y value just within tolerance passes
     def test_basic_regular_max_y_ok(self):
-        lbc = self._minimal_valid_lbc()
-        fld = self._minimal_valid_field()
-        fld.bdy = fld.bdy*2.02
-        fld.bzy = lbc.real_constants.start_lat - fld.bdy
-        lbc.fields = [fld]
-        lbc.validate()
+        self.fld.bdy = self.fld.bdy*2.02
+        self.fld.bzy = self.lbc.real_constants.start_lat - self.fld.bdy
+        self.lbc.fields = [self.fld]
+        self.lbc.validate()
 
     # Test upper boundary y value just outside tolerance fails
     def test_basic_regular_max_y_fail(self):
-        lbc = self._minimal_valid_lbc()
-        fld = self._minimal_valid_field()
-        fld.bdy = fld.bdy*2.03
-        fld.bzy = lbc.real_constants.start_lat - fld.bdy
-        lbc.fields = [fld]
+        self.fld.bdy = self.fld.bdy*2.03
+        self.fld.bzy = self.lbc.real_constants.start_lat - self.fld.bdy
+        self.lbc.fields = [self.fld]
         with self.assertRaisesRegexp(ValidateError, 'latitudes inconsistent'):
-            lbc.validate()
+            self.lbc.validate()
 
 
 class Test_LBCOperators(tests.MuleTest):
@@ -461,27 +419,48 @@ class Test_LBCOperators(tests.MuleTest):
     # used below
     mdi = -1234.0
 
+    _dflt_nx = 5
+    _dflt_ny = 5
+    _dflt_x0 = 10.0
+    _dflt_dx = 0.1
+    _dflt_y0 = -60.0
+    _dflt_dy = 0.2
+
+    def setUp(self, *args, **kwargs):
+        # Call the original setup function
+        super(Test_LBCOperators, self).setUp(*args, **kwargs)
+
+        # Construct a mock 'minimal' field that passes the validation tests.
+        self.fld = Field3.empty()
+        self.fld.lbrel = 3
+        self.fld.lbcode = 1
+        self.fld.lbhem = 0
+        self.fld.lbrow = self._dflt_ny
+        self.fld.bzy = self._dflt_y0 - self._dflt_dy
+        self.fld.bdy = self._dflt_dy
+        self.fld.lbnpt = self._dflt_nx
+        self.fld.bzx = self._dflt_x0 - self._dflt_dx
+        self.fld.bdx = self._dflt_dx
+
     def run_lbc_operators(self, nlevs, rim, halo_x, halo_y, data, valid):
-        # Create a 5x5 field
-        fld = Test_validate._minimal_valid_field(nx=5, ny=5)
 
         # Set the quantities which are needed for the operators to work
-        fld.lbhem = 100 + nlevs
-        fld.lbuser3 = 10000*rim + 100*halo_x + halo_y
-        fld.bmdi = self.mdi
+        self.fld.lbhem = 100 + nlevs
+        self.fld.lbuser3 = 10000*rim + 100*halo_x + halo_y
+        self.fld.bmdi = self.mdi
 
         # Create a provider from the data array and attach it to the field
         provider = ArrayDataProvider(data)
-        fld.set_data_provider(provider)
+        self.fld.set_data_provider(provider)
 
         # Turn this into a masked array and compare it to the valid data
-        masked = self.to_mask_operator(fld)
+        masked = self.to_mask_operator(self.fld)
         self.assertArrayEqual(masked.get_data(), valid)
 
         # Now turn the masked array back into an lbc array and compare it
         # to the original data
         reformed = self.to_lbc_operator(masked)
-        self.assertArrayEqual(reformed.get_data(), fld.get_data())
+        self.assertArrayEqual(reformed.get_data(), self.fld.get_data())
 
     def test_lbc_operator_simple_rim1(self):
         # A 5x5 grid, 1 level, no halos, rim width of 1

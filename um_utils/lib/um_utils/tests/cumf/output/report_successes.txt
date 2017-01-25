@@ -69,9 +69,9 @@ Components compare (compared 0/0 values)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Components compare (compared 0/0 values)
 
-%%%%%%%%%%%%%%%%%%%%%%%
-* fields_of_constants *
-%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%
+* additional_parameters *
+%%%%%%%%%%%%%%%%%%%%%%%%%
 Components compare (compared 0/0 values)
 
 %%%%%%%%%%%%%%%%%%%

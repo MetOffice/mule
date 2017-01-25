@@ -62,6 +62,8 @@ the specific classes:
 
     new_ff = mule.FieldsFile.from_template(template)
 
+    new_dump = mule.DumpFile.from_template(template)
+
     new_lbc = mule.LBCFile.from_template(template)
 
     new_ancil = mule.AncilFile.from_template(template)

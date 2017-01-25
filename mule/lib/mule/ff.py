@@ -26,10 +26,7 @@ from __future__ import (absolute_import, division, print_function)
 
 import mule
 import mule.validators as validators
-import warnings
 from mule.packing import wgdos_pack_field, wgdos_unpack_field
-from collections import defaultdict
-
 import numpy as np
 
 # UM FieldsFile integer constant names
@@ -433,7 +430,7 @@ class FieldsFile(mule.UMFile):
                   ('level_dependent_constants', FF_LevelDependentConstants),
                   ('row_dependent_constants', FF_RowDependentConstants),
                   ('column_dependent_constants', FF_ColumnDependentConstants),
-                  ('fields_of_constants', mule.UnsupportedHeaderItem2D),
+                  ('additional_parameters', mule.UnsupportedHeaderItem2D),
                   ('extra_constants', mule.UnsupportedHeaderItem1D),
                   ('temp_historyfile', mule.UnsupportedHeaderItem1D),
                   ('compressed_field_index1', mule.UnsupportedHeaderItem1D),
@@ -462,182 +459,8 @@ class FieldsFile(mule.UMFile):
                        222: _WriteFFOperatorCray32SeaPacked,
                        }
 
-    # Add an additional field type, to handle special dump fields
-    FIELD_CLASSES = dict(mule.UMFile.FIELD_CLASSES.items()
-                         + [(mule._INTEGER_MDI, DumpSpecialField)])
+    # Set accepted dataset types
+    DATASET_TYPES = (3,)
 
-    def _write_to_file(self, output_file):
-        """Write out to an open output file."""
-        # We want to extend the UMFile version of this routine to extract the
-        # land-sea mask info for the relevant operators
-        lsm = None
-        for field in self.fields:
-            if hasattr(field, "lbuser4") and field.lbuser4 == 30:
-                lsm = field.get_data()
-                break
-
-        # Assuming a valid mask was found above; attach it to the operators
-        if lsm is not None:
-            for _, operator in self._write_operators.items():
-                if hasattr(operator, "_LAND"):
-                    operator.set_lsm_source(lsm)
-
-        # Now call the usual method
-        super(FieldsFile, self)._write_to_file(output_file)
-
-    def _read_file(self, file_or_filepath):
-        """Populate the class from an existing file object or file"""
-        # Similarly we want to append some land-sea mask logic to this routine
-        # Start by calling the usual routine
-        super(FieldsFile, self)._read_file(file_or_filepath)
-
-        # Look for the land-sea mask
-        lsm = None
-        for field in self.fields:
-            if hasattr(field, "lbuser4") and field.lbuser4 == 30:
-                lsm = field.get_data()
-                break
-
-        # If a land-sea mask was found, attach it to the relevant fields
-        if lsm is not None:
-            for field in self.fields:
-                if hasattr(field._data_provider, "_LAND"):
-                    field._data_provider.set_lsm_source(lsm)
-
-    def validate(self, filename=None, warn=False):
-        """
-        FieldsFile validation method, ensures that certain quantities are the
-        expected sizes and different header quantities are self-consistent.
-
-        Kwargs:
-            * filename:
-                If provided, this filename will be included in any
-                validation error messages raised by this method.
-            * warn:
-                If True, issue a warning rather than a failure in the event
-                that the object fails to validate.
-
-        """
-        # Error messages will be accumulated in this list, so that they
-        # can all be issued at once (instead of stopping after the first)
-        validation_errors = []
-
-        # File must have its dataset_type set correctly
-        validation_errors += (
-            validators.validate_dataset_type(self, (1, 2, 3)))
-
-        # Only grid-staggerings of 3 (NewDynamics) or 6 (ENDGame) are valid
-        validation_errors += (
-            validators.validate_grid_staggering(self, (3, 6)))
-
-        # Integer and real constants are mandatory and have particular
-        # lengths that must be matched
-        validation_errors += (
-            validators.validate_integer_constants(
-                self, FF_IntegerConstants.CREATE_DIMS[0]))
-
-        validation_errors += (
-            validators.validate_real_constants(
-                self, FF_RealConstants.CREATE_DIMS[0]))
-
-        # Only continue if no errors have been raised so far (the remaining
-        # checks are unlikely to work without the above passing)
-        if not validation_errors:
-
-            # Level dependent constants also mandatory
-            validation_errors += (
-                validators.validate_level_dependent_constants(
-                    self, (self.integer_constants.num_p_levels + 1,
-                           FF_LevelDependentConstants.CREATE_DIMS[1])))
-
-            # Sizes for row dependent constants (if present)
-            if self.row_dependent_constants is not None:
-                dim1 = self.integer_constants.num_rows
-                # ENDGame row dependent constants have an extra point
-                if self.fixed_length_header.grid_staggering == 6:
-                    dim1 += 1
-
-                validation_errors += (
-                    validators.validate_row_dependent_constants(
-                        self, (dim1,
-                               FF_RowDependentConstants.CREATE_DIMS[1])))
-
-            # Sizes for column dependent constants (if present)
-            if self.column_dependent_constants is not None:
-                validation_errors += (
-                    validators.validate_column_dependent_constants(
-                        self, (self.integer_constants.num_cols,
-                               FF_ColumnDependentConstants.CREATE_DIMS[1])))
-
-            # For the fields, a dictionary will be used to accumulate the
-            # errors, where the keys are the error messages.  This will allow
-            # us to only print each message once (with a list of fields).
-            field_validation = defaultdict(list)
-            for ifield, field in enumerate(self.fields):
-                if (self.fixed_length_header.dataset_type in (1, 2)
-                        and field.lbrel == mule._INTEGER_MDI):
-                    # In dumps, some headers are special mean fields
-                    if (field.lbpack // 1000) != 2:
-                        msg = ("Field is special dump field but does not"
-                               "have lbpack N4 == 2")
-                        field_validation[msg].append(ifield)
-
-                elif field.lbrel not in (2, 3):
-                    # If the field release number isn't one of the recognised
-                    # values, or -99 (a missing/padding field) error
-                    if field.lbrel != -99:
-                        msg = "Field has unrecognised release number {0}"
-                        field_validation[
-                            msg.format(field.lbrel)].append(ifield)
-                else:
-                    # Land packed fields shouldn't set their rows or columns
-                    if (field.lbpack % 100)//10 == 2:
-                        if field.lbrow != 0:
-                            msg = ("Field rows not set to zero for land/sea "
-                                   "packed field")
-                            field_validation[msg].append(ifield)
-
-                        if field.lbnpt != 0:
-                            msg = ("Field columns not set to zero for "
-                                   "land/sea packed field")
-                            field_validation[msg].append(ifield)
-
-                    elif (self.row_dependent_constants is not None and
-                          self.column_dependent_constants is not None):
-                        # Check that the headers are set appropriately for a
-                        # variable resolution field
-                        for msg in (
-                                validators.validate_variable_resolution_field(
-                                    self, field)):
-                            field_validation[msg].append(ifield)
-                    else:
-                        # Check that the grids are consistent - if the STASH
-                        # entry is available make use of the extra information
-                        for msg in validators.validate_regular_field(
-                                self, field):
-                            field_validation[msg].append(ifield)
-
-            # Unpick the messages stored in the dictionary, to provide each
-            # error once along with a listing of the fields affected
-            for field_msg, field_indices in field_validation.items():
-                msg = "Field validation failures:\n  Fields ({0})\n{1}"
-                field_str = ",".join(
-                    [str(ind)
-                     for ind in field_indices[:min(len(field_indices), 5)]])
-                if len(field_indices) > 5:
-                    field_str += (
-                        ", ... {0} total fields".format(len(field_indices)))
-                validation_errors.append(
-                    msg.format(field_str, field_msg))
-
-        # Now either raise an exception or warning with the messages attached.
-        if validation_errors:
-            if warn:
-                msg = ""
-                if filename is not None:
-                    msg = "\nFile: {0}".format(filename)
-                msg += "\n" + "\n".join(validation_errors)
-                warnings.warn(msg)
-            else:
-                raise validators.ValidateError(
-                    filename, "\n".join(validation_errors))
+    # Attach to the standard validation function
+    validate = validators.validate_umf

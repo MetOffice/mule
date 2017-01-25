@@ -27,9 +27,6 @@ from __future__ import (absolute_import, division, print_function)
 import mule
 import mule.ff
 import mule.validators as validators
-import warnings
-from collections import defaultdict
-
 import numpy as np
 
 # LBC Files do not recognise all of the properties from a FieldsFile, and some
@@ -376,7 +373,7 @@ class LBCFile(mule.UMFile):
         ('level_dependent_constants', LBC_LevelDependentConstants),
         ('row_dependent_constants', LBC_RowDependentConstants),
         ('column_dependent_constants', LBC_ColumnDependentConstants),
-        ('fields_of_constants', mule.UnsupportedHeaderItem2D),
+        ('additional_parameters', mule.UnsupportedHeaderItem2D),
         ('extra_constants', mule.UnsupportedHeaderItem1D),
         ('temp_historyfile', mule.UnsupportedHeaderItem1D),
         ('compressed_field_index1', mule.UnsupportedHeaderItem1D),
@@ -392,6 +389,12 @@ class LBCFile(mule.UMFile):
     WRITE_OPERATORS = {000: _WriteLBCOperatorUnpacked,
                        002: _WriteLBCOperatorCray32Packed}
 
+    # Set accepted dataset types
+    DATASET_TYPES = (5,)
+
+    # Attach to the standard validation function
+    validate = validators.validate_umf
+
     # The only other difference is that LBC files do not set the data shape
     def _write_to_file(self, output_file):
         # Do exactly what the FieldsFile class does
@@ -402,121 +405,3 @@ class LBCFile(mule.UMFile):
         self.fixed_length_header.data_shape = 0
         output_file.seek(0)
         self.fixed_length_header.to_file(output_file)
-
-    def validate(self, filename=None, warn=False):
-        """
-        LBCFile validation method, ensures that certain quantities are the
-        expected sizes and different header quantities are self-consistent.
-
-        Kwargs:
-            * filename:
-                If provided, this filename will be included in any
-                validation error messages raised by this method.
-            * warn:
-                If True, issue a warning rather than a failure in the event
-                that the object fails to validate.
-
-        """
-        # Error messages will be accumulated in this list, so that they
-        # can all be issued at once (instead of stopping after the first)
-        validation_errors = []
-
-        # File must have its dataset_type set correctly
-        validation_errors += (
-            validators.validate_dataset_type(self, (5,)))
-
-        # Only grid-staggerings of 3 (NewDynamics) or 6 (ENDGame) are valid
-        validation_errors += (
-            validators.validate_grid_staggering(self, (3, 6)))
-
-        # Integer, real and level dependent constants are mandatory and
-        # have particular lengths that must be matched
-        validation_errors += (
-            validators.validate_integer_constants(
-                self, LBC_IntegerConstants.CREATE_DIMS[0]))
-
-        validation_errors += (
-            validators.validate_real_constants(
-                self, LBC_RealConstants.CREATE_DIMS[0]))
-
-        # Only continue if no errors have been raised so far (the remaining
-        # checks are unlikely to work without the above passing)
-        if not validation_errors:
-
-            # Level dependent constants also mandatory
-            validation_errors += (
-                validators.validate_level_dependent_constants(
-                    self, (self.integer_constants.num_p_levels + 1,
-                           LBC_LevelDependentConstants.CREATE_DIMS[1])))
-
-            # Sizes for row dependent constants (if present)
-            if self.row_dependent_constants is not None:
-                dim1 = self.integer_constants.num_rows
-                # ENDGame row dependent constants have an extra point
-                if self.fixed_length_header.grid_staggering == 6:
-                    dim1 += 1
-
-                validation_errors += (
-                    validators.validate_row_dependent_constants(
-                        self, (dim1,
-                               LBC_RowDependentConstants.CREATE_DIMS[1])))
-
-            # Sizes for column dependent constants (if present)
-            if self.column_dependent_constants is not None:
-                validation_errors += (
-                    validators.validate_column_dependent_constants(
-                        self, (self.integer_constants.num_cols,
-                               LBC_ColumnDependentConstants.CREATE_DIMS[1])))
-
-            # For the fields, a dictionary will be used to accumulate the
-            # errors, where the keys are the error messages.  This will allow
-            # us to only print each message once (with a list of fields).
-            field_validation = defaultdict(list)
-            for ifield, field in enumerate(self.fields):
-                if field.lbrel not in (2, 3):
-                    # If the field release number isn't one of the recognised
-                    # values, or -99 (a missing/padding field) error
-                    if field.lbrel != -99:
-                        msg = "Field has unrecognised release number {0}"
-                        field_validation[
-                            msg.format(field.lbrel)].append(ifield)
-                else:
-                    if (self.row_dependent_constants is not None and
-                            self.column_dependent_constants is not None):
-                        # Check that the headers are set appropriately for a
-                        # variable resolution field
-                        for msg in (
-                                validators.validate_variable_resolution_field(
-                                    self, field)):
-                            field_validation[msg].append(ifield)
-                    else:
-                        # Check that the grids are consistent - if the STASH
-                        # entry is available make use of the extra information
-                        for msg in validators.validate_regular_field(
-                                self, field):
-                            field_validation[msg].append(ifield)
-
-            # Unpick the messages stored in the dictionary, to provide each
-            # error once along with a listing of the fields affected
-            for field_msg, field_indices in field_validation.items():
-                msg = "Field validation failures:\n  Fields ({0})\n{1}"
-                field_str = ",".join(
-                    [str(ind)
-                     for ind in field_indices[:min(len(field_indices), 5)]])
-                if len(field_indices) > 5:
-                    field_str += (
-                        ", ... {0} total fields".format(len(field_indices)))
-                validation_errors.append(
-                    msg.format(field_str, field_msg))
-
-        # Now either raise an exception or warning with the messages attached.
-        if validation_errors:
-            if warn:
-                msg = ""
-                if filename is not None:
-                    msg = "\nFile: {0}".format(filename)
-                msg += "\n" + "\n".join(validation_errors)
-                warnings.warn(msg)
-            else:
-                raise validators.ValidateError(
-                    filename, "\n".join(validation_errors))

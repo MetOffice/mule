@@ -1,4 +1,4 @@
-# (C) Crown Copyright 2017, Met Office. All rights reserved.
+# (C) Crown Copyright 2016, Met Office. All rights reserved.
 #
 # This file is part of Mule.
 #
@@ -14,26 +14,23 @@
 # You should have received a copy of the Modified BSD License
 # along with Mule.  If not, see <http://opensource.org/licenses/BSD-3-Clause>.
 """
-Unit tests for :class:`mule.ff.FieldsFile`.
+Unit tests for :class:`mule.dump.DumpFile`.
 
 """
 
-from __future__ import (absolute_import, division, print_function)
-
 import mule.tests as tests
-from mule.tests import check_common_n48_testdata, COMMON_N48_TESTDATA_PATH
-
-from mule import FieldsFile, Field3
-from mule.ff import (FF_IntegerConstants, FF_RealConstants,
-                     FF_LevelDependentConstants, FF_RowDependentConstants,
-                     FF_ColumnDependentConstants)
+from mule import DumpFile, Field3
+from mule.dump import (Dump_IntegerConstants, Dump_RealConstants,
+                       Dump_LevelDependentConstants,
+                       Dump_RowDependentConstants,
+                       Dump_ColumnDependentConstants)
 from mule.validators import ValidateError
 
 
 class Test___init__(tests.MuleTest):
-    """Check FieldsFile __init__ method."""
+    """Check DumpFile __init__ method."""
     def test_new_fieldsfile(self):
-        ffv = FieldsFile()
+        ffv = DumpFile()
         self.assertArrayEqual(ffv.fixed_length_header.raw,
                               [None] + [-32768] * 256)
 
@@ -42,53 +39,65 @@ class Test___init__(tests.MuleTest):
         self.assertIsNone(ffv.level_dependent_constants)
         self.assertIsNone(ffv.row_dependent_constants)
         self.assertIsNone(ffv.column_dependent_constants)
+        self.assertIsNone(ffv.additional_parameters)
         self.assertEqual(ffv.fields, [])
 
 
 class Test_from_file(tests.MuleTest):
     """Checkout different creation routes for the same file."""
     def test_read_fieldsfile(self):
-        ffv = FieldsFile.from_file(COMMON_N48_TESTDATA_PATH)
-        self.assertEqual(type(ffv), FieldsFile)
-        check_common_n48_testdata(self, ffv)
+        dump = DumpFile.from_file(
+            tests.testdata_filepath("n48_eg_dump_special.dump"))
+        self.assertEqual(type(dump), DumpFile)
+        self.assertIsNotNone(dump.integer_constants)
+        self.assertEqual(dump.integer_constants.shape, (46,))
+        self.assertIsNotNone(dump.real_constants)
+        self.assertEqual(dump.real_constants.shape, (38,))
+        self.assertIsNotNone(dump.level_dependent_constants)
+        self.assertEqual(dump.level_dependent_constants.shape, (71, 8))
+        self.assertIsNone(dump.row_dependent_constants)
+        self.assertIsNone(dump.column_dependent_constants)
+        self.assertEqual(len(dump.fields), 2)
+        self.assertEqual([fld.lbrel for fld in dump.fields], [3, -32768])
+        self.assertEqual([fld.lbvc for fld in dump.fields[:-1]], [0])
 
 
 class Test_from_template(tests.MuleTest):
     def test_fieldsfile_minimal_create(self):
-        ffv = FieldsFile.from_template({'integer_constants': {},
-                                        'real_constants': {}})
+        ffv = DumpFile.from_template({'integer_constants': {},
+                                      'real_constants': {}})
         self.assertEqual(ffv.integer_constants.shape, (46,))
         self.assertEqual(ffv.real_constants.shape, (38,))
 
     def test_minimal_component(self):
         test_template = {"integer_constants": {}}
-        ffv = FieldsFile.from_template(test_template)
+        ffv = DumpFile.from_template(test_template)
         self.assertEqual(ffv.integer_constants.shape, (46,))
         self.assertIsNone(ffv.real_constants)
 
     def test_component_sizing(self):
         test_template = {"real_constants": {'dims': (9,)}}
-        ffv = FieldsFile.from_template(test_template)
+        ffv = DumpFile.from_template(test_template)
         self.assertEqual(ffv.real_constants.shape, (9,))
         self.assertIsNone(ffv.integer_constants)
 
     def test_component_withdims(self):
         test_template = {"row_dependent_constants": {'dims': (13,)}}
-        ffv = FieldsFile.from_template(test_template)
+        ffv = DumpFile.from_template(test_template)
         self.assertEqual(ffv.row_dependent_constants.shape, (13, 2))
 
     def test_component_nodims__error(self):
         test_template = {"row_dependent_constants": {}}
         with self.assertRaisesRegexp(ValueError,
                                      '"dim1" has no valid default'):
-            _ = FieldsFile.from_template(test_template)
+            _ = DumpFile.from_template(test_template)
 
     def test_unknown_element__fail(self):
         test_template = {"integer_constants": {'whatsthis': 3}}
         with self.assertRaisesRegexp(
                 ValueError,
                 '"integer_constants".*no element.*"whatsthis"'):
-            _ = FieldsFile.from_template(test_template)
+            _ = DumpFile.from_template(test_template)
 
     def test_create_from_template(self):
         test_template = {
@@ -97,7 +106,7 @@ class Test_from_template(tests.MuleTest):
                 "sub_model": 1,
                 "vert_coord_type": 5,
                 "horiz_grid_type": 0,
-                "dataset_type": 3,
+                "dataset_type": 1,
                 "run_identifier": 0,
                 "calendar": 1,
                 "grid_staggering": 3,
@@ -129,10 +138,10 @@ class Test_from_template(tests.MuleTest):
                 'dims': (71,),  # this one absolutely *is* needed
                 },
             }
-        ff_new = FieldsFile.from_template(test_template)
+        ff_new = DumpFile.from_template(test_template)
         with self.temp_filename() as temp_path:
             ff_new.to_file(temp_path)
-            ffv_reload = FieldsFile.from_file(temp_path)
+            ffv_reload = DumpFile.from_file(temp_path)
         self.assertIsNone(ffv_reload.row_dependent_constants)
         self.assertIsNone(ffv_reload.column_dependent_constants)
         self.assertEqual(ffv_reload.level_dependent_constants.raw.shape,
@@ -153,21 +162,21 @@ class Test_validate(tests.MuleTest):
         super(Test_validate, self).setUp(*args, **kwargs)
 
         # Construct a mock 'minimal' file that passes the validation tests.
-        self.ff = FieldsFile()
-        self.ff.fixed_length_header.dataset_type = 3
+        self.ff = DumpFile()
+        self.ff.fixed_length_header.dataset_type = 1
         self.ff.fixed_length_header.grid_staggering = 3
         self.ff.fixed_length_header.horiz_grid_type = 0
-        self.ff.integer_constants = FF_IntegerConstants.empty()
+        self.ff.integer_constants = Dump_IntegerConstants.empty()
         self.ff.integer_constants.num_cols = self._dflt_nx
         self.ff.integer_constants.num_rows = self._dflt_ny
         self.ff.integer_constants.num_p_levels = self._dflt_nz
-        self.ff.real_constants = FF_RealConstants.empty()
+        self.ff.real_constants = Dump_RealConstants.empty()
         self.ff.real_constants.start_lon = self._dflt_x0
         self.ff.real_constants.col_spacing = self._dflt_dx
         self.ff.real_constants.start_lat = self._dflt_y0
         self.ff.real_constants.row_spacing = self._dflt_dy
         self.ff.level_dependent_constants = (
-            FF_LevelDependentConstants.empty(self._dflt_nz + 1))
+            Dump_LevelDependentConstants.empty(self._dflt_nz + 1))
 
         # Construct a mock 'minimal' field that passes the validation tests.
         self.fld = Field3.empty()
@@ -187,12 +196,13 @@ class Test_validate(tests.MuleTest):
 
     # Test that the accepted dataset type passes
     def test_dataset_types_ok(self):
-        self.ff.fixed_length_header.dataset_type = 3
-        self.ff.validate()
+        for dtype in (1, 2):
+            self.ff.fixed_length_header.dataset_type = dtype
+            self.ff.validate()
 
     # Test that some incorrect dataset types fail
     def test_dataset_types_fail(self):
-        for dtype in (0, 1, 2, 4, 5, 6, -32768):
+        for dtype in (0, 3, 4, 5, 6, -32768):
             self.ff.fixed_length_header.dataset_type = dtype
             with self.assertRaisesRegexp(ValidateError,
                                          "Incorrect dataset_type"):
@@ -235,14 +245,14 @@ class Test_validate(tests.MuleTest):
 
     # Test that invalid shape integer constants fails
     def test_baddims_int_consts_fail(self):
-        self.ff.integer_constants = FF_IntegerConstants.empty(5)
+        self.ff.integer_constants = Dump_IntegerConstants.empty(5)
         with self.assertRaisesRegexp(ValidateError,
                                      "Incorrect number of integer constants"):
             self.ff.validate()
 
     # Test that invalid shape real constants fails
     def test_baddims_real_consts_fail(self):
-        self.ff.real_constants = FF_RealConstants.empty(7)
+        self.ff.real_constants = Dump_RealConstants.empty(7)
         with self.assertRaisesRegexp(ValidateError,
                                      "Incorrect number of real constants"):
             self.ff.validate()
@@ -250,7 +260,7 @@ class Test_validate(tests.MuleTest):
     # Test that invalid shape level dependent constants fails (first dim)
     def test_baddim_1_lev_consts_fail(self):
         self.ff.level_dependent_constants = (
-            FF_LevelDependentConstants.empty(7, 8))
+            Dump_LevelDependentConstants.empty(7, 8))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped level dependent constants"):
             self.ff.validate()
@@ -258,50 +268,55 @@ class Test_validate(tests.MuleTest):
     # Test that invalid shape level dependent constants fails (second dim)
     def test_baddim_2_lev_consts_fail(self):
         self.ff.level_dependent_constants = (
-            FF_LevelDependentConstants.empty(6, 9))
+            Dump_LevelDependentConstants.empty(6, 9))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped level dependent constants"):
             self.ff.validate()
 
     # Test a variable resolution case
     def test_basic_varres_ok(self):
-        self.ff.row_dependent_constants = FF_RowDependentConstants.empty(3, 2)
+        self.ff.row_dependent_constants = (
+            Dump_RowDependentConstants.empty(3, 2))
         self.ff.column_dependent_constants = (
-            FF_ColumnDependentConstants.empty(4, 2))
+            Dump_ColumnDependentConstants.empty(4, 2))
         self.ff.validate()
 
     # Test that an invalid shape row dependent constants fails (first dim)
     def test_baddim_1_row_consts_fail(self):
-        self.ff.row_dependent_constants = FF_RowDependentConstants.empty(4, 2)
+        self.ff.row_dependent_constants = (
+            Dump_RowDependentConstants.empty(4, 2))
         self.ff.column_dependent_constants = (
-            FF_ColumnDependentConstants.empty(4, 2))
+            Dump_ColumnDependentConstants.empty(4, 2))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped row dependent constants"):
             self.ff.validate()
 
     # Test that an invalid shape row dependent constants fails (first dim)
     def test_baddim_2_row_consts_fail(self):
-        self.ff.row_dependent_constants = FF_RowDependentConstants.empty(3, 3)
+        self.ff.row_dependent_constants = (
+            Dump_RowDependentConstants.empty(3, 3))
         self.ff.column_dependent_constants = (
-            FF_ColumnDependentConstants.empty(4, 2))
+            Dump_ColumnDependentConstants.empty(4, 2))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped row dependent constants"):
             self.ff.validate()
 
     # Test that an invalid shape column dependent constants fails (first dim)
     def test_baddim_1_col_consts_fail(self):
-        self.ff.row_dependent_constants = FF_RowDependentConstants.empty(3, 2)
+        self.ff.row_dependent_constants = (
+            Dump_RowDependentConstants.empty(3, 2))
         self.ff.column_dependent_constants = (
-            FF_ColumnDependentConstants.empty(5, 2))
+            Dump_ColumnDependentConstants.empty(5, 2))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped column dependent const"):
             self.ff.validate()
 
     # Test that an invalid shape column dependent constants fails (first dim)
     def test_baddim_2_col_consts_fail(self):
-        self.ff.row_dependent_constants = FF_RowDependentConstants.empty(3, 2)
+        self.ff.row_dependent_constants = (
+            Dump_RowDependentConstants.empty(3, 2))
         self.ff.column_dependent_constants = (
-            FF_ColumnDependentConstants.empty(4, 3))
+            Dump_ColumnDependentConstants.empty(4, 3))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped column dependent const"):
             self.ff.validate()
@@ -349,9 +364,10 @@ class Test_validate(tests.MuleTest):
 
     # Test a variable resolution field passes
     def test_basic_varres_field_ok(self):
-        self.ff.row_dependent_constants = FF_RowDependentConstants.empty(3, 2)
+        self.ff.row_dependent_constants = (
+            Dump_RowDependentConstants.empty(3, 2))
         self.ff.column_dependent_constants = (
-            FF_ColumnDependentConstants.empty(4, 2))
+            Dump_ColumnDependentConstants.empty(4, 2))
         self.fld.bzx = self.ff.real_constants.real_mdi
         self.fld.bzy = self.ff.real_constants.real_mdi
         self.fld.bdx = self.ff.real_constants.real_mdi
@@ -361,9 +377,10 @@ class Test_validate(tests.MuleTest):
 
     # Test a variable resolution field with bad column count fails
     def test_basic_varres_field_cols_fail(self):
-        self.ff.row_dependent_constants = FF_RowDependentConstants.empty(3, 2)
+        self.ff.row_dependent_constants = (
+            Dump_RowDependentConstants.empty(3, 2))
         self.ff.column_dependent_constants = (
-            FF_ColumnDependentConstants.empty(4, 2))
+            Dump_ColumnDependentConstants.empty(4, 2))
         self.fld.lbnpt = 6
         self.ff.fields = [self.fld]
         with self.assertRaisesRegexp(
@@ -372,9 +389,10 @@ class Test_validate(tests.MuleTest):
 
     # Test a variable resolution field with bad row count fails
     def test_basic_varres_field_rows_fail(self):
-        self.ff.row_dependent_constants = FF_RowDependentConstants.empty(3, 2)
+        self.ff.row_dependent_constants = (
+            Dump_RowDependentConstants.empty(3, 2))
         self.ff.column_dependent_constants = (
-            FF_ColumnDependentConstants.empty(4, 2))
+            Dump_ColumnDependentConstants.empty(4, 2))
         self.fld.lbrow = 5
         self.ff.fields = [self.fld]
         with self.assertRaisesRegexp(
@@ -383,9 +401,10 @@ class Test_validate(tests.MuleTest):
 
     # Test a variable resolution field with non RMDI bzx fails
     def test_basic_varres_field_bzx_fail(self):
-        self.ff.row_dependent_constants = FF_RowDependentConstants.empty(3, 2)
+        self.ff.row_dependent_constants = (
+            Dump_RowDependentConstants.empty(3, 2))
         self.ff.column_dependent_constants = (
-            FF_ColumnDependentConstants.empty(4, 2))
+            Dump_ColumnDependentConstants.empty(4, 2))
         self.fld.bzx = 4
         self.fld.bzy = self.ff.real_constants.real_mdi
         self.fld.bdx = self.ff.real_constants.real_mdi
@@ -397,9 +416,10 @@ class Test_validate(tests.MuleTest):
 
     # Test a variable resolution field with non RMDI bzy fails
     def test_basic_varres_field_bzy_fail(self):
-        self.ff.row_dependent_constants = FF_RowDependentConstants.empty(3, 2)
+        self.ff.row_dependent_constants = (
+            Dump_RowDependentConstants.empty(3, 2))
         self.ff.column_dependent_constants = (
-            FF_ColumnDependentConstants.empty(4, 2))
+            Dump_ColumnDependentConstants.empty(4, 2))
         self.fld.bzx = self.ff.real_constants.real_mdi
         self.fld.bzy = 5
         self.fld.bdx = self.ff.real_constants.real_mdi
@@ -411,9 +431,10 @@ class Test_validate(tests.MuleTest):
 
     # Test a variable resolution field with non RMDI bdx fails
     def test_basic_varres_field_bdx_fail(self):
-        self.ff.row_dependent_constants = FF_RowDependentConstants.empty(3, 2)
+        self.ff.row_dependent_constants = (
+            Dump_RowDependentConstants.empty(3, 2))
         self.ff.column_dependent_constants = (
-            FF_ColumnDependentConstants.empty(4, 2))
+            Dump_ColumnDependentConstants.empty(4, 2))
         self.fld.bzx = self.ff.real_constants.real_mdi
         self.fld.bzy = self.ff.real_constants.real_mdi
         self.fld.bdx = 0.2
@@ -425,9 +446,10 @@ class Test_validate(tests.MuleTest):
 
     # Test a variable resolution field with non RMDI bdy fails
     def test_basic_varres_field_bdy_fail(self):
-        self.ff.row_dependent_constants = FF_RowDependentConstants.empty(3, 2)
+        self.ff.row_dependent_constants = (
+            Dump_RowDependentConstants.empty(3, 2))
         self.ff.column_dependent_constants = (
-            FF_ColumnDependentConstants.empty(4, 2))
+            Dump_ColumnDependentConstants.empty(4, 2))
         self.fld.bzx = self.ff.real_constants.real_mdi
         self.fld.bzy = self.ff.real_constants.real_mdi
         self.fld.bdx = self.ff.real_constants.real_mdi

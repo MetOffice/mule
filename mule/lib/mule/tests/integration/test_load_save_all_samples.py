@@ -26,7 +26,7 @@ import os
 import os.path
 
 import mule.tests as tests
-from mule import UMFile, FieldsFile, LBCFile, AncilFile, load_umfile
+from mule import UMFile, FieldsFile, LBCFile, AncilFile, DumpFile, load_umfile
 
 
 # Identify all the test datafiles, their types and name stems.
@@ -89,7 +89,10 @@ KNOWN_EXPECTED_PROPERTIES = {
 }
 
 # Map file extensions to UMFile subclasses.
-_UM_FILE_TYPES = {'ff': FieldsFile, 'lbc': LBCFile, 'anc': AncilFile}
+_UM_FILE_TYPES = {'dump': DumpFile,
+                  'ff': FieldsFile,
+                  'lbc': LBCFile,
+                  'anc': AncilFile}
 
 
 class Test_all_sample_data(tests.MuleTest):

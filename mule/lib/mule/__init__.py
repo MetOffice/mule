@@ -108,9 +108,9 @@ _UM_FIXED_LENGTH_HEADER = [
     ('column_dependent_constants_start', 120),
     ('column_dependent_constants_dim1',  121),
     ('column_dependent_constants_dim2',  122),
-    ('fields_of_constants_start',        125),
-    ('fields_of_constants_dim1',         126),
-    ('fields_of_constants_dim2',         127),
+    ('additional_parameters_start',      125),
+    ('additional_parameters_dim1',       126),
+    ('additional_parameters_dim2',       127),
     ('extra_constants_start',            130),
     ('extra_constants_length',           131),
     ('temp_historyfile_start',           135),
@@ -1094,7 +1094,7 @@ class UMFile(object):
                   ('level_dependent_constants', LevelDependentConstants),
                   ('row_dependent_constants', RowDependentConstants),
                   ('column_dependent_constants', ColumnDependentConstants),
-                  ('fields_of_constants', UnsupportedHeaderItem2D),
+                  ('additional_parameters', UnsupportedHeaderItem2D),
                   ('extra_constants', UnsupportedHeaderItem1D),
                   ('temp_historyfile', UnsupportedHeaderItem1D),
                   ('compressed_field_index1', UnsupportedHeaderItem1D),
@@ -1765,11 +1765,12 @@ class UMFile(object):
 from mule.ff import FieldsFile
 from mule.lbc import LBCFile
 from mule.ancil import AncilFile
+from mule.dump import DumpFile
 
 # Mapping from known dataset types to the appropriate class to use
 DATASET_TYPE_MAPPING = {
-    1: FieldsFile,
-    2: FieldsFile,
+    1: DumpFile,
+    2: DumpFile,
     3: FieldsFile,
     4: AncilFile,
     5: LBCFile,

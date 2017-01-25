@@ -15,7 +15,7 @@ following exception:
 .. code-block:: python
 
     mule.validators.ValidateError: Failed to validate
-    Incorrect dataset_type (found -32768, should be one of [1, 2, 3])
+    Incorrect dataset_type (found -32768, should be one of [3])
     
 The error explains what the problem is, but since it won't let you read the
 file in - how can you investigate further or fix the file?  This is where
