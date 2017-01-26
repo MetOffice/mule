@@ -464,3 +464,41 @@ class FieldsFile(mule.UMFile):
 
     # Attach to the standard validation function
     validate = validators.validate_umf
+
+    def _write_to_file(self, output_file):
+        """Write out to an open output file."""
+        # We want to extend the UMFile version of this routine to extract the
+        # land-sea mask info for the relevant operators
+        lsm = None
+        for field in self.fields:
+            if hasattr(field, "lbuser4") and field.lbuser4 == 30:
+                lsm = field.get_data()
+                break
+
+        # Assuming a valid mask was found above; attach it to the operators
+        if lsm is not None:
+            for _, operator in self._write_operators.items():
+                if hasattr(operator, "_LAND"):
+                    operator.set_lsm_source(lsm)
+
+        # Now call the usual method
+        super(FieldsFile, self)._write_to_file(output_file)
+
+    def _read_file(self, file_or_filepath):
+        """Populate the class from an existing file object or file"""
+        # Similarly we want to append some land-sea mask logic to this routine
+        # Start by calling the usual routine
+        super(FieldsFile, self)._read_file(file_or_filepath)
+
+        # Look for the land-sea mask
+        lsm = None
+        for field in self.fields:
+            if hasattr(field, "lbuser4") and field.lbuser4 == 30:
+                lsm = field.get_data()
+                break
+
+        # If a land-sea mask was found, attach it to the relevant fields
+        if lsm is not None:
+            for field in self.fields:
+                if hasattr(field._data_provider, "_LAND"):
+                    field._data_provider.set_lsm_source(lsm)
