@@ -10,13 +10,14 @@ This is the documentation for the UM utilities, which use the Mule API.
 .. toctree::
    :maxdepth: 1
 
-   um_utils/version
-   um_utils/pumf
-   um_utils/summary
    um_utils/cumf
    um_utils/cutout
-   um_utils/trim
    um_utils/fixframe
+   um_utils/pumf
+   um_utils/select
+   um_utils/summary
+   um_utils/trim
+   um_utils/version
    um_utils/unpack
 
 Indices and tables

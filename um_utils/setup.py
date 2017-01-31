@@ -26,6 +26,7 @@ setup(name='um_utils',
       packages=['um_utils',
                 'um_utils.tests',
                 'um_utils.tests.pumf',
+                'um_utils.tests.select',
                 'um_utils.tests.summary',
                 'um_utils.tests.cumf',
                 'um_utils.tests.cutout',
@@ -48,4 +49,5 @@ setup(name='um_utils',
               'mule-version = um_utils.version:_main',
               'mule-fixframe = um_utils.fixframe:_main',
               'mule-unpack = um_utils.unpack:_main',
+              'mule-select = um_utils.select:_main'
               ]})
