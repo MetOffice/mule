@@ -14,23 +14,24 @@ Here is the help text for the command line utility (obtainable by running
 
 .. code-block:: none
 
-    usage: mule-fixframe [options]
+    ===========================================================================
+    * FIXFRAME - Converter for old-style UM frames files (Using the Mule API) *
+    ===========================================================================
+    usage:
+      mule-fixframe [-h] input_filename output_filename
 
-    FixFrame takes a MakeBC generated frame file and produces a CreateBC
-    compatible frame file.
+    This script will take a MakeBC generated frame file and produce
+    a CreateBC compatible frame file.
 
     positional arguments:
-      /path/to/input.file   First argument is the path and name of the MakeBC 
-                            frames file to be fixed
-                        
-      /path/for/output.file
-                            Second argument is the path and name of the CreateBC
-                            frames file to be produced
-                        
+      input_filename   First argument is the path and name of the MakeBC frames file 
+                       to be fixed
+
+      output_filename  Second argument is the path and name of the CreateBC frames 
+                       file to be produced
 
     optional arguments:
-      -h, --help            show this help message and exit
-
+      -h, --help       show this help message and exit
 
 
 um_utils.fixframe API

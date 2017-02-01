@@ -56,7 +56,7 @@ import weakref
 from contextlib import contextmanager
 from mule.stashmaster import STASHmaster
 
-__version__ = 1.3
+__version__ = 1.4
 
 # UM fixed length header names and positions
 _UM_FIXED_LENGTH_HEADER = [

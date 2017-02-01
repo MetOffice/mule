@@ -11,14 +11,17 @@ Here is the help text for the command line utility (obtainable by running
 
 .. code-block:: none
 
-     usage: mule-unpack input_filename output_filename
+    ================================================================================
+    * UNPACK - Unpacks WGDOS packed fields in a UM FieldsFile (Using the Mule API) *
+    ================================================================================
+    usage:
+      mule-unpack [-h] input_filename output_filename
 
-     UNPACK - Unpacks WGDOS packed fields in a UM FieldsFile This script will write
-     a new file where all WGDOS packed fields in the original are replaced by
-     unpacked fields.
+    This script will write a new file where all WGDOS packed fields in the
+    original are replaced by unpacked fields.
 
-     optional arguments:
-       -h, --help  show this help message and exit
+    optional arguments:
+      -h, --help  show this help message and exit
 
 
 um_utils.unpack API

@@ -157,6 +157,11 @@ do something like this, re-using some of the values from the earlier example:
     new_field.bzx = new_ff.real_constants.start_lon - 0.5*new_field.bdx
     new_field.bzy = new_ff.real_constants.start_lat - 0.5*new_field.bdy
 
+    # Finally - since Mule uses the first element of the lookup to test
+    # for unpopulated fields (and skips them) the first element should be
+    # set to something.  Since it's typically the year that will do:
+    new_field.raw[1] = 2017
+
 .. Note::
     You can use either the :class:`mule.Field2` or :class:`mule.Field3` class
     for this, depending on your requirements (the two classes refer to the two

@@ -76,6 +76,7 @@ import sys
 import mule
 import errno
 import argparse
+import textwrap
 import numpy as np
 from collections import defaultdict
 from um_utils.stashmaster import STASHmaster
@@ -92,10 +93,10 @@ def _print_lookup(field, stdout):
     validity = validity_format.format(*field.raw[1:7])
 
     lev_format = "lblev({0})/blev({1})"
-    lev = lev_format.format(field.lblev, field.blev)
+    lev = lev_format.format(field.raw[33], field.raw[52])
 
     proc_format = "lbproc({0})"
-    proc = proc_format.format(field.lbproc)
+    proc = proc_format.format(field.raw[25])
 
     stdout.write("  " + "  ".join([validity, lev, proc])+"\n")
 
@@ -509,6 +510,11 @@ class UMFileComparison(object):
     compared between the two files.
 
     """
+    lookup_ignores = None
+    """
+    A list of the lookup indices which were ignored for this comparison
+
+    """
 
     max_rms_diff_1 = None
     """
@@ -524,14 +530,14 @@ class UMFileComparison(object):
 
     """
 
-    unmatched_file_1 = None
+    unmatched_file_1 = []
     """
     A list containing the indices of any fields which exist in file 1 but
     were not successfully matched to a field in file 2.
 
     """
 
-    unmatched_file_2 = None
+    unmatched_file_2 = []
     """
     A list containing the indices of any fields which exist in file 2 but
     were not successfully matched to a field in file 1.
@@ -600,8 +606,9 @@ class UMFileComparison(object):
             component_2 = getattr(um_file2, name, None)
 
             # If the template for ignores sets up any indices to ignore
-            # for this component extract them here
-            component_ignores = (
+            # for this component extract them here - use the list cast to
+            # avoid changing the settings dictionary in-place
+            component_ignores = list(
                 comp_settings["ignore_templates"].get(name, []))
 
             if (comp_settings["ignore_missing"]
@@ -627,6 +634,9 @@ class UMFileComparison(object):
         # elements of the lookup to the ignore list
         if comp_settings["ignore_missing"]:
             lookup_ignores.extend(_INDEX_IGNORE_MISSING_FIELDS)
+
+        # Save the list of ignored lookup indices to this object for later
+        self.lookup_ignores = lookup_ignores
 
         # Initialise the elements which hold the field comparison objects
         self.field_comparisons = []
@@ -853,18 +863,15 @@ def summary_report(comparison, stdout=None):
         stdout.write("\n")
         return
 
-    # Report which indices were ignored from the lookups (include the
-    # attribute names in the output, based on the 1st field)
-    field_ref = comparison.field_comparisons[0]
-    if len(field_ref.lookup_comparison.ignored) > 0:
+    # Report which indices were ignored from the lookups
+    if len(comparison.lookup_ignores) > 0:
         ignored = []
-        for index in field_ref.lookup_comparison.ignored:
+        for index in comparison.lookup_ignores:
             indexstr = str(index)
-            if field_ref.HEADER_MAPPING is not None:
-                for map_name, map_ind in field_ref.HEADER_MAPPING:
-                    if map_ind == index:
-                        indexstr = "{0} ({1})".format(index, map_name)
-                        break
+            for map_name, map_ind in mule._LOOKUP_HEADER_3:
+                if map_ind == index:
+                    indexstr = "{0} ({1})".format(index, map_name)
+                    break
             ignored.append(indexstr)
         stdout.write("Ignored lookup indices: \n  Index {0}\n"
                      .format("\n  Index ".join(ignored)))
@@ -1097,70 +1104,84 @@ def _main():
     settings and provides a pair of UM files to compare.
 
     """
-    # Create a quick version of the regular raw description formatter which
-    # adds spaces between the option help text
-    class BlankLinesHelpFormatter(argparse.HelpFormatter):
-        def _split_lines(self, text, width):
-            return super(
-                BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
+    # Setup help text
+    help_prolog = """    usage:
+      %(prog)s [-h] [options] file_1 file_2
 
+    This script will compare all headers and data from two UM files,
+    and write a report describing any differences to stdout.  The
+    assumptions made by the comparison may be customised with a
+    variety of options (see below).
+    """
+    title = _banner(
+        "CUMF-II - Comparison tool for UM Files, version II "
+        "(using the Mule API)", banner_char="=")
+
+    # Include a list of the component names as they appear in Mule
+    component_names = ", ".join(
+        (["fixed_length_header"] +
+         [name for name, _ in mule.UMFile.COMPONENTS] +
+         ["lookup"]))
+
+    help_epilog = """
+    possible component names for the ignore option:
+    {0}
+
+    for details of the indices see UMDP F03:
+      https://code.metoffice.gov.uk/doc/um/latest/papers/umdp_F03.pdf
+    """.format(textwrap.fill(component_names,
+                             width=80,
+                             initial_indent=4*" ",
+                             subsequent_indent=8*" "))
+
+    # Setup the parser
     parser = argparse.ArgumentParser(
-        usage="%(prog)s [options] file_1 file_2",
-        description="""
-        CUMF-II - Comparison tool for UM Files, version II
-        (using the Mule API).
-
-        This script will compare all headers and data from two UM files,
-        and write a report describing any differences to stdout.  The
-        assumptions made by the comparison may be customised with a
-        variety of options (see below).
-        """,
-        formatter_class=BlankLinesHelpFormatter,
+        usage=argparse.SUPPRESS,
+        description=title + textwrap.dedent(help_prolog),
+        epilog=textwrap.dedent(help_epilog),
+        formatter_class=argparse.RawTextHelpFormatter,
         )
 
     # No need to output help text for the two input files (these are obvious)
     parser.add_argument("file_1", help=argparse.SUPPRESS)
     parser.add_argument("file_2", help=argparse.SUPPRESS)
 
-    parser.add_argument('--ignore',
-                        help="ignore specific indices of a component; provide "
-                        "the name of the component and a comma separated list "
-                        "of indices or ranges (i.e. M:N) to ignore.  This may "
-                        "be specified multiple times to ignore indices from "
-                        "more than one component",
-                        metavar="component_name=index1[,index2][...]",
-                        action="append",
-                        )
-    parser.add_argument('--ignore-missing',
-                        action='store_true',
-                        help="if present, positional headers will be ignored "
-                        "(required if missing fields from either file should "
-                        "not be considered a failure to compare)",
-                        )
-    parser.add_argument('--diff-file',
-                        help="a filename to write a new UM file to which "
-                        "contains the absolute differences for any fields "
-                        "that differ",
-                        metavar="filename",
-                        )
-    parser.add_argument('--full', action='store_true',
-                        help="if not using summary output, will increase the "
-                        "verbosity by reporting on all comparisons (default "
-                        "behaviour is to only report on failures)",
-                        )
-    parser.add_argument('--summary', action='store_true',
-                        help="print a much shorter report which summarises "
-                        "the differences between the files without going into "
-                        "much detail",
-                        )
-    parser.add_argument("--stashmaster",
-                        help="either the full path to a valid stashmaster "
-                        "file, or a UM version number e.g. '10.2'; if given "
-                        "a number cumf will look in the path defined by "
-                        "mule.stashmaster.STASHMASTER_PATH_PATTERN which by "
-                        "default is : "
-                        "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A"
-                        )
+    parser.add_argument(
+        '--ignore',
+        help="ignore specific indices of a component; provide the name of \n"
+        "the component and a comma separated list of indices or ranges \n"
+        "(i.e. M:N) to ignore.  This may be specified multiple times to \n"
+        "ignore indices from more than one component\n ",
+        metavar="component_name=index1[,index2][...]",
+        action="append")
+    parser.add_argument(
+        '--ignore-missing',
+        action='store_true',
+        help="if present, positional headers will be ignored (required if \n"
+        "missing fields from either file should not be considered a failure \n"
+        "to compare)\n ")
+    parser.add_argument(
+        '--diff-file',
+        help="a filename to write a new UM file to which contains the \n"
+        "absolute differences for any fields that differ\n ",
+        metavar="filename")
+    parser.add_argument(
+        '--full', action='store_true',
+        help="if not using summary output, will increase the verbosity by \n"
+        "reporting on all comparisons (default behaviour is to only report \n"
+        "on failures)\n ")
+    parser.add_argument(
+        '--summary', action='store_true',
+        help="print a much shorter report which summarises the differences \n"
+        "between the files without going into much detail\n ")
+    parser.add_argument(
+        "--stashmaster",
+        help="either the full path to a valid stashmaster file, or a UM \n"
+        "version number e.g. '10.2'; if given a number cumf will look in \n"
+        "the path defined by: \n"
+        "  mule.stashmaster.STASHMASTER_PATH_PATTERN \n"
+        "which by default is : \n"
+        "  $UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A\n")
 
     # If the user supplied no arguments, print the help text and exit
     if len(sys.argv) == 1:

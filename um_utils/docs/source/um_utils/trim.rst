@@ -17,31 +17,34 @@ Here is the help text for the command line utility (obtainable by running
 
 .. code-block:: none
 
-    usage: mule-trim [options] input_file output_file region_x region_y
+    =========================================================================
+    * TRIM - Fixed region extraction tool for UM Files (using the Mule API) *
+    =========================================================================
+    usage:
+      mule-trim [-h] [options] input_file output_file region_x region_y
 
-    TRIM - Fixed region extraction tool for UM Files (using the Mule API). This
-    script will extract a fixed-grid sub-region from a variable resolution UM
-    FieldsFile, producing a new file.
+    This script will extract a fixed-grid sub-region from a variable
+    resolution UM FieldsFile, producing a new file.
 
     positional arguments:
-      region_x              the x index of the *region* to extract, starting from
-                            1. In a typical variable resolution FieldsFile the
-                            central region will be given by '2'.
+      region_x              the x index of the *region* to extract, starting from 1. 
+                            In a typical variable resolution FieldsFile the central region 
+                            will be given by '2'
 
-      region_y              the y index of the *region* to extract, starting from
-                            1. In a typical variable resolution FieldsFile the
-                            central region will be given by '2'.
-
+      region_y              the y index of the *region* to extract, starting from 1. 
+                            In a typical variable resolution FieldsFile the central region 
+                            will be given by '2'
 
     optional arguments:
       -h, --help            show this help message and exit
-
       --stashmaster STASHMASTER
-                            either the full path to a valid stashmaster file, or a
-                            UM version number e.g. '10.2'; if given a number pumf
-                            will look in the following path:
-                            $UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A
-                        
+                            either the full path to a valid stashmaster file, or a UM 
+                            version number e.g. '10.2'; if given a number trim will look in 
+                            the path defined by: 
+                              mule.stashmaster.STASHMASTER_PATH_PATTERN 
+                            which by default is: 
+                              $UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A
+
 
 um_utils.trim API
 -----------------

@@ -37,6 +37,7 @@ import re
 import sys
 import mule
 import argparse
+import textwrap
 import warnings
 import numpy as np
 from um_utils.stashmaster import STASHmaster
@@ -309,48 +310,49 @@ def _main():
     region specification, input and output files.
 
     """
-    # Create a quick version of the regular raw description formatter which
-    # adds spaces between the option help text
-    class BlankLinesHelpFormatter(argparse.HelpFormatter):
-        def _split_lines(self, text, width):
-            return super(
-                BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
+    # Setup help text
+    help_prolog = """    usage:
+      %(prog)s [-h] [options] input_file output_file region_x region_y
 
+    This script will extract a fixed-grid sub-region from a variable
+    resolution UM FieldsFile, producing a new file.
+    """
+    title = _banner(
+        "TRIM - Fixed region extraction tool for UM Files "
+        "(using the Mule API)",
+        banner_char="=")
+
+    # Setup the parser
     parser = argparse.ArgumentParser(
-        usage="%(prog)s [options] input_file output_file region_x region_y",
-        description="""
-        TRIM - Fixed region extraction tool for UM Files (using the Mule API).
-
-        This script will extract a fixed-grid sub-region from a variable
-        resolution UM FieldsFile, producing a new file.
-        """,
-        formatter_class=BlankLinesHelpFormatter,
+        usage=argparse.SUPPRESS,
+        description=title + textwrap.dedent(help_prolog),
+        formatter_class=argparse.RawTextHelpFormatter,
         )
 
     # No need to output help text for the files (it's obvious)
     parser.add_argument("input_file", help=argparse.SUPPRESS)
     parser.add_argument("output_file", help=argparse.SUPPRESS)
 
-    parser.add_argument("region_x",
-                        help="the x index of the *region* to extract, "
-                        "starting from 1.  In a typical variable resolution "
-                        "FieldsFile the central region will be given by '2'.",
-                        type=int
-                        )
-    parser.add_argument("region_y",
-                        help="the y index of the *region* to extract, "
-                        "starting from 1.  In a typical variable resolution "
-                        "FieldsFile the central region will be given by '2'.",
-                        type=int
-                        )
-    parser.add_argument("--stashmaster",
-                        help="either the full path to a valid stashmaster "
-                        "file, or a UM version number e.g. '10.2'; if given "
-                        "a number trim will look in the path defined by "
-                        "mule.stashmaster.STASHMASTER_PATH_PATTERN which by "
-                        "default is : "
-                        "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
-                        )
+    parser.add_argument(
+        "region_x", type=int,
+        help="the x index of the *region* to extract, starting from 1. \n"
+        "In a typical variable resolution FieldsFile the central region \n"
+        "will be given by '2'\n ")
+
+    parser.add_argument(
+        "region_y", type=int,
+        help="the y index of the *region* to extract, starting from 1. \n"
+        "In a typical variable resolution FieldsFile the central region \n"
+        "will be given by '2'\n")
+
+    parser.add_argument(
+        "--stashmaster",
+        help="either the full path to a valid stashmaster file, or a UM \n"
+        "version number e.g. '10.2'; if given a number trim will look in \n"
+        "the path defined by: \n"
+        "  mule.stashmaster.STASHMASTER_PATH_PATTERN \n"
+        "which by default is: \n"
+        "  $UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A\n")
 
     # If the user supplied no arguments, print the help text and exit
     if len(sys.argv) == 1:

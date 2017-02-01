@@ -36,6 +36,7 @@ import os
 import sys
 import mule
 import argparse
+import textwrap
 from um_utils.version import report_modules
 from um_utils.pumf import _banner
 
@@ -128,30 +129,33 @@ def _main():
     the input and output files.
 
     """
-    # Create a quick version of the regular raw description formatter which
-    # adds spaces between the option help text
-    class BlankLinesHelpFormatter(argparse.HelpFormatter):
-        def _split_lines(self, text, width):
-            return super(
-                BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
+    # Setup help text
+    help_prolog = """    usage:
+      %(prog)s [-h] input_filename output_filename
 
+    This script will take a MakeBC generated frame file and produce
+    a CreateBC compatible frame file.
+    """
+    title = _banner(
+        "FIXFRAME - Converter for old-style UM frames files "
+        "(Using the Mule API)", banner_char="=")
+
+    # Setup the parser
     parser = argparse.ArgumentParser(
-        usage="%(prog)s [options]",
-        description="""
-        FixFrame takes a MakeBC generated frame file and produces
-        a CreateBC compatible frame file.
-        """,
-        formatter_class=BlankLinesHelpFormatter,
+        usage=argparse.SUPPRESS,
+        description=title + textwrap.dedent(help_prolog),
+        formatter_class=argparse.RawTextHelpFormatter,
         )
 
-    parser.add_argument("input_filename",
-                        help="First argument is the path and name of the "
-                        "MakeBC frames file to be fixed",
-                        metavar="/path/to/input.file")
-    parser.add_argument("output_filename",
-                        help="Second argument is the path and name of the "
-                        "CreateBC frames file to be produced",
-                        metavar="/path/for/output.file")
+    parser.add_argument(
+        "input_filename",
+        help="First argument is the path and name of the MakeBC frames file \n"
+        "to be fixed\n ")
+    parser.add_argument(
+        "output_filename",
+        help="Second argument is the path and name of the CreateBC frames \n"
+        "file to be produced\n")
+
     # If the user supplied no arguments, print the help text and exit
     if len(sys.argv) == 1:
         parser.print_help()

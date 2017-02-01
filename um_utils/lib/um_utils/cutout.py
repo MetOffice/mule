@@ -50,6 +50,7 @@ import re
 import sys
 import mule
 import argparse
+import textwrap
 import warnings
 import numpy as np
 from um_utils.stashmaster import STASHmaster
@@ -641,92 +642,119 @@ def _main():
     specification, input and output files to be cutout.
 
     """
-    # Create a quick version of the regular raw description formatter which
-    # adds spaces between the option help text
-    class BlankLinesHelpFormatter(argparse.HelpFormatter):
-        def _split_lines(self, text, width):
-            return super(
-                BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
+    # Setup help text
+    help_prolog = """    usage:
+      %(prog)s [-h] [--stashmaster STASHMASTER] {indices,coords} ...
 
+    This script will extract a sub-region from a UM FieldsFile, producing
+    a new file.
+    """
+    title = _banner(
+        "CUTOUT-II - Cutout tool for UM Files, version II "
+        "(using the Mule API)", banner_char="=")
+
+    # Setup the parser
     parser = argparse.ArgumentParser(
-        description="""
-        CUTOUT-II - Cutout tool for UM Files, version II (using the Mule API).
-
-        This script will extract a sub-region from a UM FieldsFile, producing
-        a new file.
-        """,
-        formatter_class=BlankLinesHelpFormatter,
+        usage=argparse.SUPPRESS,
+        description=title + textwrap.dedent(help_prolog),
+        formatter_class=argparse.RawTextHelpFormatter,
         )
 
-    parser.add_argument("--stashmaster",
-                        help="either the full path to a valid stashmaster "
-                        "file, or a UM version number e.g. '10.2'; if given "
-                        "a number cutout will look in the path defined by "
-                        "mule.stashmaster.STASHMASTER_PATH_PATTERN which by "
-                        "default is : "
-                        "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
-                        )
+    parser.add_argument(
+        "--stashmaster",
+        help="either the full path to a valid stashmaster file, or a UM \n"
+        "version number e.g. '10.2'; if given a number cutout will look in \n"
+        "the path defined by: \n"
+        "  mule.stashmaster.STASHMASTER_PATH_PATTERN \n"
+        "which by default is : \n"
+        "  $UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A\n")
 
     # The cutout command has 2 forms; the user may describe the region using
     # a series of indices or using the co-ordinates of two opposing corners
     subparsers = parser.add_subparsers()
 
     # Options for indices
+    sub_prolog = """    usage:
+      {0} indices [-h] input_file output_file zx zy nx ny
+
+    The index based version of the script will extract a domain
+    of whole points defined by the given start indices and lengths
+               """.format(os.path.basename(sys.argv[0]))
+
     parser_index = subparsers.add_parser(
-        'indices', help='cutout by indices (run "%(prog)s indices --help" for '
-        'specific help on this command)',
-        formatter_class=BlankLinesHelpFormatter)
+        "indices", formatter_class=argparse.RawTextHelpFormatter,
+        description=title + textwrap.dedent(sub_prolog),
+        usage=argparse.SUPPRESS,
+        help="cutout by indices (run \"%(prog)s indices --help\" \n"
+        "for specific help on this command)\n ")
 
-    parser_index.add_argument("input_file", help="File containing source")
-    parser_index.add_argument("output_file", help="File for output")
-
-    parser_index.add_argument(
-        "zx", help="the starting x (column) index of the region to cutout "
-        "from the source file", type=int)
+    parser_index.add_argument("input_file", help="File containing source\n ")
+    parser_index.add_argument("output_file", help="File for output\n ")
 
     parser_index.add_argument(
-        "zy", help="the starting y (row) index of the region to cutout from "
-        "the source file", type=int)
+        "zx", type=int,
+        help="the starting x (column) index of the region to cutout from \n"
+        "the source file\n ")
 
     parser_index.add_argument(
-        "nx", help="the number of x (column) points to cutout from the "
-        "source file", type=int)
+        "zy", type=int,
+        help="the starting y (row) index of the region to cutout from \n"
+        "the source file\n ")
 
     parser_index.add_argument(
-        "ny", help="the number of y (row) points to cutout from the "
-        "source file", type=int)
+        "nx", type=int,
+        help="the number of x (column) points to cutout from the source "
+        "file\n ")
+
+    parser_index.add_argument(
+        "ny", type=int,
+        help="the number of y (row) points to cutout from the source file\n")
 
     # Options for co-ordinates
+    sub_prolog = """    usage:
+      {0} coords [-h] [--native-grid]
+               input_file output_file SW_lon SW_lat NE_lon NE_lat
+
+    The co-ordinate based version of the script will extract a domain
+    of whole points which fit within the given corner points
+               """.format(os.path.basename(sys.argv[0]))
+
     parser_coords = subparsers.add_parser(
-        'coords', help='cutout by coordinates (run "%(prog)s coords --help" '
-        'for specific help on this command)',
-        formatter_class=BlankLinesHelpFormatter)
+        "coords", formatter_class=argparse.RawTextHelpFormatter,
+        description=title + textwrap.dedent(sub_prolog),
+        usage=argparse.SUPPRESS,
+        help="cutout by coordinates (run \"%(prog)s coords --help\" \n"
+        "for specific help on this command)\n")
 
-    parser_coords.add_argument("input_file", help="File containing source")
-    parser_coords.add_argument("output_file", help="File for output")
-
-    parser_coords.add_argument(
-        "--native-grid", help="if set, cutout will take the provided "
-        "co-ordinates to be on the file's native grid (otherwise it will "
-        "assume they are regular co-ordinates and apply any needed rotations "
-        "automatically). Therefore it does nothing for non-rotated grids.",
-        action="store_true")
+    parser_coords.add_argument("input_file", help="File containing source\n ")
+    parser_coords.add_argument("output_file", help="File for output\n ")
 
     parser_coords.add_argument(
-        "SW_lon", help="the longitude of the South-West corner point of the "
-        "region to cutout from the source file", type=float)
+        "--native-grid", action="store_true",
+        help="if set, cutout will take the provided co-ordinates to be on \n"
+        "the file's native grid (otherwise it will assume they are regular \n"
+        "co-ordinates and apply any needed rotations automatically). \n"
+        "Therefore it does nothing for non-rotated grids\n ")
 
     parser_coords.add_argument(
-        "SW_lat", help="the latitude of the South-West corner point of the "
-        "region to cutout from the source file", type=float)
+        "SW_lon", type=float,
+        help="the longitude of the South-West corner point of the region \n"
+        "to cutout from the source file\n ")
 
     parser_coords.add_argument(
-        "NE_lon", help="the longitude of the North-East corner point of the "
-        "region to cutout from the source file", type=float)
+        "SW_lat", type=float,
+        help="the latitude of the South-West corner point of the region \n"
+        "to cutout from the source file\n ")
 
     parser_coords.add_argument(
-        "NE_lat", help="the latitude of the North-East corner point of the "
-        "region to cutout from the source file", type=float)
+        "NE_lon", type=float,
+        help="the longitude of the North-East corner point of the region \n"
+        "to cutout from the source file\n ")
+
+    parser_coords.add_argument(
+        "NE_lat", type=float,
+        help="the latitude of the North-East corner point of the region \n"
+        "to cutout from the source file\n")
 
     # If the user supplied no arguments, print the help text and exit
     if len(sys.argv) == 1:

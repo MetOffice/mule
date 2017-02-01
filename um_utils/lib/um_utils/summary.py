@@ -70,6 +70,7 @@ import errno
 import mule
 import numpy as np
 import argparse
+import textwrap
 from um_utils.stashmaster import STASHmaster
 from um_utils.version import report_modules
 from um_utils.pumf import _banner
@@ -288,66 +289,80 @@ def _main():
     settings and provides a UM file to summarise.
 
     """
-    # Create a quick version of the regular raw description formatter which
-    # adds spaces between the option help text
-    class BlankLinesHelpFormatter(argparse.HelpFormatter):
-        def _split_lines(self, text, width):
-            return super(
-                BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
+    # Setup help text
+    help_prolog = """    usage:
+      %(prog)s [-h] [options] input_file
 
+    This script will output a summary table of the lookup headers in a UM
+    file, with the columns selected by the user.
+    """
+    title = _banner(
+        "SUMMARY - Print a summary of the fields in a UM File "
+        "(using the Mule API)", banner_char="=")
+
+    # Include a list of the lookup names as they appear in Mule
+    lookup_names = [name for name, _ in mule._LOOKUP_HEADER_3]
+    lookup_names += [name for name, _ in mule._LOOKUP_HEADER_2
+                     if name not in lookup_names]
+    lookup_names = ", ".join(lookup_names)
+
+    help_epilog = """
+    possible lookup names for the column-names option:
+    {0}
+
+    for details of how these relate to indices see UMDP F03:
+      https://code.metoffice.gov.uk/doc/um/latest/papers/umdp_F03.pdf
+    """.format(textwrap.fill(lookup_names,
+                             width=80,
+                             initial_indent=4*" ",
+                             subsequent_indent=8*" "))
+
+    # Setup the parser
     parser = argparse.ArgumentParser(
-        usage="%(prog)s [options] input_file",
-        description="""
-        SUMMARY - Print a summary of the fields in a UM File
-        (using the Mule API).
-
-        This script will output a summary table of the lookup headers in a UM
-        file, with the columns selected by the user.
-        """,
-        formatter_class=BlankLinesHelpFormatter,
+        usage=argparse.SUPPRESS,
+        description=title + textwrap.dedent(help_prolog),
+        epilog=textwrap.dedent(help_epilog),
+        formatter_class=argparse.RawTextHelpFormatter,
         )
-    parser.add_argument("--column-names",
-                        help="set the names of the lookup header items to "
-                        "print, in the order the columns should appear as a "
-                        "comma separated list. A special entry of "
-                        "\"stash_name\" will put in the field's name "
-                        "according to the STASHmaster, \"index\" will give "
-                        "the fields index number, and \"t1\" or \"t2\" will "
-                        "give the first and second time from the lookup",
-                        metavar="--column-names name1[,name2][...]",
-                        )
 
     # No need to output help text for hte input file (it's obvious)
     parser.add_argument("input_file", help=argparse.SUPPRESS)
 
-    parser.add_argument("--heading-frequency",
-                        help="repeat the column heading block every N "
-                        "lines (to avoid having to scroll too far to identify "
-                        "columns in the output) A value of 0 means do not "
-                        "repeat the heading block",
-                        metavar="N", type=int,
-                        )
-    parser.add_argument("--field-index",
-                        help="limit the output to specific fields by index "
-                        "(comma-separated list of single indices, or ranges "
-                        "of indices separated by a single colon-character)",
-                        metavar="i1[,i2][,i3:i5][...]",
-                        )
-    parser.add_argument("--field-property",
-                        help="limit the output to specific fields using "
-                        "a property string (comma-separated list of key=value "
-                        "pairs where key is the name of a lookup property and "
-                        "value is what it must be set to)",
-                        metavar="key1=value1[,key2=value2][...]",
-                        )
-    parser.add_argument("--stashmaster",
-                        help="either the full path to a valid stashmaster "
-                        "file, or a UM version number e.g. '10.2'; if given "
-                        "a number summary will look in the path defined by "
-                        "mule.stashmaster.STASHMASTER_PATH_PATTERN which by "
-                        "default is : "
-                        "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A",
-                        )
+    parser.add_argument(
+        "--column-names", metavar="--column-names name1[,name2][...]",
+        help="set the names of the lookup header items to print, in the \n"
+        "order the columns should appear as a comma separated list. A \n"
+        "special entry of \"stash_name\" will put in the field's name \n"
+        "according to the STASHmaster, \"index\" will give the field's \n"
+        "index number in the file, and \"t1\" or \"t2\" will give the first \n"
+        "and second time from the lookup (nicely formatted)\n ")
+
+    parser.add_argument(
+        "--heading-frequency", metavar="N", type=int,
+        help="repeat the column heading block every N lines (to avoid \n"
+        "having to scroll too far to identify columns in the output) A \n"
+        "value of 0 means do not repeat the heading block\n ")
+
+    parser.add_argument(
+        "--field-index", metavar="i1[,i2][,i3:i5][...]",
+        help="limit the output to specific fields by index (comma-separated \n"
+        "list of single indices, or ranges of indices separated by a single \n"
+        "colon-character)\n ")
+
+    parser.add_argument(
+        "--field-property", metavar="key1=value1[,key2=value2][...]",
+        help="limit the output to specific fields using a property string \n"
+        "(comma-separated list of key=value pairs where key is the name of \n"
+        "a lookup property and value is what it must be set to)\n ")
+
+    parser.add_argument(
+        "--stashmaster",
+        help="either the full path to a valid stashmaster file, or a UM \n"
+        "version number e.g. '10.2'; if given a number summary will look in \n"
+        "the path defined by: \n"
+        "  mule.stashmaster.STASHMASTER_PATH_PATTERN \n"
+        "which by default is : \n"
+        "  $UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A\n")
 
     # If the user supplied no arguments, print the help text and exit
     if len(sys.argv) == 1:

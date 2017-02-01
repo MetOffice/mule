@@ -5,7 +5,7 @@
 File 1: None
 File 2: None
 Files DO NOT compare
-  * 1 differences in fixed_length_header (with 12 ignored indices)
+  * 1 differences in fixed_length_header (with 7 ignored indices)
   * 1 differences in integer_constants (with 0 ignored indices)
   * 5 differences in level_dependent_constants (with 0 ignored indices)
   * 2 field differences, of which 1 are in data
@@ -19,7 +19,7 @@ Maximum RMS diff as % of data in file 2: 80.0 (field 4)
 %%%%%%%%%%%%%%%%%%%%%%%
 * fixed_length_header *
 %%%%%%%%%%%%%%%%%%%%%%%
-Components DO NOT compare (compared 244/256 values)
+Components DO NOT compare (compared 249/256 values)
 Ignored indices: 
   Index 35 (t3_year)
   Index 36 (t3_month)
@@ -28,11 +28,6 @@ Ignored indices:
   Index 39 (t3_minute)
   Index 40 (t3_second)
   Index 41 (t3_year_day_number)
-  Index 152 (lookup_dim2)
-  Index 153 (total_prognostic_fields)
-  Index 160 (data_start)
-  Index 161 (data_dim1)
-  Index 162 (data_dim2)
 Component differences:
   Index 9 (grid_staggering) differs - file_1: 3  file_2: 6
 

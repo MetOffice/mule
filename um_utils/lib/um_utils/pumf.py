@@ -80,6 +80,7 @@ import errno
 import mule
 import numpy as np
 import argparse
+import textwrap
 from um_utils.stashmaster import STASHmaster
 from um_utils.version import report_modules
 
@@ -95,9 +96,10 @@ PRINT_SETTINGS = {
     }
 
 
-def _banner(message):
+def _banner(message, banner_char="%"):
     """A simple function which returns a banner string."""
-    return "{0:s}\n* {1:s} *\n{0:s}\n".format("%"*(len(message)+4), message)
+    return "{0:s}\n* {1:s} *\n{0:s}\n".format(
+        banner_char*(len(message)+4), message)
 
 
 def _print_name_value_pairs(
@@ -493,68 +495,104 @@ def _main():
     settings and provides a UM file to print.
 
     """
-    # Create a quick version of the regular raw description formatter which
-    # adds spaces between the option help text
-    class BlankLinesHelpFormatter(argparse.HelpFormatter):
-        def _split_lines(self, text, width):
-            return super(
-                BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
+    # Setup help text
+    help_prolog = """    usage:
+      %(prog)s [-h] [options] input_filename
 
+    This script will output the contents of the headers from a UM file to
+    stdout.  The default output may be customised with a variety of options
+    (see below).
+    """
+    title = _banner(
+        "PUMF-II - Pretty Printer for UM Files, version II "
+        "(using the Mule API)", banner_char="=")
+
+    # Include a list of the component names as they appear in Mule
+    component_names = ", ".join(
+        (["fixed_length_header"] +
+         [name for name, _ in mule.UMFile.COMPONENTS] +
+         ["lookup"]))
+
+    lookup_names = [name for name, _ in mule._LOOKUP_HEADER_3]
+    lookup_names += [name for name, _ in mule._LOOKUP_HEADER_2
+                     if name not in lookup_names]
+    lookup_names = ", ".join(lookup_names)
+
+    help_epilog = """
+    possible component names for the component option:
+    {0}
+
+    possible lookup names for the field-property option:
+    {1}
+
+    for details of how these relate to indices see UMDP F03:
+      https://code.metoffice.gov.uk/doc/um/latest/papers/umdp_F03.pdf
+    """.format(textwrap.fill(component_names,
+                             width=80,
+                             initial_indent=4*" ",
+                             subsequent_indent=8*" "),
+               textwrap.fill(lookup_names,
+                             width=80,
+                             initial_indent=4*" ",
+                             subsequent_indent=8*" "))
+
+    # Setup the parser
     parser = argparse.ArgumentParser(
-        usage="%(prog)s [options] input_filename",
-        description="""
-        PUMF-II - Pretty Printer for UM Files, version II (using the Mule API).
-
-        This script will output the contents of the headers from a UM file
-        to stdout.  The default output may be customised with a variety
-        of options (see below).
-        """,
-        formatter_class=BlankLinesHelpFormatter,
+        usage=argparse.SUPPRESS,
+        description=title + textwrap.dedent(help_prolog),
+        epilog=textwrap.dedent(help_epilog),
+        formatter_class=argparse.RawTextHelpFormatter,
         )
 
     # No need to output help text for the input file (it's obvious)
     parser.add_argument("input_file", help=argparse.SUPPRESS)
 
-    parser.add_argument("--include-missing",
-                        help="include header values which are set to MDI and "
-                        "entries for components which are not present in the "
-                        "file (by default this will be hidden)",
-                        action="store_true")
-    parser.add_argument("--use-indices",
-                        help="list headers by their indices (instead of only "
-                        "listing named headers)",
-                        action="store_true")
-    parser.add_argument("--headers-only",
-                        help="only list headers (do not read data and "
-                        "calculate any derived statistics)",
-                        action="store_true")
-    parser.add_argument("--components",
-                        help="limit the header output to specific components "
-                        "(comma-separated list of component names, with no "
-                        "spaces)",
-                        metavar="component1[,component2][...]")
-    parser.add_argument("--field-index",
-                        help="limit the lookup output to specific fields by "
-                        "index (comma-separated list of single indices, or "
-                        "ranges of indices separated by a single "
-                        "colon-character)",
-                        metavar="i1[,i2][,i3:i5][...]")
-    parser.add_argument("--field-property",
-                        help="limit the lookup output to specific field using "
-                        "a property string (comma-separated list of key=value "
-                        "pairs where the key is the name of a lookup property "
-                        "and the value is the value it must take)",
-                        metavar="key1=value1[,key2=value2][...]")
-    parser.add_argument("--print-columns",
-                        help="how many columns should be printed",
-                        metavar="N")
-    parser.add_argument("--stashmaster",
-                        help="either the full path to a valid stashmaster "
-                        "file, or a UM version number e.g. '10.2'; if given "
-                        "a number pumf will look in the path defined by "
-                        "mule.stashmaster.STASHMASTER_PATH_PATTERN which by "
-                        "default is : "
-                        "$UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A")
+    parser.add_argument(
+        "--include-missing",
+        help="include header values which are set to MDI and entries for \n"
+        "components which are not present in the file (by default this will \n"
+        "be hidden)\n ",
+        action="store_true")
+    parser.add_argument(
+        "--use-indices",
+        help="list headers by their indices (instead of only listing named \n"
+        "headers)\n ",
+        action="store_true")
+    parser.add_argument(
+        "--headers-only",
+        help="only list headers (do not read data and calculate any derived \n"
+        "statistics)\n",
+        action="store_true")
+    parser.add_argument(
+        "--components",
+        help="limit the header output to specific components \n"
+        "(comma-separated list of component names, with no spaces)\n ",
+        metavar="component1[,component2][...]")
+    parser.add_argument(
+        "--field-index",
+        help="limit the lookup output to specific fields by index \n"
+        "(comma-separated list of single indices, or ranges of indices \n"
+        "separated by a single colon-character)\n ",
+        metavar="i1[,i2][,i3:i5][...]")
+    parser.add_argument(
+        "--field-property",
+        help="limit the lookup output to specific field using a property \n"
+        "string (comma-separated list of key=value pairs where the key is \n"
+        "the name of a lookup property and the value is the value it must \n"
+        "take)\n ",
+        metavar="key1=value1[,key2=value2][...]")
+    parser.add_argument(
+        "--print-columns",
+        help="how many columns should be printed\n ",
+        metavar="N")
+    parser.add_argument(
+        "--stashmaster",
+        help="either the full path to a valid stashmaster file, or a UM \n"
+        "version number e.g. '10.2'; if given a number pumf will look in \n"
+        "the path defined by: \n"
+        "  mule.stashmaster.STASHMASTER_PATH_PATTERN \n"
+        "which by default is : \n"
+        "  $UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A\n")
 
     # If the user supplied no arguments, print the help text and exit
     if len(sys.argv) == 1:

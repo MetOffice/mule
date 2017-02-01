@@ -49,6 +49,8 @@ import sys
 import mule
 import argparse
 import textwrap
+from um_utils.pumf import _banner
+from um_utils.version import report_modules
 
 
 def select(umf, include=None, exclude=None):
@@ -103,12 +105,15 @@ def _main():
     calling the select function multiple times.
     """
 
-    help_prolog = """
-    MULE-SELECT - Field filtering tool for UM files.
+    help_prolog = """    usage:
+      %(prog)s input_filename output_filename [filter arguments]
 
     This script will select or exclude fields from a UM file based on the
     values set in the lookup headers of each field.
     """
+    title = _banner(
+        "SELECT - Field filtering tool for UM files "
+        "(using the Mule API)", banner_char="=")
 
     help_epilog = """
     examples:
@@ -137,15 +142,14 @@ def _main():
       lbmin   minute (validity time / start of processing period)
       lbsec   second (validity time / start of processing period)
 
-      For other codes please check UMDP F03,
-      https://code.metoffice.gov.uk/doc/um/latest/papers/umdp_F03.pdf.
+    for other codes please see UMDP F03:
+      https://code.metoffice.gov.uk/doc/um/latest/papers/umdp_F03.pdf
     """
 
     parser = argparse.ArgumentParser(
-        usage="%(prog)s input_filename output_filename [filter arguments] ",
-        description=textwrap.dedent(help_prolog),
+        usage=argparse.SUPPRESS,
+        description=title + textwrap.dedent(help_prolog),
         formatter_class=argparse.RawTextHelpFormatter,
-        add_help=True,
         epilog=textwrap.dedent(help_epilog))
 
     pg = parser.add_argument_group('filter arguments')
@@ -172,6 +176,11 @@ def _main():
     if len(sys.argv) < 4:
         parser.print_help()
         parser.exit(1)
+
+    # Print version information
+    print(_banner("(SELECT) Module Information")),
+    report_modules()
+    print ""
 
     # The files must be the first 2 arguments.  Note that we don't include
     # these in the parser explicitly, because the way we wish to call the

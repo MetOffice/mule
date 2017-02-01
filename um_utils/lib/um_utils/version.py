@@ -31,6 +31,7 @@ Usage:
 """
 import sys
 import argparse
+import textwrap
 import mule
 import um_utils
 
@@ -80,11 +81,19 @@ def _main():
     Main function; provides help text for consistency (has no options though)
 
     """
+    # Setup help text
+    help_prolog = """    usage:
+      %(prog)s [-h]
+    """
+    title = """
+====================================================================
+* VERSION - Check which version of mule related modules are in use *
+====================================================================
+"""
     parser = argparse.ArgumentParser(
-        usage="%(prog)s",
-        description="""
-        VERSION - Check which version of mule related modules are in use.
-        """,
+        usage=argparse.SUPPRESS,
+        description=title + textwrap.dedent(help_prolog),
+        formatter_class=argparse.RawTextHelpFormatter,
         )
     args = parser.parse_args()
     report_modules()

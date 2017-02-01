@@ -30,6 +30,7 @@ Usage:
 import os
 import sys
 import argparse
+import textwrap
 import mule
 from um_utils.version import report_modules
 from um_utils.pumf import _banner
@@ -63,25 +64,24 @@ def _main():
     the input and output files.
 
     """
+    # Setup help text
+    help_prolog = """    usage:
+      %(prog)s [-h] input_filename output_filename
 
-    # Create a quick version of the regular raw description formatter which
-    # adds spaces between the option help text
-    class BlankLinesHelpFormatter(argparse.HelpFormatter):
-        def _split_lines(self, text, width):
-            return super(
-                BlankLinesHelpFormatter, self)._split_lines(text, width) + ['']
+    This script will write a new file where all WGDOS packed fields in the
+    original are replaced by unpacked fields.
+    """
+    title = _banner(
+        "UNPACK - Unpacks WGDOS packed fields in a UM FieldsFile "
+        "(Using the Mule API)", banner_char="=")
 
     parser = argparse.ArgumentParser(
-        usage="%(prog)s input_filename output_filename",
-        description="""
-        UNPACK - Unpacks WGDOS packed fields in a UM FieldsFile
-
-        This script will write a new file where all WGDOS packed
-        fields in the original are replaced by unpacked fields.
-        """,
-        formatter_class=BlankLinesHelpFormatter,
+        usage=argparse.SUPPRESS,
+        description=title + textwrap.dedent(help_prolog),
+        formatter_class=argparse.RawTextHelpFormatter,
         )
 
+    # No need to output help text for the input files (it's obvious)
     parser.add_argument("input_filename", help=argparse.SUPPRESS)
     parser.add_argument("output_filename", help=argparse.SUPPRESS)
 

@@ -18,9 +18,11 @@ Here is the help text for the command line utility (obtainable by running
 
 .. code-block:: none
 
-    usage: mule-version
-
-    VERSION - Check which version of mule related modules are in use.
+    ====================================================================
+    * VERSION - Check which version of mule related modules are in use *
+    ====================================================================
+    usage:
+      mule-version [-h]
 
     optional arguments:
       -h, --help  show this help message and exit
