@@ -17,11 +17,17 @@ set -eu
 
 if [ $# -lt 3 ] ; then
     echo "USAGE: "
-    echo "   $(basename $0) <lib_dest> <bin_dest> <packing_lib>"
+    echo "   $(basename $0) <lib_dest> <bin_dest> <packing_lib> \\ "
+    echo "                                             [sstpert_lib]"
     echo ""
     echo "   Must be called from the top-level of a working "
     echo "   copy of the UM mule project, containing the 3"
     echo "   module folders (um_packing, um_utils and mule)"
+    echo ""
+    echo "   Optionally, the um_sstpert extension can also be "
+    echo "   included (but it is not by default because the "
+    echo "   required library is available only under a UM "
+    echo "   license)"
     echo ""
     echo "ARGS: "
     echo "  * <lib_dest>"
@@ -33,6 +39,9 @@ if [ $# -lt 3 ] ; then
     echo "  * <packing_lib>"
     echo "      The location of the UM packing library"
     echo "      for linking the um_packing extension."
+    echo "  * [sstpert_lib]"
+    echo "      (Optional) The location of the UM sstpert"
+    echo "      library for linking the um_sstpert extension."
     echo ""
     echo "  After running the script the directory "
     echo "  named in <lib_dest> should be suitable to "
@@ -46,6 +55,12 @@ fi
 LIB_DEST=$1
 BIN_DEST=$2
 PACKING_LIB=$3
+SSTPERT_LIB=${4:-}
+
+MODULE_LIST="mule um_packing um_utils"
+if [ -n "$SSTPERT_LIB" ] ; then
+    MODULE_LIST="$MODULE_LIST um_sstpert"
+fi
 
 # A few hardcoded settings
 PYTHONEXEC=${PYTHONEXEC:-python2.7}
@@ -55,7 +70,7 @@ SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
 # Create install directores - they may already exist but should be 
 # empty if they do, also check the modules exist in the cwd
 exit=0
-for module in "mule" "um_packing" "um_utils" ; do
+for module in $MODULE_LIST ; do
     mkdir -p $LIB_DEST/$module
     if [ "$(ls -A $LIB_DEST/$module)" ] ; then
         echo "Directory '$LIB_DEST/$module' exists but is non-empty"
@@ -86,6 +101,12 @@ if [ ! -d $PACKING_LIB ] ; then
   exit 1
 fi
 
+# If using it, check the sstpert lib is found
+if [ -n "$SSTPERT_LIB" ] && [ ! -d $SSTPERT_LIB ] ; then
+  echo "SSTpert library directory '$SSTPERT_LIB' not found"
+  exit 1
+fi
+
 # Make a temporary directory to hold the installs
 mkdir -p $SCRATCHLIB 
 ln -s $SCRATCHDIR/lib $SCRATCHDIR/lib64
@@ -97,9 +118,9 @@ export PYTHONPATH=${PYTHONPATH-""}:$SCRATCHLIB
 # Save a reference to the top-level directory
 wc_root=$(pwd)
 
-#------------------------------#
-# Building the packing library #
-#------------------------------#
+#-------------------------#
+# Building the libraries  #
+#-------------------------#
 # Packing library first
 echo "Changing directory to packing module:" $wc_root/um_packing
 cd $wc_root/um_packing
@@ -108,6 +129,15 @@ echo "Building packing module..."
 $PYTHONEXEC setup.py build_ext --inplace \
    -I$PACKING_LIB/include -L$PACKING_LIB/lib -lum_packing -R$PACKING_LIB/lib
 
+# Packing library first
+if [ -n "$SSTPERT_LIB" ] ; then
+    echo "Changing directory to sstpert module:" $wc_root/um_sstpert
+    cd $wc_root/um_sstpert
+
+    echo "Building sstpert module..."
+    $PYTHONEXEC setup.py build_ext --inplace \
+        -I$SSTPERT_LIB/include -L$SSTPERT_LIB/lib -lum_sstpert -R$SSTPERT_LIB/lib
+fi
 
 #----------------------------------------------#
 # Temporary installation to scratch directory  #
@@ -120,10 +150,10 @@ function install(){
     echo "Installing $module module to $SCRATCHDIR"
     $PYTHONEXEC setup.py install --prefix $SCRATCHDIR
 }
-    
-install um_packing
-install mule
-install um_utils
+
+for module in $MODULE_LIST ; do
+    install $module
+done
 
 #------------------------------------------------------------#
 # Extraction and copying of files to destination directories #
@@ -146,16 +176,16 @@ function unpack_and_copy(){
     cp -vr $egg/$module/* $destdir
 
     # For the execs, also copy these to the bin directory
-    if [ $module == "um_utils" ] ; then
+    if [ $module == "um_utils" ] || [ $module == "um_sstpert" ] ; then
         echo "Installing $module execs and info to $BIN_DEST/"
         cp -vr $egg/EGG-INFO $BIN_DEST/$module.egg-info        
         cp -vr $SCRATCHDIR/bin/* $BIN_DEST/
     fi
 }
 
-unpack_and_copy um_packing
-unpack_and_copy mule
-unpack_and_copy um_utils
+for module in $MODULE_LIST ; do
+    unpack_and_copy $module
+done
 
 # Cleanup the temporary directory
 echo "Cleaning up temporary directory: $SCRATCHDIR"
