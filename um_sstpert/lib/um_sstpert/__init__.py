@@ -208,16 +208,16 @@ def gen_pert_file(umf_clim, alpha, ens_member, date):
 
     # The ancil is likely missing the level dependent constants, so
     # put some in which are the minimum size for a FieldsFile
-    if umf.level_dependent_constants is None:
+    if umf_clim.level_dependent_constants is None:
         ff.integer_constants.num_p_levels = 1
         ff.level_dependent_constants = (
             mule.ff.FF_LevelDependentConstants.empty(2))
 
     # Copy the row/column headers if they were set
-    if (umf.row_dependent_constants is not None and
-            umf.column_dependent_constants is not None):
-        ff.row_dependent_constants = umf.row_dependent_constants
-        ff.column_dependent_constants = umf.column_dependent_constants
+    if (umf_clim.row_dependent_constants is not None and
+            umf_clim.column_dependent_constants is not None):
+        ff.row_dependent_constants = umf_clim.row_dependent_constants
+        ff.column_dependent_constants = umf_clim.column_dependent_constants
 
     # Add the perturbation field and output
     ff.fields = [pert_field]
