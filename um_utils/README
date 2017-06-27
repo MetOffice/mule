@@ -64,9 +64,9 @@ Or to run all available tests:
 
 Other configuration
 ===================
-The UM packing library supports OpenMP - if your installation is using the UM
-library and it was compiled with OpenMP support enabled you may control the 
-number of threads the library uses by setting the environment variable 
+The SHUMlib packing library supports OpenMP - if your installation is using the 
+SHUMlib library and it was compiled with OpenMP support enabled you may control 
+the number of threads the library uses by setting the environment variable 
 OMP_NUM_THREADS.  (The Mule module which imports this library defaults this
 variable to "1" for safety).
 

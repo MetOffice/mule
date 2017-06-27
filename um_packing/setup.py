@@ -1,6 +1,6 @@
 # (C) Crown Copyright 2017, Met Office. All rights reserved.
 #
-# This file is part of the UM packing library module.
+# This file is part of the SHUMlib packing library module.
 #
 # It is free software: you can redistribute it and/or modify it under
 # the terms of the Modified BSD License, as published by the
@@ -12,14 +12,14 @@
 # Modified BSD License for more details.
 #
 # You should have received a copy of the Modified BSD License
-# along with this UM packing module.
+# along with this SHUMlib packing module.
 # If not, see <http://opensource.org/licenses/BSD-3-Clause>.
 import setuptools
 import numpy as np
 
 setuptools.setup(
     name='um_packing',
-    version='1.4',
+    version='2017.06.1',
     description='Unified Model packing library extension',
     author='UM Systems Team',
     url='https://code.metoffice.gov.uk/trac/um',
@@ -28,7 +28,7 @@ setuptools.setup(
               'um_packing.tests'],
     features={
         'packing': setuptools.Feature(
-            "UM Packing library (requires UM Licence)",
+            "SHUMlib Packing library",
             standard=True,
             ext_modules=[
                 setuptools.Extension(

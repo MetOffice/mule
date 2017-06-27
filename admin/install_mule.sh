@@ -17,8 +17,7 @@ set -eu
 
 if [ $# -lt 3 ] ; then
     echo "USAGE: "
-    echo "   $(basename $0) <lib_dest> <bin_dest> <packing_lib> \\ "
-    echo "                                             [sstpert_lib]"
+    echo "   $(basename $0) <lib_dest> <bin_dest> <shumlib> [sstpert_lib]"
     echo ""
     echo "   Must be called from the top-level of a working "
     echo "   copy of the UM mule project, containing the 3"
@@ -36,8 +35,8 @@ if [ $# -lt 3 ] ; then
     echo "  * <bin_dest>"
     echo "      The destination directory for the "
     echo "      UM utility execs to be installed to."
-    echo "  * <packing_lib>"
-    echo "      The location of the UM packing library"
+    echo "  * <shumlib>"
+    echo "      The location of the UM shared library"
     echo "      for linking the um_packing extension."
     echo "  * [sstpert_lib]"
     echo "      (Optional) The location of the UM sstpert"
@@ -54,7 +53,7 @@ fi
 
 LIB_DEST=$1
 BIN_DEST=$2
-PACKING_LIB=$3
+SHUMLIB=$3
 SSTPERT_LIB=${4:-}
 
 MODULE_LIST="mule um_packing um_utils"
@@ -95,9 +94,9 @@ if [ "$(ls $BIN_DEST/mule-* 2> /dev/null)" ] ; then
   exit 1
 fi
 
-# Check the packing lib is found
-if [ ! -d $PACKING_LIB ] ; then
-  echo "Packing library directory '$PACKING_LIB' not found"
+# Check that shumlib is found
+if [ ! -d $SHUMLIB ] ; then
+  echo "Packing library directory '$SHUMLIB' not found"
   exit 1
 fi
 
@@ -127,9 +126,11 @@ cd $wc_root/um_packing
 
 echo "Building packing module..."
 $PYTHONEXEC setup.py build_ext --inplace \
-   -I$PACKING_LIB/include -L$PACKING_LIB/lib -lum_packing -R$PACKING_LIB/lib
+   -I$SHUMLIB/include -L$SHUMLIB/lib \
+   -lshum_byteswap,shum_string_conv,shum_wgdos_packing \
+   -R$SHUMLIB/lib
 
-# Packing library first
+# SSTPert library (if being used)
 if [ -n "$SSTPERT_LIB" ] ; then
     echo "Changing directory to sstpert module:" $wc_root/um_sstpert
     cd $wc_root/um_sstpert

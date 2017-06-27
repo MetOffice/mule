@@ -1,28 +1,29 @@
 Mule is a Python package providing an interface to the various files used 
 and produced by the Met Office Unified Model (UM).
 
-This "um_packing" module provides a Python extension from the UM packing
-library, which Mule can optionally make use of (the UM packing library is 
-obtainable via a UM license and must be installed separately).
+This "um_packing" module provides a Python extension from the SHUMlib packing
+library, which Mule can optionally make use of (the SHUMlib library is also 
+freely available - hopefully from the same location as you obtained Mule)
 
 Building the extension
 ======================
 The first step is to build the extension module; you must link against the 
-UM packing library here, so it should be installed beforehand (the UM 
-documentation paper X04 contains details on how to do this, or your site may 
-already have a central install).  Once you have located the install save the
-path to a variable (as we will need it multiple times):
+SHUMlib packing library here, so it should be installed beforehand (the 
+documentation included in SHUMlib contains details on how to do this, or your 
+site may already have a central install).  Once you have located the install 
+save the path to a variable (as we will need it multiple times):
 
-    DIR=/path/to/the/um/packing/library
+    DIR=/path/to/the/shumlib/packing/library
 
-(The above path should be the one containing the "include" and "lib" 
-subdirectories, with the "um_packing.so" shared object present in "lib")
+(The above path should be the one containing the "include" and "lib"
+subdirectories, with several libraries including "libum_wgdos_packing.so" shared
+object present in "lib")
 
 Then use the following command to build the extension:
 
     python setup.py build_ext --inplace \
-           -I$DIR/include -L$DIR/lib -lum_packing -R$DIR/lib
-
+        -I$DIR/include -L$DIR/lib -lshum_wgdos_packing \
+        -lshum_string_conv -lshum_byteswap -R$DIR/lib
 
 Installation (Central)
 ======================
@@ -76,10 +77,10 @@ This should run 3 tests which will ensure the library is working.
 
 Other configuration
 ===================
-The UM packing library supports OpenMP - if it was compiled with OpenMP support
-enabled you may control the number of threads the library uses by setting the
-environment variable OMP_NUM_THREADS.  (The Mule module which imports this
-library defaults this variable to "1" if it is not set, for safety).
+The SHUMlib packing library supports OpenMP - if it was compiled with OpenMP 
+support enabled you may control the number of threads the library uses by
+setting the environment variable OMP_NUM_THREADS.  (The Mule module which
+imports this library defaults this variable to "1" if it is not set, for safety).
 
 
 API Documentation

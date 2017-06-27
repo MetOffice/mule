@@ -12,11 +12,12 @@ extension must be installed alongside this module (although some operations
 which do not require access to the unpacked data will still work without any
 library installed).  There are two choices for this library:
 
- * The "um_packing" module provides a wrapper to the UM packing library.  
-   This is a library compiled directly from the UM and is therefore only
-   available under UM license.  Refer to UM documentation paper X04 for
-   details on building the UM library, and the README for the "um_packing"
-   module for instructions on building the extension.
+ * The "um_packing" module provides a wrapper to the SHUMlib packing library.  
+   This is the same library used by the UM itself to pack and unpack WGDOS
+   fields; it should be available from the same location you obtained Mule.
+   Refer to the SHUMlib documentation for instructions on building SHUMlib and
+   the README for the "um_packing" module for instructions on building 
+   the extension from it.
 
  * The "mo_pack" module provides a wrapper to the "libmo_unpack" C library 
    implementation.  Both the module and the library itself are open-source
@@ -75,8 +76,8 @@ Once installed you can run in-built tests with the following command.
 
 Other configuration
 ===================
-The UM packing library supports OpenMP - if your installation is using the UM
-library and it was compiled with OpenMP support enabled you may control the 
+The SHUMlib packing library supports OpenMP - if your installation is using the 
+SHUMlib library and it was compiled with OpenMP support enabled you may control the 
 number of threads the library uses by setting the environment variable 
 OMP_NUM_THREADS.  (The Mule module which imports this library defaults this
 variable to "1" for safety).

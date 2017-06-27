@@ -1,7 +1,7 @@
 /**********************************************************************/
 /* (C) Crown Copyright 2017, Met Office. All rights reserved.         */
 /*                                                                    */
-/* This file is part of the UM packing library extension module       */
+/* This file is part of the SHUMlib packing library extension module  */
 /* for Mule.                                                          */
 /*                                                                    */
 /* Mule is free software: you can redistribute it and/or modify it    */
@@ -28,20 +28,20 @@
 
 #include <Python.h>
 #include <numpy/arrayobject.h>
-#include "read_wgdos_header.h"
-#include "packing_wrappers.h"
-#include "pio_byteswap.h"
+#include "c_shum_wgdos_packing.h"
+#include "c_shum_byteswap.h"
+#include "c_shum_wgdos_packing_version.h"
 
 PyMODINIT_FUNC initum_packing(void);
 
 static PyObject *wgdos_unpack_py(PyObject *self, PyObject *args);
 static PyObject *wgdos_pack_py(PyObject *self, PyObject *args);
-static PyObject *get_um_version_py(PyObject *self, PyObject *args);
+static PyObject *get_shumlib_version_py(PyObject *self, PyObject *args);
 
 PyMODINIT_FUNC initum_packing(void)
 {
   PyDoc_STRVAR(um_packing__doc__,
-  "This extension module provides access to the UM unpacking library.\n"
+  "This extension module provides access to the SHUMlib packing library.\n"
   );
 
   PyDoc_STRVAR(wgdos_unpack__doc__,
@@ -67,16 +67,17 @@ PyMODINIT_FUNC initum_packing(void)
   "  Byte-array/stream (suitable to write straight to file).\n"
   );
 
-  PyDoc_STRVAR(get_um_version__doc__,
-  "Return the UM version number used to compile the library.\n\n"
+  PyDoc_STRVAR(get_shumlib_version__doc__,
+  "Returns the SHUMlib version number used the compile the library.\n\n"
   "Returns:\n"
-  "  String containing the UM version number.\n"
+  "* version - The version number as an integer in YYYYMMX format.\n"
   );
 
   static PyMethodDef um_packingMethods[] = {
     {"wgdos_unpack", wgdos_unpack_py, METH_VARARGS, wgdos_unpack__doc__},
     {"wgdos_pack", wgdos_pack_py, METH_VARARGS, wgdos_pack__doc__},
-    {"get_um_version", get_um_version_py, METH_VARARGS, get_um_version__doc__},
+    {"get_shumlib_version", get_shumlib_version_py, 
+                            METH_VARARGS, get_shumlib_version__doc__},
     {NULL, NULL, 0, NULL}
   };
 
@@ -105,28 +106,41 @@ static PyObject *wgdos_unpack_py(PyObject *self, PyObject *args)
   PyArrayObject *npy_array_out = NULL;
   npy_intp dims[2];
 
+  // Error message string
+  int64_t msg_len = 512;
+  char err_msg[msg_len];
+
   // Perform a byte swap on the byte-array, if it looks like it is needed
-  if (get_machine_endianism() == littleEndian) {
-    status = pio_byteswap(bytes_in, 
-                          n_bytes/(int64_t)sizeof(int64_t), 
-                          sizeof(int64_t));
+  if (c_shum_get_machine_endianism() == littleEndian) {
+    status = c_shum_byteswap(bytes_in,
+                             n_bytes/(int64_t)sizeof(int32_t),
+                             sizeof(int32_t),
+                             &err_msg[0],
+                             msg_len
+                             );
     if (status != 0) {
-      PyErr_SetString(PyExc_ValueError, "Problem in byte-swapping");
+      PyErr_SetString(PyExc_ValueError, &err_msg[0]);
       return NULL;
     }
   }
 
-  // Now extract the accuracy, number of rows and number of columns
+  // Now extract the word count, accuracy, number of rows and number of columns
+  int64_t num_words;
   int64_t accuracy;
   int64_t cols;
   int64_t rows;
-  status = read_wgdos_header(bytes_in, 
-                             &accuracy,
-                             &cols,
-                             &rows);
+
+  status = c_shum_read_wgdos_header(bytes_in,
+                                    &num_words,
+                                    &accuracy,
+                                    &cols,
+                                    &rows,
+                                    &err_msg[0],
+                                    &msg_len
+                                    );
 
   if (status != 0) {
-    PyErr_SetString(PyExc_ValueError, "Problem reading WGDOS header");
+    PyErr_SetString(PyExc_ValueError, &err_msg[0]);
     return NULL;
   }
 
@@ -135,23 +149,20 @@ static PyObject *wgdos_unpack_py(PyObject *self, PyObject *args)
   if (dataout == NULL) {
     PyErr_SetString(PyExc_ValueError, "Unable to allocate memory for unpacking");
     return NULL;
-  } 
+  }
 
   // Call the WGDOS unpacking code
-  int64_t *ptr_64 = (int64_t *)bytes_in;
-  int64_t len_comp = n_bytes/(int64_t)sizeof(double);
+  int32_t *ptr_32 = (int32_t *)bytes_in;
 
-  char err_msg[512];
-
-  xpnd_all_wrapper(dataout,
-                   ptr_64,
-                   &len_comp,
-                   &cols,
-                   &rows,
-                   &accuracy,
-                   &mdi,
-                   &status,
-                   &err_msg[0]);                           
+  status = c_shum_wgdos_unpack(ptr_32,
+                               &num_words,
+                               &cols,
+                               &rows,
+                               &mdi,
+                               dataout,
+                               &err_msg[0],
+                               &msg_len
+                               );
 
   if (status != 0) {
     free(dataout);
@@ -206,23 +217,26 @@ static PyObject *wgdos_pack_py(PyObject *self, PyObject *args)
 
   // Allocate space for return value
   int64_t len_comp = rows*cols;
-  int64_t *comp_field_ptr = 
-    (int64_t*)calloc((size_t)(len_comp), sizeof(int64_t));
+  int32_t *comp_field_ptr = 
+    (int32_t*)calloc((size_t)(len_comp), sizeof(int32_t));
 
   int64_t status = 1;
   int64_t num_words;
-  char err_msg[512];
 
-  cmps_all_wrapper(field_ptr, 
-                   comp_field_ptr, 
-                   &len_comp, 
-                   &cols, 
-                   &rows, 
-                   &accuracy, 
-                   &mdi, 
-                   &num_words, 
-                   &status,
-                   &err_msg[0]);
+  int64_t msg_len = 512;
+  char err_msg[msg_len];
+
+  status = c_shum_wgdos_pack(field_ptr,
+                             &cols,
+                             &rows,
+                             &accuracy,
+                             &mdi,
+                             comp_field_ptr,
+                             &len_comp,
+                             &num_words,
+                             &err_msg[0],
+                             &msg_len
+                             );
 
   if (status != 0) {
     free(comp_field_ptr);
@@ -230,20 +244,20 @@ static PyObject *wgdos_pack_py(PyObject *self, PyObject *args)
     return NULL;
   }
 
-  // Round number of words to sector size
-  num_words = (num_words + 1)/2;
-  
   // Construct a char pointer array
   char *ptr_char = (char *)comp_field_ptr;
-  Py_ssize_t out_len = (Py_ssize_t) (num_words * (int64_t)sizeof(double));
+  Py_ssize_t out_len = (Py_ssize_t) (num_words * (int64_t)sizeof(int32_t));
 
   // Byteswap on the way out, if needed
-  if (get_machine_endianism() == littleEndian) {
-    status = pio_byteswap(ptr_char, 
-                          num_words,
-                          sizeof(int64_t));
+  if (c_shum_get_machine_endianism() == littleEndian) {
+    status = c_shum_byteswap(ptr_char, 
+                             num_words,
+                             sizeof(int32_t),
+                             &err_msg[0],
+                             msg_len
+                             );
     if (status != 0) {
-      PyErr_SetString(PyExc_ValueError, "Problem in byte-swapping");
+      PyErr_SetString(PyExc_ValueError, &err_msg[0]);
       return NULL;
     }
   }
@@ -258,15 +272,14 @@ static PyObject *wgdos_pack_py(PyObject *self, PyObject *args)
   return bytes_out;
 }
 
-
-static PyObject *get_um_version_py(PyObject *self, PyObject *args)
+static PyObject *get_shumlib_version_py(PyObject *self, PyObject *args)
 {
   (void) self;
   (void) args;
+  long version;
+  version = (long) get_shum_wgdos_packing_version();
 
-  char version[8];
-  get_um_version(&version[0]);
   PyObject *version_out = NULL;
-  version_out = PyString_FromStringAndSize(version, strlen(version));
+  version_out = PyInt_FromLong(version);
   return version_out;
 }

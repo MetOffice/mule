@@ -20,12 +20,11 @@
 """
 Methods for packing and unpacking the data payloads of UM file fields.
 
-This module will use *either* the UM packing library wrapper module
-"um_packing", *or* the open-source implementation "mo_pack",
-whichever is installed.
+This module will use *either* the SHUMlib packing library wrapper module
+"um_packing", *or* the slower implementation "mo_pack"; whichever is installed.
 
-*   "um_packing" provides a wrapper to the UM packing library.
-        This is available under UM license.
+*   "um_packing" provides a wrapper to the SHUMlib packing library.
+        This is the faster option and is the same library used by the UM.
 *   "mo_pack" is a wrapper to the "libmo_unpack" C library implementation.
         These are both open-source software, available from :
         https://github.com/SciTools/mo_pack and
@@ -33,7 +32,7 @@ whichever is installed.
 
     .. note::
         The "libmo_unpack" library has some known limitations :
-        It does not produce identical results to the UM library;
+        It does not produce identical results to the SHUMlib library;
         it is substantially slower; and it is limited to 32-bit floating-point
         accuracy.
 
@@ -41,11 +40,11 @@ whichever is installed.
 import os
 import pkgutil
 
-# First establish whether the UM packing library is available
+# First establish whether the SHUMlib packing library is available
 if not pkgutil.get_loader("um_packing") is None:
     try:
         import um_packing
-        # Since the UM packing employs OpenMP for speed, make sure the
+        # Since the SHUMlib packing employs OpenMP for speed, make sure the
         # environment variable which controls the number of threads is set
         # (on some platforms the default will be a high number of threads
         # which can cause issues - we set it to be single threaded by default)
@@ -56,7 +55,7 @@ if not pkgutil.get_loader("um_packing") is None:
 
         def _wgdos_unpack_field(data_bytes, mdi, rows, cols):
             """
-            Unpack a WGDOS-packed field using the UM packing library.
+            Unpack a WGDOS-packed field using the SHUMlib packing library.
 
             Args:
                 * data_bytes (string):
@@ -78,7 +77,7 @@ if not pkgutil.get_loader("um_packing") is None:
 
         def _wgdos_pack_field(data, mdi, acc):
             """
-            WGDOS-pack a field using the UM packing library.
+            WGDOS-pack a field using the SHUMlib packing library.
 
             Args:
                 * data (array):
@@ -104,7 +103,7 @@ if not pkgutil.get_loader("um_packing") is None:
             return data_bytes
 
     except ImportError as err:
-        msg = "UM Packing library found, but failed to import"
+        msg = "SHUMlib Packing library found, but failed to import"
         raise ImportError(err.args + (msg,))
 
 elif not pkgutil.get_loader("mo_pack") is None:

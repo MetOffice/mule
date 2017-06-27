@@ -68,12 +68,13 @@ def report_modules(stdout=None):
     # the copy of mule above has ended up importing
     if hasattr(mule.packing, "um_packing"):
         stdout.write(_print_module_source(mule.packing.um_packing))
-        stdout.write(" (packing lib from UM: {0})\n".format(
-            mule.packing.um_packing.get_um_version()))
+        stdout.write(" (packing lib from SHUMlib: {0})\n".format(
+            mule.packing.um_packing.get_shumlib_version()))
     elif hasattr(mule.packing, "mo_pack"):
         stdout.write(_print_module_source(mule.packing.mo_pack))
     else:
         stdout.write("No Packing Library Available")
+    stdout.write("\n")
 
 
 def _main():
