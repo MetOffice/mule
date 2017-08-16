@@ -31,7 +31,7 @@ Usage:
                                          clim_file, alpha, ens_member, date)
 
 """
-__version__ = 1.4
+__version__ = "2017.08.1"
 
 import os
 import sys

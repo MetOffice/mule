@@ -19,7 +19,7 @@ import numpy as np
 
 setuptools.setup(
     name='um_sstpert',
-    version='1.4',
+    version='2017.08.1',
     description='Unified Model SST-perturbation extension and utility',
     author='UM Systems Team',
     url='https://code.metoffice.gov.uk/trac/um',
