@@ -140,6 +140,7 @@ _DATA_DTYPES = {4: {1: '>f4', 2: '>i4', 3: '>i4'},
 
 # Default word sizes for Cray32 and WGDOS packed fields
 _CRAY32_SIZE = 4
+_WGDOS_SIZE = 4
 
 
 # Overidden versions of the relevant header elements for a FieldsFile
@@ -332,7 +333,17 @@ class _WriteFFOperatorWGDOSPacked(_WriteFFOperatorUnpacked):
             data = data.astype(native_dtype)
 
         data_bytes = wgdos_pack_field(data, field.bmdi, int(field.bacc))
-        return data_bytes, len(data_bytes)/self.WORD_SIZE
+        # Note: the returned data size here is a little odd; WGDOS data is
+        # actually 32-bit (_WGDOS_SIZE) but for historical reasons the file
+        # format reports WGDOS packed fields as if they were 64-bit.
+        # If there's an odd number of 32-bit words present then integer
+        # division means the final 32-bit word will not be included in the
+        # resulting (64-bit) data length. Therefore we add an extra
+        # 32-bit word to ensure any leftover 32-bit word is included as
+        # part of the final 64-bit word and not lost. If there's an even
+        # number of 32-bit words this additional (unused) 32-bit word length
+        # is discarded during the division.
+        return data_bytes, (len(data_bytes) + _WGDOS_SIZE)/self.WORD_SIZE
 
 
 class _WriteFFOperatorCray32Packed(_WriteFFOperatorUnpacked):
