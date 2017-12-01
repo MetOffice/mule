@@ -57,13 +57,11 @@ _ANCIL_LEVEL_DEPENDENT_CONSTANTS = [
 # UM Ancil file row dependent constant names
 _ANCIL_ROW_DEPENDENT_CONSTANTS = [
     ('phi_p', (slice(None), 1)),
-    ('phi_v', (slice(None), 2)),
     ]
 
 # UM Ancil file column dependent constant names
 _ANCIL_COLUMN_DEPENDENT_CONSTANTS = [
     ('lambda_p', (slice(None), 1)),
-    ('lambda_u', (slice(None), 2)),
     ]
 
 
@@ -88,13 +86,13 @@ class Ancil_LevelDependentConstants(mule.LevelDependentConstants):
 class Ancil_RowDependentConstants(mule.RowDependentConstants):
     """The row dependent constants component of a UM Ancillary File."""
     HEADER_MAPPING = _ANCIL_ROW_DEPENDENT_CONSTANTS
-    CREATE_DIMS = (None, 2)
+    CREATE_DIMS = (None, 1)
 
 
 class Ancil_ColumnDependentConstants(mule.ColumnDependentConstants):
     """The column dependent constants component of a UM Ancillary File."""
     HEADER_MAPPING = _ANCIL_COLUMN_DEPENDENT_CONSTANTS
-    CREATE_DIMS = (None, 2)
+    CREATE_DIMS = (None, 1)
 
 
 # Define the ancil file class itself - it inherits from a FieldsFile rather

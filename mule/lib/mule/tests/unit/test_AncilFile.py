@@ -30,7 +30,6 @@ from mule.ancil import (Ancil_IntegerConstants, Ancil_RealConstants,
                         Ancil_ColumnDependentConstants)
 from mule.validators import ValidateError
 
-import warnings
 warnings.filterwarnings("ignore", r".*unable to load STASHmaster.*")
 
 
@@ -198,47 +197,47 @@ class Test_validate(tests.MuleTest):
     # Test a variable resolution case
     def test_basic_varres_ok(self):
         self.anc.row_dependent_constants = (
-            Ancil_RowDependentConstants.empty(3, 2))
+            Ancil_RowDependentConstants.empty(3))
         self.anc.column_dependent_constants = (
-            Ancil_ColumnDependentConstants.empty(4, 2))
+            Ancil_ColumnDependentConstants.empty(4))
         self.anc.validate()
 
-    # Test that an invalid shape row dependent constants fails (first dim)
+    # Test that an invalid shape row dependent constants fails (length)
     def test_baddim_1_row_consts_fail(self):
         self.anc.row_dependent_constants = (
-            Ancil_RowDependentConstants.empty(4, 2))
+            Ancil_RowDependentConstants.empty(4))
         self.anc.column_dependent_constants = (
-            Ancil_ColumnDependentConstants.empty(4, 2))
+            Ancil_ColumnDependentConstants.empty(4))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped row dependent constants"):
             self.anc.validate()
 
-    # Test that an invalid shape row dependent constants fails (first dim)
+    # Test that an invalid shape row dependent constants fails (extra dim)
     def test_baddim_2_row_consts_fail(self):
-        self.anc.row_dependent_constants = (
-            Ancil_RowDependentConstants.empty(3, 3))
-        self.anc.column_dependent_constants = (
-            Ancil_ColumnDependentConstants.empty(4, 2))
-        with self.assertRaisesRegexp(
-                ValidateError, "Incorrectly shaped row dependent constants"):
-            self.anc.validate()
-
-    # Test that an invalid shape column dependent constants fails (first dim)
-    def test_baddim_1_col_consts_fail(self):
         self.anc.row_dependent_constants = (
             Ancil_RowDependentConstants.empty(3, 2))
         self.anc.column_dependent_constants = (
-            Ancil_ColumnDependentConstants.empty(5, 2))
+            Ancil_ColumnDependentConstants.empty(4))
+        with self.assertRaisesRegexp(
+                ValidateError, "Incorrectly shaped row dependent constants"):
+            self.anc.validate()
+
+    # Test that an invalid shape column dependent constants fails (length)
+    def test_baddim_1_col_consts_fail(self):
+        self.anc.row_dependent_constants = (
+            Ancil_RowDependentConstants.empty(3))
+        self.anc.column_dependent_constants = (
+            Ancil_ColumnDependentConstants.empty(5))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped column dependent const"):
             self.anc.validate()
 
-    # Test that an invalid shape column dependent constants fails (first dim)
+    # Test that an invalid shape column dependent constants fails (extra dim)
     def test_baddim_2_col_consts_fail(self):
         self.anc.row_dependent_constants = (
-            Ancil_RowDependentConstants.empty(3, 2))
+            Ancil_RowDependentConstants.empty(3))
         self.anc.column_dependent_constants = (
-            Ancil_ColumnDependentConstants.empty(4, 3))
+            Ancil_ColumnDependentConstants.empty(4, 2))
         with self.assertRaisesRegexp(
                 ValidateError, "Incorrectly shaped column dependent const"):
             self.anc.validate()
@@ -261,9 +260,9 @@ class Test_validate(tests.MuleTest):
     # Test a variable resolution field passes
     def test_basic_varres_field_ok(self):
         self.anc.row_dependent_constants = (
-            Ancil_RowDependentConstants.empty(3, 2))
+            Ancil_RowDependentConstants.empty(3))
         self.anc.column_dependent_constants = (
-            Ancil_ColumnDependentConstants.empty(4, 2))
+            Ancil_ColumnDependentConstants.empty(4))
         self.fld.bzx = _REAL_MDI
         self.fld.bzy = _REAL_MDI
         self.fld.bdx = _REAL_MDI
@@ -274,9 +273,9 @@ class Test_validate(tests.MuleTest):
     # Test a variable resolution field with bad column count fails
     def test_basic_varres_field_cols_fail(self):
         self.anc.row_dependent_constants = (
-            Ancil_RowDependentConstants.empty(3, 2))
+            Ancil_RowDependentConstants.empty(3))
         self.anc.column_dependent_constants = (
-            Ancil_ColumnDependentConstants.empty(4, 2))
+            Ancil_ColumnDependentConstants.empty(4))
         self.fld.lbnpt = 6
         self.anc.fields = [self.fld]
         with self.assertRaisesRegexp(
@@ -286,9 +285,9 @@ class Test_validate(tests.MuleTest):
     # Test a variable resolution field with bad row count fails
     def test_basic_varres_field_rows_fail(self):
         self.anc.row_dependent_constants = (
-            Ancil_RowDependentConstants.empty(3, 2))
+            Ancil_RowDependentConstants.empty(3))
         self.anc.column_dependent_constants = (
-            Ancil_ColumnDependentConstants.empty(4, 2))
+            Ancil_ColumnDependentConstants.empty(4))
         self.fld.lbrow = 5
         self.anc.fields = [self.fld]
         with self.assertRaisesRegexp(
@@ -298,9 +297,9 @@ class Test_validate(tests.MuleTest):
     # Test a variable resolution field with non RMDI bzx fails
     def test_basic_varres_field_bzx_fail(self):
         self.anc.row_dependent_constants = (
-            Ancil_RowDependentConstants.empty(3, 2))
+            Ancil_RowDependentConstants.empty(3))
         self.anc.column_dependent_constants = (
-            Ancil_ColumnDependentConstants.empty(4, 2))
+            Ancil_ColumnDependentConstants.empty(4))
         self.fld.bzx = 4
         self.fld.bzy = _REAL_MDI
         self.fld.bdx = _REAL_MDI
@@ -313,9 +312,9 @@ class Test_validate(tests.MuleTest):
     # Test a variable resolution field with non RMDI bzy fails
     def test_basic_varres_field_bzy_fail(self):
         self.anc.row_dependent_constants = (
-            Ancil_RowDependentConstants.empty(3, 2))
+            Ancil_RowDependentConstants.empty(3))
         self.anc.column_dependent_constants = (
-            Ancil_ColumnDependentConstants.empty(4, 2))
+            Ancil_ColumnDependentConstants.empty(4))
         self.fld.bzx = _REAL_MDI
         self.fld.bzy = 5
         self.fld.bdx = _REAL_MDI
@@ -328,9 +327,9 @@ class Test_validate(tests.MuleTest):
     # Test a variable resolution field with non RMDI bdx fails
     def test_basic_varres_field_bdx_fail(self):
         self.anc.row_dependent_constants = (
-            Ancil_RowDependentConstants.empty(3, 2))
+            Ancil_RowDependentConstants.empty(3))
         self.anc.column_dependent_constants = (
-            Ancil_ColumnDependentConstants.empty(4, 2))
+            Ancil_ColumnDependentConstants.empty(4))
         self.fld.bzx = _REAL_MDI
         self.fld.bzy = _REAL_MDI
         self.fld.bdx = 0.2
@@ -343,9 +342,9 @@ class Test_validate(tests.MuleTest):
     # Test a variable resolution field with non RMDI bdy fails
     def test_basic_varres_field_bdy_fail(self):
         self.anc.row_dependent_constants = (
-            Ancil_RowDependentConstants.empty(3, 2))
+            Ancil_RowDependentConstants.empty(3))
         self.anc.column_dependent_constants = (
-            Ancil_ColumnDependentConstants.empty(4, 2))
+            Ancil_ColumnDependentConstants.empty(4))
         self.fld.bzx = _REAL_MDI
         self.fld.bzy = _REAL_MDI
         self.fld.bdx = _REAL_MDI
