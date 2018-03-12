@@ -67,8 +67,14 @@ def validate_umf(umf, filename=None, warn=False):
     # File must have its dataset_type set correctly
     validation_errors += validate_dataset_type(umf, umf.DATASET_TYPES)
 
-    # Only grid-staggerings of 3 (NewDynamics) or 6 (ENDGame) are valid
-    validation_errors += validate_grid_staggering(umf, (3, 6))
+    if (umf.fixed_length_header.vert_coord_type == 4 and
+            umf.fixed_length_header.dataset_type == 4):
+        # For depth ancillaries, can have a grid staggering of 2, 3 or 6:
+        validation_errors += validate_grid_staggering(umf, (2, 3, 6))
+    else:
+        # But in general, only grid-staggerings of 3 (NewDynamics) or 6
+        # (ENDGame) are valid
+        validation_errors += validate_grid_staggering(umf, (3, 6))
 
     # Integer and real constants are mandatory and have particular
     # lengths that must be matched

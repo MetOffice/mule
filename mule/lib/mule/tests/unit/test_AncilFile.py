@@ -137,11 +137,20 @@ class Test_validate(tests.MuleTest):
 
     # Test that some incorrect grid staggerings fail
     def test_grid_staggering_fail(self):
-        for stagger in (2, 5, 0, -32768):
+        for stagger in (5, 0, -32768):
             self.anc.fixed_length_header.grid_staggering = stagger
             with self.assertRaisesRegexp(ValidateError,
                                          "Unsupported grid_staggering"):
                 self.anc.validate()
+
+    # Test that grid staggering of 2 passes for depths only
+    def test_grid_staggering_depth(self):
+        self.anc.fixed_length_header.grid_staggering = 2
+        with self.assertRaisesRegexp(ValidateError,
+                                     "Unsupported grid_staggering"):
+            self.anc.validate()
+        self.anc.fixed_length_header.vert_coord_type = 4
+        self.assertIsNone(self.anc.validate())
 
     # Test that having no integer constants fails
     def test_missing_int_consts_fail(self):
