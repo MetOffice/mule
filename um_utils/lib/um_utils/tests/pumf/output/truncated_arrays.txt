@@ -1,0 +1,69 @@
+%%%%%%%%%%%%%%%%%%
+* PUMF-II Report *
+%%%%%%%%%%%%%%%%%%
+
+File: None
+
+%%%%%%%%%%%%%%%%%%%%%
+* integer_constants *
+%%%%%%%%%%%%%%%%%%%%%
+  (6) num_cols              : 4                
+  (7) num_rows              : 3                
+  (8) num_p_levels          : 5                
+  (46) frictional_timescale : Not found in file
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* level_dependent_constants *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+(1) eta_at_theta:
+  1 : 0
+  2 : 1
+  3 : 2
+  4 : 3
+  5 : 4
+
+(2) eta_at_rho:
+  1 : 0
+  2 : 2
+  3 : 4
+  4 : 6
+  5 : 8
+
+(3) rhcrit:
+  1 : 0 
+  2 : 3 
+  3 : 6 
+  4 : 9 
+  5 : 12
+
+(4) soil_thickness:
+  1 : 0 
+  2 : 4 
+  3 : 8 
+  4 : 12
+  5 : 16
+
+(5) zsea_at_theta:
+  1 : 0 
+  2 : 5 
+  3 : 10
+  4 : 15
+  5 : 20
+
+(6) c_at_theta:
+  1 : 0 
+  2 : 6 
+  3 : 12
+  4 : 18
+  5 : 24
+
+(7) zsea_at_rho:
+  1 : 0 
+  2 : 7 
+  3 : 14
+  4 : 21
+  5 : 28
+
+(8) c_at_rho:
+  1 : Not found in file
+

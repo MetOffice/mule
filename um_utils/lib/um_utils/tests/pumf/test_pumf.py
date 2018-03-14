@@ -19,7 +19,6 @@
 from __future__ import (absolute_import, division, print_function)
 
 import os
-import numpy as np
 import um_utils.tests as tests
 
 from StringIO import StringIO
@@ -37,7 +36,7 @@ _ADD_NEW_TESTS = False
 
 class TestPumf(tests.UMUtilsNDTest):
 
-    def run_comparison(self, testname, n_fields=1, **kwargs):
+    def run_comparison(self, testname, n_fields=1, ff=None, **kwargs):
         """
         Main test function, takes the name of a test to provide the
         output file and runs :meth:`pumf.pprint`, then compares
@@ -48,7 +47,8 @@ class TestPumf(tests.UMUtilsNDTest):
         nx, ny, nz = 4, 3, 5
         x0, y0, dx, dy = 10.0, -60.0, 0.1, 0.2
         stagger = 3
-        ff = self._minimal_valid_ff(nx, ny, nz, x0, y0, dx, dy, stagger)
+        if ff is None:
+            ff = self._minimal_valid_ff(nx, ny, nz, x0, y0, dx, dy, stagger)
         for _ in range(n_fields):
             self.new_p_field(ff)
 
@@ -120,6 +120,23 @@ class TestPumf(tests.UMUtilsNDTest):
     def test_columns(self):
         # Testing a different number of columns
         self.run_comparison("columns", print_columns=3)
+
+    def test_truncated_arrays(self):
+        # To verify a broken file doesn't crash pumf, we need to construct an
+        # ff outside of run comparison so we can break it:
+        nx, ny, nz = 4, 3, 5
+        x0, y0, dx, dy = 10.0, -60.0, 0.1, 0.2
+        stagger = 3
+        ff = self._minimal_valid_ff(nx, ny, nz, x0, y0, dx, dy, stagger)
+        # Break a BaseHeaderComponent1D array:
+        ff.integer_constants._values = ff.integer_constants._values[:-1]
+        # And break a BaseHeaderComponent2D array:
+        broken_ldc = ff.level_dependent_constants._values[:-1, :-1]
+        ff.level_dependent_constants._values = broken_ldc
+        components = ["integer_constants", "level_dependent_constants"]
+        self.run_comparison("truncated_arrays",
+                            component_filter=components,
+                            ff=ff)
 
 
 if __name__ == "__main__":

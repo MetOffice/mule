@@ -169,7 +169,10 @@ def _print_component_1d(header, stdout, print_settings=PRINT_SETTINGS):
         # If we are only to select from named properties, use the
         # header mapping dictionary as our iterator
         for name, index in header.HEADER_MAPPING:
-            value = getattr(header, name)
+            try:
+                value = getattr(header, name)
+            except IndexError:
+                value = 'Not found in file'
             # If this value is missing and we are not including missing
             # values, skip it
             if value == header.MDI and not include_missing:
@@ -221,7 +224,10 @@ def _print_component_2d(header, stdout, print_settings=PRINT_SETTINGS):
         # If we are only to select from named properties, use the
         # header mapping dictionary as our iterator
         for name, index in header.HEADER_MAPPING:
-            value = getattr(header, name)
+            try:
+                value = getattr(header, name)
+            except IndexError:
+                value = ['Not found in file', ]
             # Omit the printing of the header if every element in that
             # slice is missing
             if np.all(value == header.MDI) and not include_missing:
