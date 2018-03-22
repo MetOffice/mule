@@ -14,6 +14,7 @@
 # You should have received a copy of the Modified BSD License
 # along with Mule.  If not, see <http://opensource.org/licenses/BSD-3-Clause>.
 
+import os
 from glob import glob
 from setuptools import setup
 
@@ -32,13 +33,12 @@ setup(name='um_utils',
                 'um_utils.tests.cutout',
                 'um_utils.tests.fixframe'
                 ],
-      data_files=[('um_utils/tests', ["lib/um_utils/tests/test_stashmaster"]),
-                  ('um_utils/tests/pumf/output',
-                   glob('lib/um_utils/tests/pumf/output/*.txt')),
-                  ('um_utils/tests/summary/output',
-                   glob('lib/um_utils/tests/summary/output/*.txt')),
-                  ('um_utils/tests/cumf/output',
-                   glob('lib/um_utils/tests/cumf/output/*.txt'))],
+      package_data={'um_utils':
+                    [os.path.relpath(path, "lib/um_utils")
+                     for path in (glob('lib/um_utils/tests/cumf/output/*') +
+                                  glob('lib/um_utils/tests/pumf/output/*') +
+                                  glob('lib/um_utils/tests/summary/output/*') +
+                                  ['lib/um_utils/tests/test_stashmaster'])]},
       entry_points={
           'console_scripts': [
               'mule-pumf = um_utils.pumf:_main',

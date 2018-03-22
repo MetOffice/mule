@@ -66,6 +66,14 @@ PYTHONEXEC=${PYTHONEXEC:-python2.7}
 SCRATCHDIR=$(mktemp -d)
 SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
 
+# Make relative paths absolute
+if [ ! ${LIB_DEST:0:1} == "/" ] ; then
+    LIB_DEST=$PWD/$LIB_DEST
+fi
+if [ ! ${BIN_DEST:0:1} == "/" ] ; then
+    BIN_DEST=$PWD/$BIN_DEST
+fi
+
 # Create install directores - they may already exist but should be 
 # empty if they do, also check the modules exist in the cwd
 exit=0
@@ -126,9 +134,7 @@ cd $wc_root/um_packing
 
 echo "Building packing module..."
 $PYTHONEXEC setup.py build_ext --inplace \
-   -I$SHUMLIB/include -L$SHUMLIB/lib \
-   -lshum_byteswap,shum_string_conv,shum_wgdos_packing \
-   -R$SHUMLIB/lib
+   -I$SHUMLIB/include -L$SHUMLIB/lib -R$SHUMLIB/lib
 
 # SSTPert library (if being used)
 if [ -n "$SSTPERT_LIB" ] ; then
@@ -137,7 +143,7 @@ if [ -n "$SSTPERT_LIB" ] ; then
 
     echo "Building sstpert module..."
     $PYTHONEXEC setup.py build_ext --inplace \
-        -I$SSTPERT_LIB/include -L$SSTPERT_LIB/lib -lum_sstpert -R$SSTPERT_LIB/lib
+        -I$SSTPERT_LIB/include -L$SSTPERT_LIB/lib -R$SSTPERT_LIB/lib
 fi
 
 #----------------------------------------------#

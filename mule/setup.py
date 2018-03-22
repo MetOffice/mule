@@ -14,6 +14,7 @@
 # You should have received a copy of the Modified BSD License
 # along with Mule.  If not, see <http://opensource.org/licenses/BSD-3-Clause>.
 
+import os
 from glob import glob
 from setuptools import setup
 
@@ -28,5 +29,6 @@ setup(name='mule',
                 'mule.tests.unit',
                 'mule.tests.integration',
                 'mule.example_code'],
-      data_files=[('mule/tests/test_datafiles',
-                   glob('lib/mule/tests/test_datafiles/*'))])
+      package_data={'mule':
+                    [os.path.relpath(path, "lib/mule")
+                     for path in glob('lib/mule/tests/test_datafiles/*')]})

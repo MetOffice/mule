@@ -22,8 +22,7 @@ subdirectories, with the "libum_sstpert.so" shared object present in "lib")
 
 Then use the following command to build the extension:
 
-    python setup.py build_ext --inplace \
-           -I$DIR/include -L$DIR/lib -lum_sstpert -R$DIR/lib
+    python setup.py build_ext --inplace -I$DIR/include -L$DIR/lib -R$DIR/lib
 
 
 Installation (Central)

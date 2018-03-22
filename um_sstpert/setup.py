@@ -33,7 +33,8 @@ setuptools.setup(
                 setuptools.Extension(
                     'um_sstpert.um_sstpert',
                     ['lib/um_sstpert/um_sstpert.c'],
-                    include_dirs=[np.get_include()])
+                    include_dirs=[np.get_include()],
+                    libraries=["um_sstpert"])
                 ])},
     entry_points={
         'console_scripts': [

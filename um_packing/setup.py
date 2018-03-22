@@ -34,5 +34,7 @@ setuptools.setup(
                 setuptools.Extension(
                     'um_packing.um_packing',
                     ['lib/um_packing/um_packing.c'],
-                    include_dirs=[np.get_include()])
-                ])})
+                    include_dirs=[np.get_include()],
+                    libraries=["shum_byteswap",
+                               "shum_wgdos_packing",
+                               "shum_string_conv"])])})
