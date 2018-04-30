@@ -14,6 +14,16 @@ Compared 5/9 fields, with 3 matches
 2 fields found in file 1 were not in file 2
 2 fields found in file 2 were not in file 1
 
+Fields in file 1 but not file 2:
+ * 1/7: U COMPNT OF WIND AFTER TIMESTEP -  t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-99)
+
+  More fields are missing from file 2, but the print maximum has been reached.
+
+Fields in file 2 but not file 1:
+ * 1/7: V COMPNT OF WIND AFTER TIMESTEP -  t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-99)
+
+  More fields are missing from file 1, but the print maximum has been reached.
+
 Maximum RMS diff as % of data in file 1: 400.0 (field 4)
 Maximum RMS diff as % of data in file 2: 80.0 (field 4)
 

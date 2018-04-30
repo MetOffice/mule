@@ -121,8 +121,8 @@ def _print_name_value_pairs(
 
     """
     # Create a width formatting string from the given widths
-    width_format = ("  {0:"+str(name_width)+"s} "
-                    ": {1:"+str(value_width)+"s}")
+    width_format = ("  {0: <"+str(name_width)+"s} "
+                    ": {1: >"+str(value_width)+"s}")
     # Now print each pairing
     column_count = 0
     for name, value in pairings:
@@ -131,11 +131,16 @@ def _print_name_value_pairs(
         column_count += 1
         if column_count % n_columns == 0:
             stdout.write("\n")
+        else:
+            if len(pairings) > column_count:
+                stdout.write("   | ")
 
     # The way the above works, if the entries didn't fall nicely
     # into the number of columns, it won't end in a newline, so
     # we insert one here
     if column_count % n_columns != 0:
+        if len(pairings) > n_columns:
+            stdout.write("   |")
         stdout.write("\n")
 
     # And a final newline to break for the next section

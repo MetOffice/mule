@@ -27,10 +27,6 @@ from StringIO import StringIO
 from um_utils import cumf
 
 
-# Disable warnings about the presence of the STASHmaster file
-import warnings
-warnings.filterwarnings("ignore", r".*unable to load STASHmaster file.*")
-
 # Manually change this flag to "True" if you are trying to add a new test -
 # this will trigger the testing to save the output if it doens't already
 # exist (for development work which adds a new test file)
@@ -81,7 +77,7 @@ class TestCumf(tests.UMUtilsNDTest):
         x0, y0, dx, dy = 10.0, -60.0, 0.1, 0.2
         stagger = 3
         ff1 = self._minimal_valid_ff(nx, ny, nz, x0, y0, dx, dy, stagger)
-        for _ in range(6):
+        for _ in range(7):
             self.new_p_field(ff1)
 
         for field in ff1.fields:
@@ -90,7 +86,7 @@ class TestCumf(tests.UMUtilsNDTest):
             field.raw[1] = 2015
 
         ff2 = self._minimal_valid_ff(nx, ny, nz, x0, y0, dx, dy, stagger)
-        for _ in range(6):
+        for _ in range(7):
             self.new_p_field(ff2)
 
         for field in ff2.fields:
@@ -98,10 +94,20 @@ class TestCumf(tests.UMUtilsNDTest):
             # will delete the fields!
             field.raw[1] = 2015
 
-        # Break the headers of field #2 - this field will then fail to be
+        # Break the headers of fields #0 & #2 - this field will then fail to be
         # matched in the two files
-        ff1.fields[2].lbuser4 = 300
+        ff1.fields[0].lbuser4 = 2
+        ff2.fields[0].lbuser4 = 3
+        ff1.fields[2].lbuser4 = 3227
         ff2.fields[2].lbuser4 = 500
+
+        # Make field #6 match, but use an unknown stash code
+        ff1.fields[6].lbuser4 = 700
+        ff2.fields[6].lbuser4 = 700
+
+        # add a fake STASHmaster
+        ff1.attach_stashmaster_info(ff1.stashmaster)
+        ff2.attach_stashmaster_info(ff2.stashmaster)
 
         # Field #3 will have different data
         nx, ny = ff1.fields[3].lbnpt, ff1.fields[3].lbrow
@@ -119,6 +125,10 @@ class TestCumf(tests.UMUtilsNDTest):
         ff2.level_dependent_constants.raw[:, 1] = np.arange(
             ff2.integer_constants.num_p_levels + 1)*5.0
         ff2.integer_constants.num_p_levels = 70
+
+        # Add dummy source path
+        ff1._source_path = "[Test generated file 1]"
+        ff2._source_path = "[Test generated file 2]"
 
         return ff1, ff2
 
@@ -145,6 +155,83 @@ class TestCumf(tests.UMUtilsNDTest):
                             ignore_templates={"fixed_length_header": [9],
                                               "integer_constants": [8],
                                               "lookup": [29]})
+
+    def test_show_missing(self):
+        # Test of show-missing
+        ff1, ff2 = self.create_2_different_files()
+        self.run_comparison(ff1, ff2, "show_missing",
+                            show_missing=True)
+
+    def test_show_missing_maxone(self):
+        # Test of show-missing
+        ff1, ff2 = self.create_2_different_files()
+        self.run_comparison(ff1, ff2, "show_missing_maxone",
+                            show_missing=True,
+                            show_missing_max=1)
+
+    def test_show_missing_full(self):
+        # Test of show-missing with full output
+        ff1, ff2 = self.create_2_different_files()
+        self.run_comparison(ff1, ff2, "show_missing_full",
+                            show_missing=True,
+                            only_report_failures=False)
+
+    def test_order_missmatch(self):
+        # Test of show-missing with full output
+        ff1, _ = self.create_2_different_files()
+        ff2 = ff1.copy()
+        ff2._source_path = "[Test generated file 2]"
+        ff2.fields = list(ff1.fields)
+        ff2.fields[2], ff2.fields[3] = ff1.fields[3], ff1.fields[2]
+        self.run_comparison(ff1, ff2, "no_difference")
+
+    def test_order_missmatch_full(self):
+        # Test of show-missing with full output
+        ff1, _ = self.create_2_different_files()
+        ff2 = ff1.copy()
+        ff2._source_path = "[Test generated file 2]"
+        ff2.fields = list(ff1.fields)
+        ff2.fields[2], ff2.fields[3] = ff1.fields[3], ff1.fields[2]
+        self.run_comparison(ff1, ff2, "order_missmatch_full",
+                            show_missing=True,
+                            only_report_failures=False)
+
+    def test_show_missing_alldifferent(self):
+        # Test of show-missing with all fields different
+        ff1, ff2 = self.create_2_different_files()
+        for field in ff1.fields:
+            field.lbuser4 = 300
+        for field in ff2.fields:
+            field.lbuser4 = 500
+        self.run_comparison(ff1, ff2, "show_missing_alldifferent",
+                            show_missing=True)
+
+    def test_no_difference(self):
+        # Test with no differences
+        ff1, _ = self.create_2_different_files()
+        ff2 = ff1.copy()
+        ff2._source_path = "[Test generated file 2]"
+        ff2.fields = list(ff1.fields)
+        self.run_comparison(ff1, ff2, "no_difference")
+
+    def test_no_difference_show_missing(self):
+        # Test no differences and show-missing (which should
+        # do nothing)
+        ff1, _ = self.create_2_different_files()
+        ff2 = ff1.copy()
+        ff2._source_path = "[Test generated file 2]"
+        ff2.fields = list(ff1.fields)
+        self.run_comparison(ff1, ff2, "no_difference",
+                            show_missing=True)
+
+    def test_no_difference_full(self):
+        # Test no differences with full output
+        ff1, _ = self.create_2_different_files()
+        ff2 = ff1.copy()
+        ff2._source_path = "[Test generated file 2]"
+        ff2.fields = list(ff1.fields)
+        self.run_comparison(ff1, ff2, "no_difference_full",
+                            only_report_failures=False)
 
 if __name__ == "__main__":
     tests.main()

@@ -2,20 +2,22 @@
 * CUMF-II Comparison Report *
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-File 1: None
-File 2: None
+File 1: [Test generated file 1]
+File 2: [Test generated file 2]
 Files DO NOT compare
   * 1 differences in fixed_length_header (with 12 ignored indices)
   * 1 differences in integer_constants (with 0 ignored indices)
   * 5 differences in level_dependent_constants (with 0 ignored indices)
   * 1 field differences, of which 1 are in data
 
-Compared 5/7 fields, with 4 matches
-1 fields found in file 1 were not in file 2
-1 fields found in file 2 were not in file 1
-Ignored lookup indices: 
+Compared 5/9 fields, with 4 matches
+2 fields found in file 1 were not in file 2
+2 fields found in file 2 were not in file 1
+
+Ignored lookup indices:
   Index 29 (lbegin)
   Index 40 (lbuser2)
+
 Maximum RMS diff as % of data in file 1: 400.0 (field 4)
 Maximum RMS diff as % of data in file 2: 80.0 (field 4)
 
@@ -23,7 +25,7 @@ Maximum RMS diff as % of data in file 2: 80.0 (field 4)
 * fixed_length_header *
 %%%%%%%%%%%%%%%%%%%%%%%
 Components DO NOT compare (compared 244/256 values)
-Ignored indices: 
+Ignored indices:
   Index 35 (t3_year)
   Index 36 (t3_month)
   Index 37 (t3_day)
@@ -51,18 +53,18 @@ Component differences:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Components DO NOT compare (compared 48/48 values)
 Component differences:
-  Index (1, 1) differs - file_1: 1  file_2: 5.0 
+  Index (1, 1) differs - file_1: 1  file_2:  5.0
   Index (2, 1) differs - file_1: 2  file_2: 10.0
   Index (3, 1) differs - file_1: 3  file_2: 15.0
   Index (4, 1) differs - file_1: 4  file_2: 20.0
   Index (5, 1) differs - file_1: 5  file_2: 25.0
 
-%%%%%%%%%%%%%%
-* Field 3/5  *
-%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* Field 2/5 - THETA AFTER TIMESTEP *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Lookup compares, data DOES NOT compare
 Compared 62/64 lookup values.
-File_1 lookup info: 
+File_1 lookup info:
   t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-99)
 Data differences:
   Number of point differences  : 11/12

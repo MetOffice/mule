@@ -70,6 +70,14 @@ Global comparison settings:
         to provide extra information about the fields.  It will be passed 2
         arguments - the comparison field and the stdout object to write to.
 
+    * show_missing:
+        Flag which causes a list of fields missing from each file to be
+        generated in the report. (default: False)
+
+    * show_missing_max:
+        Maximum number of missing fields to display. Set to -1 to indicate no
+        maximum. (default: -1)
+
 """
 import re
 import sys
@@ -78,6 +86,7 @@ import errno
 import argparse
 import textwrap
 import numpy as np
+import cStringIO
 from collections import defaultdict
 from um_utils.stashmaster import STASHmaster
 from um_utils.pumf import pprint, _banner
@@ -117,6 +126,8 @@ COMPARISON_SETTINGS = {
     "ignore_missing": False,
     "only_report_failures": True,
     "lookup_print_func": _print_lookup,
+    "show_missing": False,
+    "show_missing_max": -1,
     }
 
 # Lookup indices which should be ignored when the user indicates
@@ -516,6 +527,20 @@ class UMFileComparison(object):
 
     """
 
+    show_missing = False
+    """
+    Flag which details if a list of missing fields for each file should be
+    generated in reports.
+
+    """
+
+    show_missing_max = -1
+    """
+    The maximum number of missing fields to list. Set to -1 to indicate no
+    maximum.
+
+    """
+
     max_rms_diff_1 = None
     """
     A tuple containing the maximum encountered RMS difference relative to
@@ -611,8 +636,8 @@ class UMFileComparison(object):
             component_ignores = list(
                 comp_settings["ignore_templates"].get(name, []))
 
-            if (comp_settings["ignore_missing"]
-                    and name == "fixed_length_header"):
+            if (comp_settings["ignore_missing"] and
+                    name == "fixed_length_header"):
                 component_ignores.extend(_INDEX_IGNORE_MISSING_FLH)
 
             comparison = ComponentComparison(component_1, component_2,
@@ -635,8 +660,14 @@ class UMFileComparison(object):
         if comp_settings["ignore_missing"]:
             lookup_ignores.extend(_INDEX_IGNORE_MISSING_FIELDS)
 
+        lookup_ignores = sorted(list(set(lookup_ignores)))
+
         # Save the list of ignored lookup indices to this object for later
         self.lookup_ignores = lookup_ignores
+
+        # Save the show-missing option
+        self.show_missing = comp_settings["show_missing"]
+        self.show_missing_max = comp_settings["show_missing_max"]
 
         # Initialise the elements which hold the field comparison objects
         self.field_comparisons = []
@@ -647,8 +678,8 @@ class UMFileComparison(object):
         # to compare
         if len(um_file1.fields) == 0:
             # And unless this is allowed or expected, it's also a failure
-            if (len(um_file2.fields) != 0
-                    and not comp_settings["ignore_missing"]):
+            if (len(um_file2.fields) != 0 and
+                    not comp_settings["ignore_missing"]):
                 self.match = False
             return
 
@@ -660,8 +691,8 @@ class UMFileComparison(object):
         # completely match (unless the user has specified that this is okay)
         n_indices = len(index)
         if ((n_indices != len(um_file1.fields) or
-                n_indices != len(um_file2.fields))
-                and not comp_settings["ignore_missing"]):
+                n_indices != len(um_file2.fields)) and
+                not comp_settings["ignore_missing"]):
             self.match = False
 
         # Now iterate through the fields whose lookups appear to match
@@ -841,9 +872,9 @@ def summary_report(comparison, stdout=None):
     if comparison.unmatched_file_1 is None:
         total_fields = 0
     else:
-        total_fields = (fields_compared
-                        + len(comparison.unmatched_file_1)
-                        + len(comparison.unmatched_file_2))
+        total_fields = (fields_compared +
+                        len(comparison.unmatched_file_1) +
+                        len(comparison.unmatched_file_2))
     matches = sum([fcomp.match for fcomp in comparison.field_comparisons])
     stdout.write("Compared {0}/{1} fields, with {2} matches\n"
                  .format(fields_compared, total_fields, matches))
@@ -858,14 +889,61 @@ def summary_report(comparison, stdout=None):
         stdout.write(msg.format(len(comparison.unmatched_file_2)))
 
     # If not all fields were compared, report here, and exit if none were
-    # compared
+    # compared, unless --show-missing was requested. In that case continue
+    # far enough to print lookup ignores, which are now relevant.
     if fields_compared != total_fields and fields_compared == 0:
-        stdout.write("\n")
-        return
+        if not comparison.show_missing:
+            stdout.write("\n")
+            return
+
+    # Report missing fields if requested
+    if comparison.show_missing:
+        if fields_compared == 0:
+            stdout.write("Not listing specific missing fields,"
+                         " because all fields are missing from both files."
+                         " (No fields are common.)\n")
+        else:
+            msg = " * {0}/{1}: {2} -{3}\n"
+            counts = [comparison.unmatched_file_1, comparison.unmatched_file_2]
+            umfiles = [comparison.file_1, comparison.file_2]
+            for ifile, (count, umfile) in enumerate(zip(counts, umfiles)):
+                total_missing_shown = 0
+                file_a = str(ifile % 2 + 1)
+                file_b = str((ifile + 1) % 2 + 1)
+                if len(count) > 0:
+                    stdout.write("\n")
+                    stdout.write("Fields in file {0} but not file {1}:\n"
+                                 .format(file_a, file_b))
+                    for index in count:
+                        if (total_missing_shown >= comparison.show_missing_max
+                                and comparison.show_missing_max != -1):
+                            stdout.write(
+                                "  More fields are missing from file {0:s},"
+                                .format(file_b) +
+                                " but the print maximum has been reached.\n")
+                            break
+                        if umfile.fields[index].stash is not None:
+                            if umfile.fields[index].stash.name is not None:
+                                stashname = umfile.fields[index].stash.name
+                            else:
+                                stashname = "Unknown STASH (code: {})".format(
+                                    umfile.fields[index].lbuser4)
+                        else:
+                            stashname = "Unknown STASH (code: {})".format(
+                                umfile.fields[index].lbuser4)
+                        lookup_info = cStringIO.StringIO()
+                        _print_lookup(umfile.fields[index], lookup_info)
+                        stdout.write(msg.format(index+1,
+                                                len(umfile.fields),
+                                                stashname,
+                                                lookup_info.getvalue()))
+                        lookup_info.close()
+                        total_missing_shown = total_missing_shown + 1
 
     # Report which indices were ignored from the lookups
     if len(comparison.lookup_ignores) > 0:
         ignored = []
+        stdout.write("\n")
         for index in comparison.lookup_ignores:
             indexstr = str(index)
             for map_name, map_ind in mule._LOOKUP_HEADER_3:
@@ -873,8 +951,15 @@ def summary_report(comparison, stdout=None):
                     indexstr = "{0} ({1})".format(index, map_name)
                     break
             ignored.append(indexstr)
-        stdout.write("Ignored lookup indices: \n  Index {0}\n"
+        stdout.write("Ignored lookup indices:\n  Index {0}\n"
                      .format("\n  Index ".join(ignored)))
+
+    stdout.write("\n")
+
+    # If not all fields were compared, report here, and exit if none were
+    # compared
+    if fields_compared != total_fields and fields_compared == 0:
+        return
 
     # Report on the maximum RMS diff percentage
     if comparison.max_rms_diff_1[0] > 0.0:
@@ -885,7 +970,10 @@ def summary_report(comparison, stdout=None):
         stdout.write(
             "Maximum RMS diff as % of data in file 2: {0} (field {1})\n"
             .format(*comparison.max_rms_diff_2))
-    stdout.write("\n")
+
+    if (comparison.max_rms_diff_1[0] > 0.0 or
+            comparison.max_rms_diff_2[0] > 0.0):
+        stdout.write("\n")
 
 
 def full_report(comparison, stdout=None, **kwargs):
@@ -957,8 +1045,8 @@ def full_report(comparison, stdout=None, **kwargs):
 
         # Construct an appropriate width statement
         width_format = ("  Index {0:"+str(max_width[0])+"} differs - "
-                        "file_1: {1:"+str(max_width[1])+"}  "
-                        "file_2: {2:"+str(max_width[2])+"}\n")
+                        "file_1: {1: >"+str(max_width[1])+"}  "
+                        "file_2: {2: >"+str(max_width[2])+"}\n")
 
         # Output the nicely formatter lines
         for output in to_output:
@@ -983,7 +1071,7 @@ def full_report(comparison, stdout=None, **kwargs):
                             indexstr = "{0} ({1})".format(index, map_name)
                             break
                 ignored.append(indexstr)
-            msg_ignore = ("\nIgnored indices: \n  Index {0}"
+            msg_ignore = ("\nIgnored indices:\n  Index {0}"
                           .format("\n  Index ".join(ignored)))
             msg_values += msg_ignore
 
@@ -1060,7 +1148,7 @@ def full_report(comparison, stdout=None, **kwargs):
                      .format(*comp_lookup.compared))
 
         # Print some extra information about the fields
-        stdout.write("File_1 lookup info: \n")
+        stdout.write("File_1 lookup info:\n")
         print_lookups(comp_field.lookup_comparison.component_1, stdout)
 
         # Report if there was a difference in the ordering of the fields
@@ -1134,6 +1222,14 @@ def _main():
                              initial_indent=4*" ",
                              subsequent_indent=8*" "))
 
+    class ShowMissingAction(argparse.Action):
+        def __init__(self, option_strings, dest, nargs=None, **kwargs):
+            super(ShowMissingAction, self).__init__(
+                option_strings, dest, **kwargs)
+
+        def __call__(self, parser, namespace, values, option_string=None):
+            setattr(namespace, "show_missing", [True, values])
+
     # Setup the parser
     parser = argparse.ArgumentParser(
         usage=argparse.SUPPRESS,
@@ -1182,11 +1278,25 @@ def _main():
         "  mule.stashmaster.STASHMASTER_PATH_PATTERN \n"
         "which by default is : \n"
         "  $UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A\n")
+    parser.add_argument(
+        "--show-missing",
+        nargs='1',
+        action=ShowMissingAction,
+        default=[False, -1],
+        metavar='[=N]',
+        help="display missing fields from either file. If given, N is the\n"
+        " maximum number of fields to display.\n")
 
     # If the user supplied no arguments, print the help text and exit
     if len(sys.argv) == 1:
         parser.print_help()
         parser.exit(1)
+
+    # set the default value for --show-missing if none was given
+    try:
+        sys.argv[sys.argv.index("--show-missing")] = "--show-missing=-1"
+    except ValueError:
+        pass
 
     args = parser.parse_args()
 
@@ -1213,6 +1323,9 @@ def _main():
 
     # Process the ignore missing flag
     COMPARISON_SETTINGS["ignore_missing"] = args.ignore_missing
+    COMPARISON_SETTINGS["show_missing"] = args.show_missing[0]
+    if args.show_missing[0]:
+        COMPARISON_SETTINGS["show_missing_max"] = args.show_missing[1]
 
     # If provided, load the given stashmaster
     stashm = None
@@ -1227,6 +1340,7 @@ def _main():
 
     if args.full:
         COMPARISON_SETTINGS["only_report_failures"] = False
+        COMPARISON_SETTINGS["show_missing"] = True
 
     # Get the filenames
     file_1 = mule.load_umfile(args.file_1, stashmaster=stashm)

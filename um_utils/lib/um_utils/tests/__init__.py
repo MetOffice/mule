@@ -24,6 +24,8 @@ import unittest as tests
 
 import mule
 
+from mule.stashmaster import STASHmaster
+
 # Path to a simple STASHmaster file sufficient to test the below classes
 SAMPLE_STASHMASTER = os.path.join(
     os.path.dirname(__file__), "test_stashmaster")
@@ -58,6 +60,7 @@ class _UMUtilsTest(tests.TestCase):
 
         """
         ff = mule.FieldsFile()
+
         ff.fixed_length_header.dataset_type = 3
         ff.fixed_length_header.grid_staggering = grid_stagger
 
@@ -77,6 +80,9 @@ class _UMUtilsTest(tests.TestCase):
         ldc_range = np.arange(num_levels + 1)
         for idim in range(1, ff.level_dependent_constants.shape[1] + 1):
             ff.level_dependent_constants.raw[:, idim] = ldc_range*idim
+
+        stashmaster = STASHmaster.from_file(SAMPLE_STASHMASTER)
+        ff.stashmaster = stashmaster
 
         return ff
 
