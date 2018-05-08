@@ -26,8 +26,8 @@ Fields in file 2 but not file 1:
  * 3/7: Unknown STASH (code: 500) -  t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-99)
 
 
-Maximum RMS diff as % of data in file 1: 400.0 (field 4)
-Maximum RMS diff as % of data in file 2: 80.0 (field 4)
+Maximum RMS diff as % of data in file 1: 382.970843103 (field 4)
+Maximum RMS diff as % of data in file 2: 76.5941686205 (field 4)
 
 %%%%%%%%%%%%%%%%%%%%%%%
 * fixed_length_header *
@@ -73,8 +73,8 @@ Data differences:
   Number of point differences  : 11/12
   Maximum absolute difference  : 44.0
   RMS difference               : 25.9743463184
-  RMS diff as % of file_1 data : 400.0
-  RMS diff as % of file_2 data : 80.0
+  RMS diff as % of file_1 data : 382.970843103
+  RMS diff as % of file_2 data : 76.5941686205
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 * Field 3/5 - THETA AFTER TIMESTEP *

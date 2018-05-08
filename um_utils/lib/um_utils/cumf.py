@@ -287,8 +287,14 @@ class DifferenceOperator(mule.DataOperator):
         data2 = fields[1].get_data()
 
         # A quick helper function which calculates the RMS of the arrays
-        def rms(array):
-            return np.sqrt(np.mean(np.square(array)))
+        def rms(array, mdi_val=None):
+            if mdi_val is not None:
+                rms_points = array[array != mdi_val]
+                if rms_points.size == 0:
+                    rms_points = array
+            else:
+                rms_points = array
+            return np.sqrt(np.mean(np.square(rms_points)))
 
         # Store whether the field matches, and several statistical measures
         # of the differences if any are found
@@ -309,8 +315,8 @@ class DifferenceOperator(mule.DataOperator):
             new_field.rms_diff = rms(diff)
 
             # Get the RMS of each field
-            rms_field1 = rms(data1)
-            rms_field2 = rms(data2)
+            rms_field1 = rms(data1, mdi_val=fields[0].bmdi)
+            rms_field2 = rms(data2, mdi_val=fields[1].bmdi)
 
             # Save the normalised RMS difference as a % of each field (if
             # the field was non-zero)
@@ -1176,10 +1182,16 @@ def full_report(comparison, stdout=None, **kwargs):
                          .format(comp_field.max_diff))
             stdout.write("  RMS difference               : {0}\n"
                          .format(comp_field.rms_diff))
-            if comp_field.rms_norm_diff_1 is not None:
+            if comp_field.rms_norm_diff_1 is None:
+                stdout.write("  RMS diff as % of file_1 data : "
+                             "NaN (File 1 data all zero) \n")
+            else:
                 stdout.write("  RMS diff as % of file_1 data : {0}\n"
                              .format(comp_field.rms_norm_diff_1))
-            if comp_field.rms_norm_diff_2 is not None:
+            if comp_field.rms_norm_diff_2 is None:
+                stdout.write("  RMS diff as % of file_2 data : "
+                             "NaN (File 2 data all zero) \n")
+            else:            
                 stdout.write("  RMS diff as % of file_2 data : {0}\n"
                              .format(comp_field.rms_norm_diff_2))
 
