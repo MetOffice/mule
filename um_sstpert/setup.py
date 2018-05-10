@@ -1,4 +1,4 @@
-# (C) Crown Copyright 2017, Met Office. All rights reserved.
+# (C) Crown Copyright 2018, Met Office. All rights reserved.
 #
 # This file is part of the UM packing library module.
 #
@@ -34,7 +34,8 @@ setuptools.setup(
                     'um_sstpert.um_sstpert',
                     ['lib/um_sstpert/um_sstpert.c'],
                     include_dirs=[np.get_include()],
-                    libraries=["um_sstpert"])
+                    libraries=["um_sstpert",
+                               "shum_string_conv"])
                 ])},
     entry_points={
         'console_scripts': [

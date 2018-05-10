@@ -1,4 +1,4 @@
-# (C) Crown Copyright 2017, Met Office. All rights reserved.
+# (C) Crown Copyright 2018, Met Office. All rights reserved.
 #
 # This file is part of the SHUMlib packing library module.
 #

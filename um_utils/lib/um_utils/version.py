@@ -1,4 +1,4 @@
-# (C) Crown Copyright 2015, Met Office. All rights reserved.
+# (C) Crown Copyright 2018, Met Office. All rights reserved.
 #
 # This file is part of the UM utilities module, which use the Mule API.
 #

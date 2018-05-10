@@ -1,6 +1,6 @@
 # (C) Crown Copyright 2018, Met Office. All rights reserved.
 #
-# This file is part of the SHUMlib packing library module.
+# This file is part of the UM packing library module.
 #
 # It is free software: you can redistribute it and/or modify it under
 # the terms of the Modified BSD License, as published by the
@@ -12,29 +12,27 @@
 # Modified BSD License for more details.
 #
 # You should have received a copy of the Modified BSD License
-# along with this SHUMlib packing module.
+# along with this UM WAFC CB module.
 # If not, see <http://opensource.org/licenses/BSD-3-Clause>.
 import setuptools
 import numpy as np
 
 setuptools.setup(
-    name='um_packing',
+    name='um_wafccb',
     version='2017.08.1',
-    description='Unified Model packing library extension',
+    description='Unified Model WAFC CB extension',
     author='UM Systems Team',
     url='https://code.metoffice.gov.uk/trac/um',
     package_dir={'': 'lib'},
-    packages=['um_packing',
-              'um_packing.tests'],
+    packages=['um_wafccb'],
     features={
-        'packing': setuptools.Feature(
-            "SHUMlib Packing library",
+        'wafccb': setuptools.Feature(
+            "UM WAFC CB library (requires UM Licence)",
             standard=True,
             ext_modules=[
                 setuptools.Extension(
-                    'um_packing.um_packing',
-                    ['lib/um_packing/um_packing.c'],
+                    'um_wafccb.um_wafccb',
+                    ['lib/um_wafccb/um_wafccb.c'],
                     include_dirs=[np.get_include()],
-                    libraries=["shum_byteswap",
-                               "shum_wgdos_packing",
-                               "shum_string_conv"])])})
+                    libraries=["um_wafccb"]),
+                ])})

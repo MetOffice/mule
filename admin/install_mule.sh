@@ -17,16 +17,18 @@ set -eu
 
 if [ $# -lt 3 ] ; then
     echo "USAGE: "
-    echo "   $(basename $0) <lib_dest> <bin_dest> <shumlib> [sstpert_lib]"
+    echo "   $(basename $0) [--sstpert_lib <sstpert_lib>]"
+    echo "                  [--wafccb_lib <wafccb_lib>]"
+    echo "                  <lib_dest> <bin_dest> <shumlib> "
     echo ""
     echo "   Must be called from the top-level of a working "
     echo "   copy of the UM mule project, containing the 3"
     echo "   module folders (um_packing, um_utils and mule)"
     echo ""
-    echo "   Optionally, the um_sstpert extension can also be "
-    echo "   included (but it is not by default because the "
-    echo "   required library is available only under a UM "
-    echo "   license)"
+    echo "   Optionally the um_sstpert and um_wafccb "
+    echo "   extensions can also be included (but they are "
+    echo "   not by default because the required libraries "
+    echo "   are available only under a UM license)"
     echo ""
     echo "ARGS: "
     echo "  * <lib_dest>"
@@ -38,9 +40,12 @@ if [ $# -lt 3 ] ; then
     echo "  * <shumlib>"
     echo "      The location of the UM shared library"
     echo "      for linking the um_packing extension."
-    echo "  * [sstpert_lib]"
+    echo "  * --sstpert_lib <sstpert_lib>"
     echo "      (Optional) The location of the UM sstpert"
     echo "      library for linking the um_sstpert extension."
+    echo "  * --wafccb_lib <wafccb_lib>"
+    echo "      (Optional) The location of the UM wafccb"
+    echo "      library for linking the um_wafccb extension."
     echo ""
     echo "  After running the script the directory "
     echo "  named in <lib_dest> should be suitable to "
@@ -51,14 +56,31 @@ if [ $# -lt 3 ] ; then
     exit 1
 fi
 
+# Process the optional arguments
+SSTPERT_LIB=
+WAFCCB_LIB=
+while [ $# -gt 3 ] ; do
+    case "$1" in
+        --sstpert_lib) shift
+                      SSTPERT_LIB=$1 ;;
+        --wafccb_lib) shift
+                     WAFCCB_LIB=$1 ;;
+        *) echo "Unrecognised argument: $1"
+           exit 1 ;;
+    esac
+    shift
+done
+
 LIB_DEST=$1
 BIN_DEST=$2
 SHUMLIB=$3
-SSTPERT_LIB=${4:-}
 
 MODULE_LIST="mule um_packing um_utils"
 if [ -n "$SSTPERT_LIB" ] ; then
     MODULE_LIST="$MODULE_LIST um_sstpert"
+fi
+if [ -n "$WAFCCB_LIB" ] ; then
+    MODULE_LIST="$MODULE_LIST um_wafccb"
 fi
 
 # A few hardcoded settings
@@ -114,6 +136,12 @@ if [ -n "$SSTPERT_LIB" ] && [ ! -d $SSTPERT_LIB ] ; then
   exit 1
 fi
 
+# If using it, check the wafccb lib is found
+if [ -n "$WAFCCB_LIB" ] && [ ! -d $WAFCCB_LIB ] ; then
+  echo "WAFC CB library directory '$WAFCCB_LIB' not found"
+  exit 1
+fi
+
 # Make a temporary directory to hold the installs
 mkdir -p $SCRATCHLIB 
 ln -s $SCRATCHDIR/lib $SCRATCHDIR/lib64
@@ -143,7 +171,21 @@ if [ -n "$SSTPERT_LIB" ] ; then
 
     echo "Building sstpert module..."
     $PYTHONEXEC setup.py build_ext --inplace \
-        -I$SSTPERT_LIB/include -L$SSTPERT_LIB/lib -R$SSTPERT_LIB/lib
+        -I$SSTPERT_LIB/include \
+        -L$SSTPERT_LIB/lib:$SHUMLIB/lib \
+        -R$SSTPERT_LIB/lib:$SHUMLIB/lib
+fi
+
+# WAFC CB library (if being used)
+if [ -n "$WAFCCB_LIB" ] ; then
+    echo "Changing directory to wafccb module:" $wc_root/um_wafccb
+    cd $wc_root/um_wafccb
+
+    echo "Building wafccb module..."
+    $PYTHONEXEC setup.py build_ext --inplace \
+        -I$WAFCCB_LIB/include \
+        -L$WAFCCB_LIB/lib \
+        -R$WAFCCB_LIB/lib
 fi
 
 #----------------------------------------------#
