@@ -35,7 +35,8 @@ setuptools.setup(
                     ['lib/um_sstpert/um_sstpert.c'],
                     include_dirs=[np.get_include()],
                     libraries=["um_sstpert",
-                               "shum_string_conv"])
+                               "shum_string_conv",
+                               "shum_constants"])
                 ])},
     entry_points={
         'console_scripts': [
