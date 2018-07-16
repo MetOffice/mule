@@ -124,13 +124,15 @@ class STASHentry(object):
             if name == "packing_codes":
                 # For the packing codes, expand into a dictionary
                 entry = dict(zip(
-                    _PACKING_CODE_NAMES, map(int, entries[iname].split())))
+                    _PACKING_CODE_NAMES,
+                    [int(entr) for entr in entries[iname].split()]))
             elif name == "option_codes":
                 # For the option codes, expand into a dictionary (note the
                 # array is reversed here to make sure the labelling is right
                 # - since "n30" is actually the first digit)
                 entry = dict(zip(
-                    _OPTION_CODE_NAMES, map(int, entries[iname][::-1])))
+                    _OPTION_CODE_NAMES,
+                    [int(entr) for entr in entries[iname][::-1]]))
             else:
                 # For all normal entries convert them to integers if possible
                 if entries[iname].isdigit():
@@ -199,7 +201,7 @@ class STASHmaster(dict):
                 # Now split the contents of each entry and use them to create
                 # entry objects
                 entry_obj = STASHentry(
-                    map(str.strip, "".join(entry).split("|")))
+                    [entr.strip() for entr in "".join(entry).split("|")])
 
                 # The file contains an indicator at the end of the file
                 if entry_obj.name == "END OF FILE MARK":

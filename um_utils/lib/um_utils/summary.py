@@ -68,6 +68,7 @@ import re
 import sys
 import errno
 import mule
+import six
 import numpy as np
 import argparse
 import textwrap
@@ -139,7 +140,7 @@ def field_summary(umf, stdout=None, **kwargs):
 
     # And filter by property
     if field_property != {}:
-        for prop, value in field_property.iteritems():
+        for prop, value in six.iteritems(field_property):
             fields = [field for field in fields
                       if getattr(field, prop) == value]
 
@@ -253,25 +254,25 @@ def field_summary(umf, stdout=None, **kwargs):
         if max_widths[iprop] < proplen:
             max_widths[iprop] = proplen
 
-    # Generate format strings for numpy's savetxt function; the headings
+    # Generate format strings for the output function; the headings
     # will be the same width as the columns but will be left-justified
-    col_format = [" %{0}s ".format(width) for width in max_widths]
+    col_format = ["{" + ":>{0}s".format(width) + "}" for width in max_widths]
 
     # Also left justify the stash name if it is there (it looks better)
     if stash_name_index is not None:
         col_format[stash_name_index] = (
-            " %-{0}s ".format(max_widths[stash_name_index]))
+            "{" + ":<{0}s".format(max_widths[stash_name_index]) + "}")
 
     # Create an array from the heading names - add a hash character to the
     # first one (makes it easier to identify heading lines)
     headings = np.array(["# "+properties[0]] + properties[1:],
-                        dtype="S", ndmin=2)
+                        dtype="U", ndmin=2)
 
     # Add a dividing line; this will just be dashes the same width as the
     # column entries.  Insert a hash into the first entry as with the names.
     div = ["-"*width for width in max_widths]
     div[0] = div[0].replace('--', '# ', 1)
-    divider = np.array(div, dtype="S", ndmin=2)
+    divider = np.array(div, dtype="U", ndmin=2)
 
     # Insert the heading lines into the array
     for ihead in range(total_headings):
@@ -279,8 +280,11 @@ def field_summary(umf, stdout=None, **kwargs):
         array[(3 + heading_frequency)*ihead + 1] = headings
         array[(3 + heading_frequency)*ihead + 2] = divider
 
+    output_string = " " + str.join(" | ", col_format) + " \n"
+
     # Finally output the entire array with the appropriate widths
-    np.savetxt(stdout, array, fmt=col_format, delimiter="|")
+    for line in array:
+        stdout.write(output_string.format(*line))
 
 
 def _main():
@@ -374,7 +378,7 @@ def _main():
     # Print version information
     print(_banner("(SUMMARY) Module Information")),
     report_modules()
-    print ""
+    print("")
 
     # Process column names
     if args.column_names is not None:

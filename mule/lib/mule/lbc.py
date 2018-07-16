@@ -383,11 +383,11 @@ class LBCFile(mule.UMFile):
 
     # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
     # equivalent _DataProvider to use for the reading, for LBC Files
-    READ_PROVIDERS = {000: _ReadLBCProviderUnpacked,
-                      002: _ReadLBCProviderCray32Packed}
+    READ_PROVIDERS = {"000": _ReadLBCProviderUnpacked,
+                      "002": _ReadLBCProviderCray32Packed}
 
-    WRITE_OPERATORS = {000: _WriteLBCOperatorUnpacked,
-                       002: _WriteLBCOperatorCray32Packed}
+    WRITE_OPERATORS = {"000": _WriteLBCOperatorUnpacked,
+                       "002": _WriteLBCOperatorCray32Packed}
 
     # Set accepted dataset types
     DATASET_TYPES = (5,)

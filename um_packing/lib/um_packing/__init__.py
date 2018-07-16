@@ -14,6 +14,6 @@
 # You should have received a copy of the Modified BSD License
 # along with Mule.  If not, see <http://opensource.org/licenses/BSD-3-Clause>.
 
-from um_packing import wgdos_pack, wgdos_unpack, get_shumlib_version
+from .um_packing import wgdos_pack, wgdos_unpack, get_shumlib_version
 
 __version__ = "2017.08.1"

@@ -21,12 +21,15 @@ Unit tests for :class:`mule.Field`.
 from __future__ import (absolute_import, division, print_function)
 from six.moves import (filter, input, map, range, zip)  # noqa
 
-import mock
 import numpy as np
-
 import mule.tests as tests
-
 from mule import Field, _NullReadProvider
+
+import six
+if six.PY2:
+    import mock
+elif six.PY3:
+    import unittest.mock as mock
 
 
 class Test_int_headers(tests.MuleTest):
@@ -55,41 +58,6 @@ class Test_get_data(tests.MuleTest):
     def test_None(self):
         field = Field([], [], None)
         self.assertIsNone(field.get_data())
-
-# Disabled because: the functionality to replace the provider with a straight
-#                   numpy array no longer exists
-#    def test_ndarray(self):
-#        data = np.arange(12).reshape(3, 4)
-#        field = Field([], [], data)
-#        self.assertIs(field.get_data(), data)
-
-# Disabled because: the provider object is slightly stricter now - any class
-#                   with a "read_data" method is no longer sufficient
-#    def test_provider(self):
-#        provider = mock.Mock(read_data=lambda: mock.sentinel.DATA)
-#        field = Field([], [], provider)
-#        self.assertIs(field.get_data(), mock.sentinel.DATA)
-
-# Disabled because: the functionality to replace the provider with a straight
-#                   numpy array no longer exists, and neither does set_data
-# class Test_set_data(tests.MuleTest):
-#     def test_None(self):
-#         data = np.arange(12).reshape(3, 4)
-#         field = Field([], [], data)
-#         field.set_data(None)
-#         self.assertIsNone(field.get_data())
-
-#     def test_ndarray(self):
-#         field = Field([], [], None)
-#         data = np.arange(12).reshape(3, 4)
-#         field.set_data(data)
-#         self.assertArrayEqual(field.get_data(), data)
-
-#     def test_provider(self):
-#         provider = mock.Mock(read_data=lambda: mock.sentinel.DATA)
-#         field = Field([], [], None)
-#         field.set_data(provider)
-#         self.assertIs(field.get_data(), mock.sentinel.DATA)
 
 
 class Test__can_copy_deferred_data(tests.MuleTest):

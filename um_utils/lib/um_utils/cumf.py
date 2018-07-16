@@ -86,7 +86,7 @@ import errno
 import argparse
 import textwrap
 import numpy as np
-import cStringIO
+from six import StringIO
 from collections import defaultdict
 from um_utils.stashmaster import STASHmaster
 from um_utils.pumf import pprint, _banner
@@ -114,6 +114,7 @@ def _print_lookup(field, stdout):
 def _print_lookup_full(field, stdout):
     """Prints the entire lookup contents using pumf."""
     pprint(field, stdout=stdout, headers_only=True)
+
 
 # This dictionary stores a list of global settings that control the
 # comparison - when called as a main program these can be overidden by
@@ -486,8 +487,9 @@ class ComponentComparison(object):
             null_values = shape_1[0]
         else:
             null_values = 1
+
         self.compared = (comparison_count - null_values,
-                         len(component_zip) - null_values)
+                         len(component_1.raw.ravel()) - null_values)
 
         # Toggle the match flag if any differences were found
         if len(self.diffs) != 0:
@@ -921,8 +923,9 @@ def summary_report(comparison, stdout=None):
                     stdout.write("Fields in file {0} but not file {1}:\n"
                                  .format(file_a, file_b))
                     for index in count:
-                        if (total_missing_shown >= comparison.show_missing_max
-                                and comparison.show_missing_max != -1):
+                        if (total_missing_shown >=
+                                comparison.show_missing_max and
+                                comparison.show_missing_max != -1):
                             stdout.write(
                                 "  More fields are missing from file {0:s},"
                                 .format(file_b) +
@@ -937,7 +940,7 @@ def summary_report(comparison, stdout=None):
                         else:
                             stashname = "Unknown STASH (code: {})".format(
                                 umfile.fields[index].lbuser4)
-                        lookup_info = cStringIO.StringIO()
+                        lookup_info = StringIO()
                         _print_lookup(umfile.fields[index], lookup_info)
                         stdout.write(msg.format(index+1,
                                                 len(umfile.fields),
@@ -970,11 +973,11 @@ def summary_report(comparison, stdout=None):
     # Report on the maximum RMS diff percentage
     if comparison.max_rms_diff_1[0] > 0.0:
         stdout.write(
-            "Maximum RMS diff as % of data in file 1: {0} (field {1})\n"
+            "Maximum RMS diff as % of data in file 1: {0!r} (field {1})\n"
             .format(*comparison.max_rms_diff_1))
     if comparison.max_rms_diff_2[0] > 0.0:
         stdout.write(
-            "Maximum RMS diff as % of data in file 2: {0} (field {1})\n"
+            "Maximum RMS diff as % of data in file 2: {0!r} (field {1})\n"
             .format(*comparison.max_rms_diff_2))
 
     if (comparison.max_rms_diff_1[0] > 0.0 or
@@ -1178,21 +1181,21 @@ def full_report(comparison, stdout=None, **kwargs):
             stdout.write("Data differences:\n")
             stdout.write("  Number of point differences  : {0}/{1}\n"
                          .format(*comp_field.compared))
-            stdout.write("  Maximum absolute difference  : {0}\n"
+            stdout.write("  Maximum absolute difference  : {0!r}\n"
                          .format(comp_field.max_diff))
-            stdout.write("  RMS difference               : {0}\n"
+            stdout.write("  RMS difference               : {0!r}\n"
                          .format(comp_field.rms_diff))
             if comp_field.rms_norm_diff_1 is None:
                 stdout.write("  RMS diff as % of file_1 data : "
                              "NaN (File 1 data all zero) \n")
             else:
-                stdout.write("  RMS diff as % of file_1 data : {0}\n"
+                stdout.write("  RMS diff as % of file_1 data : {0!r}\n"
                              .format(comp_field.rms_norm_diff_1))
             if comp_field.rms_norm_diff_2 is None:
                 stdout.write("  RMS diff as % of file_2 data : "
                              "NaN (File 2 data all zero) \n")
-            else:            
-                stdout.write("  RMS diff as % of file_2 data : {0}\n"
+            else:
+                stdout.write("  RMS diff as % of file_2 data : {0!r}\n"
                              .format(comp_field.rms_norm_diff_2))
 
         stdout.write("\n")
@@ -1315,7 +1318,7 @@ def _main():
     # Print version information
     print(_banner("(CUMF-II) Module Information")),
     report_modules()
-    print ""
+    print("")
 
     # Process ignoring indices from
     if args.ignore is not None:

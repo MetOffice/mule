@@ -21,6 +21,7 @@ Unit tests for :class:`mule.FixedLengthHeader`.
 from __future__ import (absolute_import, division, print_function)
 from six.moves import (filter, input, map, range, zip)  # noqa
 
+import six
 import numpy as np
 
 import mule.tests as tests
@@ -46,8 +47,9 @@ class Test_from_file(tests.MuleTest):
 
 class Test___init__(tests.MuleTest):
     def test_invalid_length(self):
-        with self.assertRaisesRegexp(ValueError,
-                                     'Incorrect size for fixed length header'):
+        with six.assertRaisesRegex(self,
+                                   ValueError,
+                                   'Incorrect size for fixed length header'):
             FixedLengthHeader(list(range(15)))
 
 

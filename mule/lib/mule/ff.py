@@ -343,7 +343,7 @@ class _WriteFFOperatorWGDOSPacked(_WriteFFOperatorUnpacked):
         # part of the final 64-bit word and not lost. If there's an even
         # number of 32-bit words this additional (unused) 32-bit word length
         # is discarded during the division.
-        return data_bytes, (len(data_bytes) + _WGDOS_SIZE)/self.WORD_SIZE
+        return data_bytes, (len(data_bytes) + _WGDOS_SIZE)//self.WORD_SIZE
 
 
 class _WriteFFOperatorCray32Packed(_WriteFFOperatorUnpacked):
@@ -451,23 +451,23 @@ class FieldsFile(mule.UMFile):
 
     # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
     # equivalent _DataProvider to use for the reading, for FieldsFiles
-    READ_PROVIDERS = {000: _ReadFFProviderUnpacked,
-                      001: _ReadFFProviderWGDOSPacked,
-                      002: _ReadFFProviderCray32Packed,
-                      120: _ReadFFProviderLandPacked,
-                      220: _ReadFFProviderSeaPacked,
-                      122: _ReadFFProviderCray32LandPacked,
-                      222: _ReadFFProviderCray32SeaPacked}
+    READ_PROVIDERS = {"000": _ReadFFProviderUnpacked,
+                      "001": _ReadFFProviderWGDOSPacked,
+                      "002": _ReadFFProviderCray32Packed,
+                      "120": _ReadFFProviderLandPacked,
+                      "220": _ReadFFProviderSeaPacked,
+                      "122": _ReadFFProviderCray32LandPacked,
+                      "222": _ReadFFProviderCray32SeaPacked}
 
     # Mappings from the leading 3-digits of the lbpack LOOKUP header to the
     # equivalent _WriteFFOperator to use for writing, for FieldsFiles
-    WRITE_OPERATORS = {000: _WriteFFOperatorUnpacked,
-                       001: _WriteFFOperatorWGDOSPacked,
-                       002: _WriteFFOperatorCray32Packed,
-                       120: _WriteFFOperatorLandPacked,
-                       220: _WriteFFOperatorSeaPacked,
-                       122: _WriteFFOperatorCray32LandPacked,
-                       222: _WriteFFOperatorCray32SeaPacked,
+    WRITE_OPERATORS = {"000": _WriteFFOperatorUnpacked,
+                       "001": _WriteFFOperatorWGDOSPacked,
+                       "002": _WriteFFOperatorCray32Packed,
+                       "120": _WriteFFOperatorLandPacked,
+                       "220": _WriteFFOperatorSeaPacked,
+                       "122": _WriteFFOperatorCray32LandPacked,
+                       "222": _WriteFFOperatorCray32SeaPacked,
                        }
 
     # Set accepted dataset types

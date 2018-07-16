@@ -21,6 +21,7 @@ Unit tests for :class:`mule.ArrayDataProvider`.
 from __future__ import (absolute_import, division, print_function)
 from six.moves import (filter, input, map, range, zip)  # noqa
 
+import six
 import numpy as np
 import numpy.ma
 
@@ -63,14 +64,16 @@ class Test_ArrayDataProvider___init__(tests.MuleTest):
     def test_masked_withmask__fail(self):
         array = [[1.2, 2.3, 3.4], [6., 7., 8.]]
         array = np.ma.masked_array(array, mask=[[0, 1, 0], [0, 0, 0]])
-        with self.assertRaisesRegexp(ValueError,
-                                     'not handle masked data'):
+        with six.assertRaisesRegex(self,
+                                   ValueError,
+                                   'not handle masked data'):
             _ = ArrayDataProvider(array)
 
     def test_non2d_fail(self):
         array = np.zeros((5,))
-        with self.assertRaisesRegexp(ValueError,
-                                     '(5,).*not 2-dimensional'):
+        with six.assertRaisesRegex(self,
+                                   ValueError,
+                                   '(5,).*not 2-dimensional'):
             _ = ArrayDataProvider(array)
 
 

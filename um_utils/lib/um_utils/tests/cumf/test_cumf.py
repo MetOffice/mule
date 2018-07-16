@@ -23,7 +23,7 @@ import numpy as np
 import um_utils.tests as tests
 import mule
 
-from StringIO import StringIO
+from six import StringIO
 from um_utils import cumf
 
 

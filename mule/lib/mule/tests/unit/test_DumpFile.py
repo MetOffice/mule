@@ -18,6 +18,7 @@ Unit tests for :class:`mule.dump.DumpFile`.
 
 """
 
+import six
 import mule.tests as tests
 from mule import DumpFile, Field3
 from mule.dump import (Dump_IntegerConstants, Dump_RealConstants,
@@ -88,13 +89,15 @@ class Test_from_template(tests.MuleTest):
 
     def test_component_nodims__error(self):
         test_template = {"row_dependent_constants": {}}
-        with self.assertRaisesRegexp(ValueError,
-                                     '"dim1" has no valid default'):
+        with six.assertRaisesRegex(self,
+                                   ValueError,
+                                   '"dim1" has no valid default'):
             _ = DumpFile.from_template(test_template)
 
     def test_unknown_element__fail(self):
         test_template = {"integer_constants": {'whatsthis': 3}}
-        with self.assertRaisesRegexp(
+        with six.assertRaisesRegex(
+                self,
                 ValueError,
                 '"integer_constants".*no element.*"whatsthis"'):
             _ = DumpFile.from_template(test_template)
@@ -204,8 +207,9 @@ class Test_validate(tests.MuleTest):
     def test_dataset_types_fail(self):
         for dtype in (0, 3, 4, 5, 6, -32768):
             self.ff.fixed_length_header.dataset_type = dtype
-            with self.assertRaisesRegexp(ValidateError,
-                                         "Incorrect dataset_type"):
+            with six.assertRaisesRegex(self,
+                                       ValidateError,
+                                       "Incorrect dataset_type"):
                 self.ff.validate()
 
     # Test that the accepted grid staggerings pass
@@ -218,59 +222,67 @@ class Test_validate(tests.MuleTest):
     def test_grid_staggering_fail(self):
         for stagger in (2, 5, 0, -32768):
             self.ff.fixed_length_header.grid_staggering = stagger
-            with self.assertRaisesRegexp(ValidateError,
-                                         "Unsupported grid_staggering"):
+            with six.assertRaisesRegex(self,
+                                       ValidateError,
+                                       "Unsupported grid_staggering"):
                 self.ff.validate()
 
     # Test that having no integer constants fails
     def test_missing_int_consts_fail(self):
         self.ff.integer_constants = None
-        with self.assertRaisesRegexp(ValidateError,
-                                     "Integer constants not found"):
+        with six.assertRaisesRegex(self,
+                                   ValidateError,
+                                   "Integer constants not found"):
             self.ff.validate()
 
     # Test that having no integer constants fails
     def test_missing_real_consts_fail(self):
         self.ff.real_constants = None
-        with self.assertRaisesRegexp(ValidateError,
-                                     "Real constants not found"):
+        with six.assertRaisesRegex(self,
+                                   ValidateError,
+                                   "Real constants not found"):
             self.ff.validate()
 
     # Test that having no integer constants fails
     def test_missing_lev_consts_fail(self):
         self.ff.level_dependent_constants = None
-        with self.assertRaisesRegexp(ValidateError,
-                                     "Level dependent constants not found"):
+        with six.assertRaisesRegex(self,
+                                   ValidateError,
+                                   "Level dependent constants not found"):
             self.ff.validate()
 
     # Test that invalid shape integer constants fails
     def test_baddims_int_consts_fail(self):
         self.ff.integer_constants = Dump_IntegerConstants.empty(5)
-        with self.assertRaisesRegexp(ValidateError,
-                                     "Incorrect number of integer constants"):
+        with six.assertRaisesRegex(self,
+                                   ValidateError,
+                                   "Incorrect number of integer constants"):
             self.ff.validate()
 
     # Test that invalid shape real constants fails
     def test_baddims_real_consts_fail(self):
         self.ff.real_constants = Dump_RealConstants.empty(7)
-        with self.assertRaisesRegexp(ValidateError,
-                                     "Incorrect number of real constants"):
+        with six.assertRaisesRegex(self,
+                                   ValidateError,
+                                   "Incorrect number of real constants"):
             self.ff.validate()
 
     # Test that invalid shape level dependent constants fails (first dim)
     def test_baddim_1_lev_consts_fail(self):
         self.ff.level_dependent_constants = (
             Dump_LevelDependentConstants.empty(7, 8))
-        with self.assertRaisesRegexp(
-                ValidateError, "Incorrectly shaped level dependent constants"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Incorrectly shaped level dependent constants"):
             self.ff.validate()
 
     # Test that invalid shape level dependent constants fails (second dim)
     def test_baddim_2_lev_consts_fail(self):
         self.ff.level_dependent_constants = (
             Dump_LevelDependentConstants.empty(6, 9))
-        with self.assertRaisesRegexp(
-                ValidateError, "Incorrectly shaped level dependent constants"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Incorrectly shaped level dependent constants"):
             self.ff.validate()
 
     # Test a variable resolution case
@@ -287,8 +299,9 @@ class Test_validate(tests.MuleTest):
             Dump_RowDependentConstants.empty(4, 2))
         self.ff.column_dependent_constants = (
             Dump_ColumnDependentConstants.empty(4, 2))
-        with self.assertRaisesRegexp(
-                ValidateError, "Incorrectly shaped row dependent constants"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Incorrectly shaped row dependent constants"):
             self.ff.validate()
 
     # Test that an invalid shape row dependent constants fails (first dim)
@@ -297,8 +310,9 @@ class Test_validate(tests.MuleTest):
             Dump_RowDependentConstants.empty(3, 3))
         self.ff.column_dependent_constants = (
             Dump_ColumnDependentConstants.empty(4, 2))
-        with self.assertRaisesRegexp(
-                ValidateError, "Incorrectly shaped row dependent constants"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Incorrectly shaped row dependent constants"):
             self.ff.validate()
 
     # Test that an invalid shape column dependent constants fails (first dim)
@@ -307,8 +321,9 @@ class Test_validate(tests.MuleTest):
             Dump_RowDependentConstants.empty(3, 2))
         self.ff.column_dependent_constants = (
             Dump_ColumnDependentConstants.empty(5, 2))
-        with self.assertRaisesRegexp(
-                ValidateError, "Incorrectly shaped column dependent const"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Incorrectly shaped column dependent const"):
             self.ff.validate()
 
     # Test that an invalid shape column dependent constants fails (first dim)
@@ -317,8 +332,9 @@ class Test_validate(tests.MuleTest):
             Dump_RowDependentConstants.empty(3, 2))
         self.ff.column_dependent_constants = (
             Dump_ColumnDependentConstants.empty(4, 3))
-        with self.assertRaisesRegexp(
-                ValidateError, "Incorrectly shaped column dependent const"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Incorrectly shaped column dependent const"):
             self.ff.validate()
 
     # Test that a file with a valid field passes
@@ -332,8 +348,9 @@ class Test_validate(tests.MuleTest):
     def test_basic_field_release_fail(self):
         self.fld.lbrel = 4
         self.ff.fields = [self.fld]
-        with self.assertRaisesRegexp(
-                ValidateError, "Field has unrecognised release number 4"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Field has unrecognised release number 4"):
             self.ff.validate()
 
     # Test a land/sea packed field
@@ -349,8 +366,9 @@ class Test_validate(tests.MuleTest):
         self.fld.lbpack = 120
         self.fld.lbnpt = 0
         self.ff.fields = [self.fld]
-        with self.assertRaisesRegexp(
-                ValidateError, "Field rows not set to zero"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Field rows not set to zero"):
             self.ff.validate()
 
     # Test a land/sea packed field with bad column setting fails
@@ -358,8 +376,9 @@ class Test_validate(tests.MuleTest):
         self.fld.lbpack = 120
         self.fld.lbrow = 0
         self.ff.fields = [self.fld]
-        with self.assertRaisesRegexp(
-                ValidateError, "Field columns not set to zero"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Field columns not set to zero"):
             self.ff.validate()
 
     # Test a variable resolution field passes
@@ -383,8 +402,9 @@ class Test_validate(tests.MuleTest):
             Dump_ColumnDependentConstants.empty(4, 2))
         self.fld.lbnpt = 6
         self.ff.fields = [self.fld]
-        with self.assertRaisesRegexp(
-                ValidateError, "Field column count inconsistent"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Field column count inconsistent"):
             self.ff.validate()
 
     # Test a variable resolution field with bad row count fails
@@ -395,8 +415,9 @@ class Test_validate(tests.MuleTest):
             Dump_ColumnDependentConstants.empty(4, 2))
         self.fld.lbrow = 5
         self.ff.fields = [self.fld]
-        with self.assertRaisesRegexp(
-                ValidateError, "Field row count inconsistent"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Field row count inconsistent"):
             self.ff.validate()
 
     # Test a variable resolution field with non RMDI bzx fails
@@ -410,8 +431,9 @@ class Test_validate(tests.MuleTest):
         self.fld.bdx = self.ff.real_constants.real_mdi
         self.fld.bdy = self.ff.real_constants.real_mdi
         self.ff.fields = [self.fld]
-        with self.assertRaisesRegexp(
-                ValidateError, "Field start longitude \(bzx\) not RMDI"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Field start longitude \(bzx\) not RMDI"):
             self.ff.validate()
 
     # Test a variable resolution field with non RMDI bzy fails
@@ -425,8 +447,9 @@ class Test_validate(tests.MuleTest):
         self.fld.bdx = self.ff.real_constants.real_mdi
         self.fld.bdy = self.ff.real_constants.real_mdi
         self.ff.fields = [self.fld]
-        with self.assertRaisesRegexp(
-                ValidateError, "Field start latitude \(bzy\) not RMDI"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Field start latitude \(bzy\) not RMDI"):
             self.ff.validate()
 
     # Test a variable resolution field with non RMDI bdx fails
@@ -440,8 +463,9 @@ class Test_validate(tests.MuleTest):
         self.fld.bdx = 0.2
         self.fld.bdy = self.ff.real_constants.real_mdi
         self.ff.fields = [self.fld]
-        with self.assertRaisesRegexp(
-                ValidateError, "Field longitude interval \(bdx\) not RMDI"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Field longitude interval \(bdx\) not RMDI"):
             self.ff.validate()
 
     # Test a variable resolution field with non RMDI bdy fails
@@ -455,8 +479,9 @@ class Test_validate(tests.MuleTest):
         self.fld.bdx = self.ff.real_constants.real_mdi
         self.fld.bdy = 0.1
         self.ff.fields = [self.fld]
-        with self.assertRaisesRegexp(
-                ValidateError, "Field latitude interval \(bdy\) not RMDI"):
+        with six.assertRaisesRegex(
+            self, ValidateError,
+                "Field latitude interval \(bdy\) not RMDI"):
             self.ff.validate()
 
     # Test lower boundary x value just within tolerance passes
@@ -471,7 +496,8 @@ class Test_validate(tests.MuleTest):
         self.fld.bzx += self.fld.bdx * (1.01 + 0.0001)
         self.fld.lbnpt -= 1
         self.ff.fields = [self.fld]
-        with self.assertRaisesRegexp(ValueError, 'longitudes inconsistent'):
+        with six.assertRaisesRegex(self,
+                                   ValueError, 'longitudes inconsistent'):
             self.ff.validate()
 
     # Test upper boundary x value just within tolerance passes
@@ -486,7 +512,8 @@ class Test_validate(tests.MuleTest):
         self.fld.bdx = self.fld.bdx*1.51
         self.fld.bzx = self.ff.real_constants.start_lon - self.fld.bdx
         self.ff.fields = [self.fld]
-        with self.assertRaisesRegexp(ValueError, 'longitudes inconsistent'):
+        with six.assertRaisesRegex(self,
+                                   ValueError, 'longitudes inconsistent'):
             self.ff.validate()
 
     # Test lower boundary y value just within tolerance passes
@@ -501,7 +528,8 @@ class Test_validate(tests.MuleTest):
         self.fld.bzy += self.fld.bdy * (1.01 + 0.0001)
         self.fld.lbrow -= 1
         self.ff.fields = [self.fld]
-        with self.assertRaisesRegexp(ValueError, 'latitudes inconsistent'):
+        with six.assertRaisesRegex(self,
+                                   ValueError, 'latitudes inconsistent'):
             self.ff.validate()
 
     # Test upper boundary y value just within tolerance passes
@@ -516,7 +544,8 @@ class Test_validate(tests.MuleTest):
         self.fld.bdy = self.fld.bdy*2.03
         self.fld.bzy = self.ff.real_constants.start_lat - self.fld.bdy
         self.ff.fields = [self.fld]
-        with self.assertRaisesRegexp(ValueError, 'latitudes inconsistent'):
+        with six.assertRaisesRegex(self,
+                                   ValueError, 'latitudes inconsistent'):
             self.ff.validate()
 
 

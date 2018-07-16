@@ -364,7 +364,7 @@ def _main():
     # Print version information
     print(_banner("(TRIM) Module Information")),
     report_modules()
-    print ""
+    print("")
 
     filename = args.input_file
     if os.path.exists(filename):

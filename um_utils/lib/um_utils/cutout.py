@@ -521,8 +521,8 @@ def cutout(ff_src, x_start, y_start, x_points, y_points, stdout=None):
     horiz_grid = ff_src.fixed_length_header.horiz_grid_type
     msg = ("The given cutout parameters extend outside the dimensions of the "
            "grid contained in the source file.")
-    if y_start + y_points - 1 > ny0 or (x_start + x_points - 1 > nx0
-                                        and horiz_grid % 100 == 3):
+    if y_start + y_points - 1 > ny0 or (x_start + x_points - 1 > nx0 and
+                                        horiz_grid % 100 == 3):
         raise ValueError(msg)
 
     # Create a new fieldsfile to store the cutout fields
@@ -766,7 +766,7 @@ def _main():
     # Print version information
     print(_banner("(CUTOUT-II) Module Information")),
     report_modules()
-    print ""
+    print("")
 
     filename = args.input_file
     if os.path.exists(filename):

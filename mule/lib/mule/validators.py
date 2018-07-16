@@ -125,8 +125,8 @@ def validate_umf(umf, filename=None, warn=False):
         # us to only print each message once (with a list of fields).
         field_validation = defaultdict(list)
         for ifield, field in enumerate(umf.fields):
-            if (umf.fixed_length_header.dataset_type in (1, 2)
-                    and field.lbrel == mule._INTEGER_MDI):
+            if (umf.fixed_length_header.dataset_type in (1, 2) and
+                    field.lbrel == mule._INTEGER_MDI):
                 # In dumps, some headers are special mean fields
                 if (field.lbpack // 1000) != 2:
                     msg = ("Field is special dump field but does not"
@@ -635,8 +635,8 @@ def validate_regular_field_nostash(umf, field):
     # all grid aspects are right is to check that the field's
     # definition of the grid extent matches the file's
     lon_start_diff_steps = (
-        np.abs(field.bzx + field.bdx
-               - umf.real_constants.start_lon) / field.bdx)
+        np.abs(field.bzx + field.bdx -
+               umf.real_constants.start_lon) / field.bdx)
 
     field_end_lon = field.bzx + field.lbnpt*field.bdx
     file_end_lon = (umf.real_constants.start_lon +
@@ -663,8 +663,8 @@ def validate_regular_field_nostash(umf, field):
 
     # And repeat the same tests for the latitudes
     lat_start_diff_steps = (
-        np.abs(field.bzy + field.bdy
-               - umf.real_constants.start_lat) / field.bdy)
+        np.abs(field.bzy + field.bdy -
+               umf.real_constants.start_lat) / field.bdy)
 
     field_end_lat = field.bzy + field.lbrow*field.bdy
     file_end_lat = (umf.real_constants.start_lat +

@@ -21,7 +21,7 @@ Unit tests for :class:`mule.UMFile`.
 from __future__ import (absolute_import, division, print_function)
 from six.moves import (filter, input, map, range, zip)  # noqa
 
-
+import six
 import os.path
 import shutil
 import tempfile
@@ -53,7 +53,7 @@ class Test___init__(tests.MuleTest):
         dir_path = tempfile.mkdtemp()
         try:
             file_path = os.path.join(dir_path, 'missing')
-            with self.assertRaisesRegexp(IOError, 'No such file'):
+            with six.assertRaisesRegex(self, IOError, 'No such file'):
                 UMFile.from_file(file_path)
         finally:
             shutil.rmtree(dir_path)
@@ -83,7 +83,7 @@ class Test_to_file__targets(tests.MuleTest):
     def test_copy_byfile(self):
         ffv = UMFile.from_file(COMMON_N48_TESTDATA_PATH)
         with self.temp_filename() as temp_path:
-            with open(temp_path, 'w') as temp_file:
+            with open(temp_path, 'wb') as temp_file:
                 ffv.to_file(temp_file)
             assert os.path.exists(temp_path)
             # Read it back and repeat our basic "known content" tests
@@ -104,7 +104,7 @@ class Test_to_file__minimal(tests.MuleTest):
     def test_copy_byfile(self):
         ffv = UMFile()
         with self.temp_filename() as temp_path:
-            with open(temp_path, 'w') as temp_file:
+            with open(temp_path, 'wb') as temp_file:
                 ffv.to_file(temp_file)
             assert os.path.exists(temp_path)
             # Read it back and repeat our basic "known content" tests
@@ -139,15 +139,16 @@ class Test_from_template(tests.MuleTest):
 
     def test_unknown_component__fail(self):
         test_template = {"junk": {}}
-        with self.assertRaisesRegexp(
+        with six.assertRaisesRegex(
+                self,
                 ValueError,
                 'unrecognised.*component.*("junk")'):
             _ = UMFile.from_template(test_template)
 
     def test_unsized_component__fail(self):
         test_template = {"integer_constants": {}}
-        with self.assertRaisesRegexp(ValueError,
-                                     '"num_words" has no valid default'):
+        with six.assertRaisesRegex(self, ValueError,
+                                   '"num_words" has no valid default'):
             _ = UMFile.from_template(test_template)
 
 

@@ -53,6 +53,7 @@ import os
 import numpy as np
 import numpy.ma
 import weakref
+import six
 from contextlib import contextmanager
 from mule.stashmaster import STASHmaster
 
@@ -281,7 +282,7 @@ class _HeaderMetaclass(type):
                                                     bases, class_dict)
 
 
-class BaseHeaderComponent(object):
+class BaseHeaderComponent(six.with_metaclass(_HeaderMetaclass, object)):
     """
     Base class for a UM header component.
 
@@ -291,7 +292,6 @@ class BaseHeaderComponent(object):
         and :class:`BaseHeaderComponent2D` classes.
 
     """
-    __metaclass__ = _HeaderMetaclass
 
     # The values in this base class should be overridden as they will
     # not do anything useful if left set to None.
@@ -601,7 +601,7 @@ class UnsupportedHeaderItem2D(BaseHeaderComponent2D):
     DTYPE = ">i8"
 
 
-class Field(object):
+class Field(six.with_metaclass(_HeaderMetaclass, object)):
     """
     Represents a single entry in the lookup table, and provides access to
     the data referenced by it.
@@ -611,11 +611,6 @@ class Field(object):
         64 words split between 45 integer and 19 real values.
 
     """
-    # Use the header object metaclass to allow a named attributes mapping to
-    # be used in subclasses of this class (note that this base class does not
-    # specify a mapping, as it is designed to represent a generic field).
-    __metaclass__ = _HeaderMetaclass
-
     HEADER_MAPPING = _LOOKUP_HEADER_DEFAULT
 
     # The expected number of lookup entries which are integers and reals.
@@ -1115,21 +1110,22 @@ class UMFile(object):
     # the packing used for any of the fields.
     READ_PROVIDERS = {}
     """
-    A dictionary which maps the trailing 3 digits (n3 - n1) of a field's
-    lbpack (packing code) onto a suitable data-provider object to read the
-    field.  Any packing code not in this list will default to using
-    a :class:`_NullReadProvider` object (which can only be used to copy the
-    raw byte-data of the field - not to unpack it or access the data).
+    A dictionary which maps a string containing the trailing 3 digits
+    (n3 - n1) of a field's lbpack (packing code) onto a suitable
+    data-provider object to read the field.  Any packing code not in
+    this list will default to using a :class:`_NullReadProvider` object
+    (which can only be used to copy the raw byte-data of the field -
+    not to unpack it or access the data).
 
     """
 
     WRITE_OPERATORS = {}
     """
-    A dictionary which maps the trailing 3 digits (n3 - n1) of a field's
-    lbpack (packing code) onto a suitable :class:`DataOperator` object to
-    write the field.  Any packing code found in a field from this object's
-    field list but not found here will cause an exception when trying to
-    write to a file.
+    A dictionary which maps a string containing the trailing 3 digits
+    (n3 - n1) of a field's lbpack (packing code) onto a suitable
+    :class:`DataOperator` object to write the field.  Any packing code
+    found in a field from this object's field list but not found here
+    will cause an exception when trying to write to a file.
 
     """
 
@@ -1398,12 +1394,12 @@ class UMFile(object):
         # Call validate - to ensure the file about to be written out doesn't
         # contain obvious errors.  This is done here before any new file is
         # created so that we don't create a blank file if the validation fails
-        if isinstance(output_file_or_path, basestring):
+        if isinstance(output_file_or_path, six.string_types):
             self.validate(filename=output_file_or_path)
         else:
             self.validate(filename=output_file_or_path.name)
 
-        if isinstance(output_file_or_path, basestring):
+        if isinstance(output_file_or_path, six.string_types):
             with open(output_file_or_path, 'wb') as output_file:
                 self._write_to_file(output_file)
         else:
@@ -1411,7 +1407,7 @@ class UMFile(object):
 
     def _read_file(self, file_or_filepath):
         """Populate the class from an existing file object or file"""
-        if isinstance(file_or_filepath, basestring):
+        if isinstance(file_or_filepath, six.string_types):
             self._source_path = file_or_filepath
             # If a filename is provided, open the file and populate the
             # fixed_length_header using its contents
@@ -1524,7 +1520,9 @@ class UMFile(object):
                     # code if one is available, otherwise use the default
                     # provider (which cannot actually decode the data)
                     read_provider = (
-                        self.READ_PROVIDERS.get(lbpack321, _NullReadProvider))
+                        self.READ_PROVIDERS.get(
+                            "{0:03d}".format(lbpack321),
+                            _NullReadProvider))
 
                     # Create the provider, passing a reference to the field,
                     # the file object and the start position to read the data
@@ -1563,7 +1561,7 @@ class UMFile(object):
                     # Install new component.
                     setattr(self, component_name, component)
                 # Assign to specific properties of the component.
-                for item_name, value in settings_dict.iteritems():
+                for item_name, value in six.iteritems(settings_dict):
                     if not hasattr(component, item_name):
                         msg = ('File header component "{0}" '
                                'has no element named "{1}"')
@@ -1614,7 +1612,7 @@ class UMFile(object):
             component = getattr(self, name)
 
             # Construct component position and shape info (or missing-values).
-            file_word_position = int(output_file.tell() / self.WORD_SIZE + 1)
+            file_word_position = output_file.tell() // self.WORD_SIZE + 1
             if component is not None:
                 shape = component.shape
                 ndims = len(shape)
@@ -1678,7 +1676,7 @@ class UMFile(object):
                 if field.lbrel != -99.0:
 
                     # Output 'recognised' lookup types (not blank entries).
-                    field.lbegin = output_file.tell() / self.WORD_SIZE
+                    field.lbegin = output_file.tell() // self.WORD_SIZE
 
                     # WGDOS packed fields can be tagged with an accuracy of
                     # -99.0; this indicates that they should not be packed,
@@ -1698,8 +1696,8 @@ class UMFile(object):
 
                         # Strip just the n1-n3 digits from the lbpack value
                         # since the later digits are not relevant
-                        lbpack321 = (field.lbpack -
-                                     ((field.lbpack//1000) % 10)*1000)
+                        lbpack321 = "{0:03d}".format(
+                            field.lbpack - ((field.lbpack//1000) % 10)*1000)
 
                         # Select an appropriate operator for writing the data
                         # (if one is available for the given packing code)
@@ -1728,8 +1726,8 @@ class UMFile(object):
                         # different to the above in the case of packed data;
                         # if the packing method has a different word size.
                         # Calculate the actual on-disk word size here
-                        size_on_disk = ((write_operator.WORD_SIZE*data_size)
-                                        / self.WORD_SIZE)
+                        size_on_disk = ((write_operator.WORD_SIZE*data_size) //
+                                        self.WORD_SIZE)
 
                         # Padding will also be applied to ensure that the next
                         # block of data is aligned with a sector boundary
@@ -1745,8 +1743,8 @@ class UMFile(object):
 
             # Update the fixed length header to reflect the extent
             # of the DATA component.
-            flh.data_dim1 = ((output_file.tell() // self.WORD_SIZE)
-                             - flh.data_start + 1)
+            flh.data_dim1 = ((output_file.tell() // self.WORD_SIZE) -
+                             flh.data_start + 1)
 
             # Go back and write the LOOKUP component.
             output_file.seek((flh.lookup_start - 1) * self.WORD_SIZE)
@@ -1760,14 +1758,14 @@ class UMFile(object):
         output_file.seek(0)
         self.fixed_length_header.to_file(output_file)
 
-
 # Import the derived UM File formats
 from mule.ff import FieldsFile
 from mule.lbc import LBCFile
 from mule.ancil import AncilFile
 from mule.dump import DumpFile
 
-# Mapping from known dataset types to the appropriate class to use
+# Mapping from known dataset types to the appropriate class to use with
+# load_umfile
 DATASET_TYPE_MAPPING = {
     1: DumpFile,
     2: DumpFile,
@@ -1810,7 +1808,7 @@ def load_umfile(unknown_umfile, stashmaster=None):
 
     # Handle the case of the file being either the path to a file to be opened
     # (and closed again) or an existing open file object.
-    if isinstance(unknown_umfile, basestring):
+    if isinstance(unknown_umfile, six.string_types):
         file_path = unknown_umfile
         with open(file_path) as open_file:
             result = _load_umfile(file_path, open_file)

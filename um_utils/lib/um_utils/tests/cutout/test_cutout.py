@@ -22,7 +22,7 @@ import os
 import numpy as np
 import um_utils.tests as tests
 
-from StringIO import StringIO
+from six import StringIO
 from um_utils import cutout
 from mule.stashmaster import STASHmaster
 

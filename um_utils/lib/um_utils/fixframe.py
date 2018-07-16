@@ -166,7 +166,7 @@ def _main():
     # Print version information
     print(_banner("(fixframe) Module Information")),
     report_modules()
-    print ""
+    print("")
 
     input_filename = args.input_filename
     if not os.path.exists(input_filename):

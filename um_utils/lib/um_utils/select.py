@@ -180,7 +180,7 @@ def _main():
     # Print version information
     print(_banner("(SELECT) Module Information")),
     report_modules()
-    print ""
+    print("")
 
     # The files must be the first 2 arguments.  Note that we don't include
     # these in the parser explicitly, because the way we wish to call the

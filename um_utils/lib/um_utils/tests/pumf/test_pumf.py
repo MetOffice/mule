@@ -21,7 +21,7 @@ from __future__ import (absolute_import, division, print_function)
 import os
 import um_utils.tests as tests
 
-from StringIO import StringIO
+from six import StringIO
 from um_utils import pumf
 
 # Disable warnings about the presence of the STASHmaster file

@@ -32,13 +32,30 @@
 #include "c_shum_byteswap.h"
 #include "c_shum_wgdos_packing_version.h"
 
-PyMODINIT_FUNC initum_packing(void);
+#if PY_MAJOR_VERSION >= 3
+#define PyInt_FromLong PyLong_FromLong
+#define MOD_ERROR_VAL NULL
+#define MOD_SUCCESS_VAL(val) val
+#define MOD_INIT(name) PyMODINIT_FUNC PyInit_##name(void)
+#define MOD_DEF(ob, name, doc, methods)               \
+  static struct PyModuleDef moduledef = {             \
+    PyModuleDef_HEAD_INIT, name, doc, -1, methods, }; \
+  ob = PyModule_Create(&moduledef);
+#else
+#define MOD_ERROR_VAL
+#define MOD_SUCCESS_VAL(val)
+#define MOD_INIT(name) PyMODINIT_FUNC init##name(void)
+#define MOD_DEF(ob, name, doc, methods)               \
+  ob = Py_InitModule3(name, methods, doc);
+#endif
+
+MOD_INIT(um_packing);
 
 static PyObject *wgdos_unpack_py(PyObject *self, PyObject *args);
 static PyObject *wgdos_pack_py(PyObject *self, PyObject *args);
 static PyObject *get_shumlib_version_py(PyObject *self, PyObject *args);
 
-PyMODINIT_FUNC initum_packing(void)
+MOD_INIT(um_packing)
 {
   PyDoc_STRVAR(um_packing__doc__,
   "This extension module provides access to the SHUMlib packing library.\n"
@@ -81,8 +98,13 @@ PyMODINIT_FUNC initum_packing(void)
     {NULL, NULL, 0, NULL}
   };
 
-  Py_InitModule3("um_packing", um_packingMethods, um_packing__doc__);
+  PyObject *mod;
+  MOD_DEF(mod, "um_packing", um_packing__doc__, um_packingMethods);
+  if (mod == NULL)
+    return MOD_ERROR_VAL;
+
   import_array();
+  return MOD_SUCCESS_VAL(mod);
 }
 
 static PyObject *wgdos_unpack_py(PyObject *self, PyObject *args)
@@ -264,7 +286,11 @@ static PyObject *wgdos_pack_py(PyObject *self, PyObject *args)
 
   // Form a python string object to return to python
   PyObject *bytes_out = NULL;
-  bytes_out = PyString_FromStringAndSize(ptr_char, out_len);
+  #if PY_MAJOR_VERSION >= 3
+    bytes_out = PyBytes_FromStringAndSize(ptr_char, out_len);
+  #else
+    bytes_out = PyString_FromStringAndSize(ptr_char, out_len);
+  #endif
 
   // Free the memory used by the integer array
   free(comp_field_ptr);

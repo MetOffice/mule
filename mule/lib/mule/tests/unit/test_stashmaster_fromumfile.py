@@ -27,9 +27,13 @@ from __future__ import (absolute_import, division, print_function)
 from six.moves import (filter, input, map, range, zip)  # noqa
 
 import mule.tests as tests
-from mock import patch
-
 from mule.stashmaster import STASHmaster
+
+import six
+if six.PY2:
+    from mock import patch
+elif six.PY3:
+    from unittest.mock import patch
 
 
 class FakeFixedLength(object):

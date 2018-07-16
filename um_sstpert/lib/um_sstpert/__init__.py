@@ -31,8 +31,6 @@ Usage:
                                          clim_file, alpha, ens_member, date)
 
 """
-__version__ = "2017.08.1"
-
 import os
 import sys
 import argparse
@@ -42,9 +40,11 @@ import numpy as np
 from datetime import datetime
 
 import mule
-import um_sstpert
+from .um_sstpert import sstpert
 from um_utils.version import report_modules
 from um_utils.pumf import _banner
+
+__version__ = "2017.08.1"
 
 
 def gen_pert_field(clim_fields, alpha, ens_member, date):
@@ -110,7 +110,7 @@ def gen_pert_field(clim_fields, alpha, ens_member, date):
                    ens_member + 100])
 
     # Call the library
-    pert_data = um_sstpert.sstpert(alpha, dt, clim_array)
+    pert_data = sstpert(alpha, dt, clim_array)
 
     # Create a copy of the first field to store the new output
     pert_field = clim_fields[0].copy()
@@ -276,7 +276,7 @@ def _main():
     # Print version information
     print(_banner("(SSTPERT) Module Information")),
     report_modules()
-    print ""
+    print("")
 
     # Get the date information using the format if provided
     date = datetime.strptime(args.date, args.date_fmt)

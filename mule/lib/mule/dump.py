@@ -124,8 +124,8 @@ class DumpFile(mule.ff.FieldsFile):
         )
 
     # Add an additional field type, to handle special dump fields
-    FIELD_CLASSES = dict(mule.ff.FieldsFile.FIELD_CLASSES.items()
-                         + [(mule._INTEGER_MDI, DumpSpecialField)])
+    FIELD_CLASSES = dict(list(mule.ff.FieldsFile.FIELD_CLASSES.items()) +
+                         [(mule._INTEGER_MDI, DumpSpecialField)])
 
     # Set accepted dataset types
     DATASET_TYPES = (1, 2)

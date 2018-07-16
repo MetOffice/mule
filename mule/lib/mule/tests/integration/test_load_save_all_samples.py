@@ -21,6 +21,7 @@ Integration tests for all :class:`mule` loading methods, on all datafiles.
 from __future__ import (absolute_import, division, print_function)
 from six.moves import (filter, input, map, range, zip)  # noqa
 
+import warnings
 from glob import glob
 import os
 import os.path
@@ -28,6 +29,9 @@ import os.path
 import mule.tests as tests
 from mule import UMFile, FieldsFile, LBCFile, AncilFile, DumpFile, load_umfile
 
+# Suppress the warning about the STASHmaster (one of the tested files is
+# an ancil which doesn't set the UM version and so will issue this warning)
+warnings.filterwarnings("ignore", r".*No STASHmaster file loaded.*")
 
 # Identify all the test datafiles, their types and name stems.
 TESTFILE_PATHS = glob(os.path.join(tests.TESTDATA_DIRPATH, '*'))

@@ -76,6 +76,7 @@ Global print settings:
 import os
 import re
 import sys
+import six
 import errno
 import mule
 import numpy as np
@@ -429,7 +430,7 @@ def _print_um_file(umf, stdout=sys.stdout, print_settings=PRINT_SETTINGS):
                 # Skip the field if it doesn't match the property filtering
                 if field_property != {}:
                     skip_field = False
-                    for prop, value in field_property.iteritems():
+                    for prop, value in six.iteritems(field_property):
                         field_val = getattr(field, prop, None)
                         if field_val is not None and field_val != value:
                             skip_field = True
@@ -615,7 +616,7 @@ def _main():
     # Print version information
     print(_banner("(PUMF-II) Module Information")),
     report_modules()
-    print ""
+    print("")
 
     # Process component filtering argument
     if args.components is not None:

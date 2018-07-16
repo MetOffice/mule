@@ -49,8 +49,8 @@ if not pkgutil.get_loader("um_packing") is None:
         # (on some platforms the default will be a high number of threads
         # which can cause issues - we set it to be single threaded by default)
         _omp_threads = "OMP_NUM_THREADS"
-        if (_omp_threads not in os.environ
-                or not os.environ[_omp_threads].isdigit()):
+        if (_omp_threads not in os.environ or
+                not os.environ[_omp_threads].isdigit()):
             os.environ[_omp_threads] = "1"
 
         def _wgdos_unpack_field(data_bytes, mdi, rows, cols):
