@@ -38,7 +38,6 @@ import sys
 import mule
 import argparse
 import textwrap
-import warnings
 import numpy as np
 from um_utils.stashmaster import STASHmaster
 from um_utils.cutout import cutout
@@ -398,6 +397,7 @@ def _main():
     else:
         msg = "File not found: {0}".format(filename)
         raise ValueError(msg)
+
 
 if __name__ == "__main__":
     _main()

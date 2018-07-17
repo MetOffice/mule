@@ -70,7 +70,6 @@ def _check_ukv_eg_variable_sample(testcase, ffv):
 
 
 def _check_soil_params(testcase, ffv):
-    testcase.assertEqual(ffv.level_dependent_constants.shape, (1, 4))
     testcase.assertEqual(len(ffv.fields), 11)
     testcase.assertIsNone(ffv.row_dependent_constants)
     testcase.assertIsNone(ffv.column_dependent_constants)
@@ -81,6 +80,7 @@ def _check_n48_eg_dump_special(testcase, ffv):
     testcase.assertEqual(len(ffv.fields), 2)
     testcase.assertIsNone(ffv.row_dependent_constants)
     testcase.assertIsNone(ffv.column_dependent_constants)
+
 
 # Store the sanity-checks by datafile name
 KNOWN_EXPECTED_PROPERTIES = {

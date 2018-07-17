@@ -26,9 +26,9 @@ import warnings
 import mule.tests as tests
 from mule import AncilFile, Field3, _REAL_MDI
 from mule.ancil import (Ancil_IntegerConstants, Ancil_RealConstants,
-                        Ancil_LevelDependentConstants,
                         Ancil_RowDependentConstants,
                         Ancil_ColumnDependentConstants)
+from mule.ff import FF_LevelDependentConstants
 from mule.validators import ValidateError
 
 warnings.filterwarnings("ignore", r".*No STASHmaster file loaded.*")
@@ -62,8 +62,7 @@ class Test_from_file(tests.MuleTest):
             self.assertEqual(anc.integer_constants.shape, (15,))
             self.assertIsNotNone(anc.real_constants)
             self.assertEqual(anc.real_constants.shape, (6,))
-            self.assertIsNotNone(anc.level_dependent_constants)
-            self.assertEqual(anc.level_dependent_constants.shape, (1, 4))
+            self.assertIsNone(anc.level_dependent_constants)
             self.assertIsNone(anc.row_dependent_constants)
             self.assertIsNone(anc.column_dependent_constants)
             self.assertEqual(len(anc.fields), 11)
@@ -98,8 +97,6 @@ class Test_validate(tests.MuleTest):
         self.anc.real_constants.col_spacing = self._dflt_dx
         self.anc.real_constants.start_lat = self._dflt_y0
         self.anc.real_constants.row_spacing = self._dflt_dy
-        self.anc.level_dependent_constants = (
-            Ancil_LevelDependentConstants.empty(self._dflt_nz))
 
         # Construct a mock 'minimal' field that passes the validation tests.
         self.fld = Field3.empty()
@@ -172,12 +169,14 @@ class Test_validate(tests.MuleTest):
                                    "Real constants not found"):
             self.anc.validate()
 
-    # Test that having no integer constants fails
-    def test_missing_lev_consts_fail(self):
-        self.anc.level_dependent_constants = None
-        with six.assertRaisesRegex(self,
-                                   ValidateError,
-                                   "Level dependent constants not found"):
+    # Test that having level dependent constants fails
+    def test_having_lev_consts_fail(self):
+        self.anc.level_dependent_constants = (
+            FF_LevelDependentConstants.empty(2))
+        with six.assertRaisesRegex(
+                self,
+                ValidateError,
+                "Ancillary file contains header components other than"):
             self.anc.validate()
 
     # Test that invalid shape integer constants fails
@@ -194,24 +193,6 @@ class Test_validate(tests.MuleTest):
         with six.assertRaisesRegex(self,
                                    ValidateError,
                                    "Incorrect number of real constants"):
-            self.anc.validate()
-
-    # Test that invalid shape level dependent constants fails (first dim)
-    def test_baddim_1_lev_consts_fail(self):
-        self.anc.level_dependent_constants = (
-            Ancil_LevelDependentConstants.empty(7, 8))
-        with six.assertRaisesRegex(
-            self, ValidateError,
-                "Incorrectly shaped level dependent constants"):
-            self.anc.validate()
-
-    # Test that invalid shape level dependent constants fails (second dim)
-    def test_baddim_2_lev_consts_fail(self):
-        self.anc.level_dependent_constants = (
-            Ancil_LevelDependentConstants.empty(6, 9))
-        with six.assertRaisesRegex(
-            self, ValidateError,
-                "Incorrectly shaped level dependent constants"):
             self.anc.validate()
 
     # Test a variable resolution case

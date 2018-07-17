@@ -24,10 +24,6 @@ import um_utils.tests as tests
 from six import StringIO
 from um_utils import pumf
 
-# Disable warnings about the presence of the STASHmaster file
-import warnings
-warnings.filterwarnings("ignore", r".*unable to load STASHmaster file.*")
-
 # Manually change this flag to "True" if you are trying to add a new test -
 # this will trigger the testing to save the output if it doens't already
 # exist (for development work which adds a new test file)

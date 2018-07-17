@@ -46,14 +46,6 @@ _ANCIL_REAL_CONSTANTS = [
     ('north_pole_lon',      6),
     ]
 
-# UM Ancil file level dependent constant names
-_ANCIL_LEVEL_DEPENDENT_CONSTANTS = [
-    ('eta_at_theta',      (slice(None), 1)),
-    ('eta_at_rho',        (slice(None), 2)),
-    ('rhcrit',            (slice(None), 3)),
-    ('soil_thickness',    (slice(None), 4)),
-    ]
-
 # UM Ancil file row dependent constant names
 _ANCIL_ROW_DEPENDENT_CONSTANTS = [
     ('phi_p', (slice(None), 1)),
@@ -77,12 +69,6 @@ class Ancil_RealConstants(mule.RealConstants):
     CREATE_DIMS = (6,)
 
 
-class Ancil_LevelDependentConstants(mule.LevelDependentConstants):
-    """The level dependent constants component of a UM Ancillary File."""
-    HEADER_MAPPING = _ANCIL_LEVEL_DEPENDENT_CONSTANTS
-    CREATE_DIMS = (None, 4)
-
-
 class Ancil_RowDependentConstants(mule.RowDependentConstants):
     """The row dependent constants component of a UM Ancillary File."""
     HEADER_MAPPING = _ANCIL_ROW_DEPENDENT_CONSTANTS
@@ -103,7 +89,7 @@ class AncilFile(mule.FieldsFile):
     COMPONENTS = (
         ('integer_constants', Ancil_IntegerConstants),
         ('real_constants', Ancil_RealConstants),
-        ('level_dependent_constants', Ancil_LevelDependentConstants),
+        ('level_dependent_constants', mule.UnsupportedHeaderItem2D),
         ('row_dependent_constants', Ancil_RowDependentConstants),
         ('column_dependent_constants', Ancil_ColumnDependentConstants),
         ('additional_parameters', mule.UnsupportedHeaderItem2D),

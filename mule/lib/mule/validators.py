@@ -90,16 +90,19 @@ def validate_umf(umf, filename=None, warn=False):
     # checks are unlikely to work without the above passing)
     if not validation_errors:
 
-        # Level dependent constants also mandatory
-        if umf.fixed_length_header.dataset_type == 4:
-            # Ancils use a different element to specify the level count
-            num_levels = umf.integer_constants.num_levels
-        else:
+        # Level dependent constants also mandatory except for dataset type 4
+        # (i.e. ancils), which should not have level dependent constants.
+        if umf.fixed_length_header.dataset_type != 4:
             num_levels = umf.integer_constants.num_p_levels + 1
-        validation_errors += (
-            validate_level_dependent_constants(
-                umf, (num_levels, component_dict[
-                    "level_dependent_constants"].CREATE_DIMS[1])))
+            validation_errors += (
+                validate_level_dependent_constants(
+                    umf, (num_levels, component_dict[
+                        "level_dependent_constants"].CREATE_DIMS[1])))
+        elif umf.level_dependent_constants is not None:
+            validation_errors += [
+                "Ancillary file contains header components other than the "
+                "row/column dependent constants - these should be set to "
+                "\"None\" for Ancillary files"]
 
         # Sizes for row dependent constants (if present)
         if umf.row_dependent_constants is not None:
