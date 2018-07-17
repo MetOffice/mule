@@ -106,10 +106,11 @@ def _main():
     """
 
     help_prolog = """    usage:
-      %(prog)s input_filename output_filename [filter arguments]
+      %(prog)s input_filename [input_filename2 [input_filename3]] \
+                                            output_filename [filter arguments]
 
-    This script will select or exclude fields from a UM file based on the
-    values set in the lookup headers of each field.
+    This script will select or exclude fields from one or more UM file based
+    on the values set in the lookup headers of each field.
     """
     title = _banner(
         "SELECT - Field filtering tool for UM files "
@@ -119,6 +120,10 @@ def _main():
     examples:
       Select U and V wind components (lbfc 56 57) at model level 1
       mule-select ifile ofile --include lbfc=56,57 lblev=1
+
+      Select U and V wind components (lbfc 56 57) at model level 1 from
+      two input files
+      mule-select ifile1 ifile2 ofile --include lbfc=56,57 lblev=1
 
       Select pressure (lbfc  8) but not at surface (lblev 9999)
       mule-select ifile ofile --include lbfc=8 --exclude blev=9999
@@ -182,16 +187,26 @@ def _main():
     report_modules()
     print("")
 
-    # The files must be the first 2 arguments.  Note that we don't include
-    # these in the parser explicitly, because the way we wish to call the
-    # parser below is a little odd (once per --or to separate the cases) and
-    # including the files would interfere with this
-    input_file = sys.argv.pop(1)
+    # The files must be the first arguments, with the output file being
+    # the last one  Note that we don't include these in the parser
+    # explicitly, because the way we wish to call the parser below is a
+    # little odd (once per --or to separate the cases) and including
+    # the files would interfere with this
+
+    input_files = []
+    while len(sys.argv) > 3:
+        # Once the argument 2 positions ahead is a flag, exit
+        if sys.argv[2].startswith("--"):
+            break
+        # Otherwise gather the input files up
+        input_files.append(sys.argv.pop(1))
+
     output_file = sys.argv.pop(1)
 
-    if not os.path.isfile(input_file):
-        msg = "File not found: " + input_file
-        raise ValueError(msg)
+    for input_file in input_files:
+        if not os.path.isfile(input_file):
+            msg = "File not found: " + input_file
+            raise ValueError(msg)
 
     # Pickup the "--or" argument, splitting the arguments up and then pass them
     # through to the parser as if they were separate arguments
@@ -229,27 +244,32 @@ def _main():
         if entry:
             case_dicts.append(entry)
 
-    # Load the input file
-    umf = mule.load_umfile(input_file)
-
-    # Iterate through the cases - each returns a list of matching fields
+    # Load the input files
     selected_fields = []
-    for case in case_dicts:
-        selected_fields += (
-            select(umf,
-                   include=case.get("include", None),
-                   exclude=case.get("exclude", None)))
+    for ifile, input_file in enumerate(input_files):
+        umf = mule.load_umfile(input_file)
+
+        # Iterate through the cases - each returns a list of matching fields
+        for case in case_dicts:
+            selected_fields += (
+                select(umf,
+                       include=case.get("include", None),
+                       exclude=case.get("exclude", None)))
+
+        # Copy first file to use for writing output
+        if ifile == 0:
+            umf_out = umf.copy()
 
     # Prune out duplicates while preserving their order
     dupes = set()
     unique_fields = [
         x for x in selected_fields if not (x in dupes or dupes.add(x))]
 
-    # Attach the new set of fields to the original file object and write
-    # it back out
-    umf.fields = unique_fields
+    # Attach the new set of fields to the first original file object
+    # and write it back out
+    umf_out.fields = unique_fields
 
-    umf.to_file(output_file)
+    umf_out.to_file(output_file)
 
 
 if __name__ == "__main__":

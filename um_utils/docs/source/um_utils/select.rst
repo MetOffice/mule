@@ -14,31 +14,36 @@ Here is the help text for the command line utility (obtainable by running
     * SELECT - Field filtering tool for UM files (using the Mule API) *
     ===================================================================
     usage:
-      mule-select input_filename output_filename [filter arguments]
+      mule-select input_filename [input_filename2 [input_filename3]] 
+                                  output_filename [filter arguments]
 
-    This script will select or exclude fields from a UM file based on the
-    values set in the lookup headers of each field.
+    This script will select or exclude fields from one or more UM file based
+    on the values set in the lookup headers of each field.
 
     optional arguments:
       -h, --help            show this help message and exit
 
     filter arguments:
       --include name=val1[,val2] [name=val1[,val2] ...]
-                            specify lookup headers to include, the names should 
-                            correspond to lookup entry names and the values to the 
-                            desired values which must match 
+                            specify lookup headers to include, the names should
+                            correspond to lookup entry names and the values to the
+                            desired values which must match
 
       --exclude name=val1[,val2] [name=val1[,val2] ...]
-                            specify lookup headers to exclude, the names should 
-                            correspond to lookup entry names and the values to the 
-                            desired values which must not match 
+                            specify lookup headers to exclude, the names should
+                            correspond to lookup entry names and the values to the
+                            desired values which must not match
 
-      --or                  specify the separation of two criteria sections that 
+      --or                  specify the separation of two criteria sections that
                             should be "or"d together; this is a positional argument
 
     examples:
       Select U and V wind components (lbfc 56 57) at model level 1
       mule-select ifile ofile --include lbfc=56,57 lblev=1
+
+      Select U and V wind components (lbfc 56 57) at model level 1 from
+      two input files
+      mule-select ifile1 ifile2 ofile --include lbfc=56,57 lblev=1
 
       Select pressure (lbfc  8) but not at surface (lblev 9999)
       mule-select ifile ofile --include lbfc=8 --exclude blev=9999
