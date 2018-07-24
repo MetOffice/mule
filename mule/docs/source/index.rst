@@ -30,6 +30,7 @@ API Documentation:
    mule/ff
    mule/lbc
    mule/ancil
+   mule/pp
    mule/packing
    mule/operators
    mule/stashmaster

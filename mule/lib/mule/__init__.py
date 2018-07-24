@@ -1048,7 +1048,7 @@ class RawReadProvider(object):
         close_required = False
         try:
             if reopen_required:
-                self.sourcefile = open(self.sourcefile.name)
+                self.sourcefile = open(self.sourcefile.name, "rb")
                 close_required = True
             yield self.sourcefile
         finally:
@@ -1810,7 +1810,7 @@ def load_umfile(unknown_umfile, stashmaster=None):
     # (and closed again) or an existing open file object.
     if isinstance(unknown_umfile, six.string_types):
         file_path = unknown_umfile
-        with open(file_path) as open_file:
+        with open(file_path, "rb") as open_file:
             result = _load_umfile(file_path, open_file)
     else:
         open_file = unknown_umfile

@@ -17,11 +17,14 @@ these files run the following code snippet:
     >>> testdata_path = mule.tests.TESTDATA_DIRPATH
     >>> test_pattern = os.path.join(testdata_path, "*")
     >>> test_files = sorted(glob.glob(test_pattern))
+    >>> print("\n".join([os.path.basename(f) for f in test_files]))
     
 .. Note::
     
-    This is just returning all of the example file paths as a python list; 
-    you can then access specific files from the list via indexing.
+    This is just returning and printing all of the example file paths as a 
+    python list you can then access specific full paths from the list by 
+    passing one of the filenames printed above to the 
+    :meth:`mule.tests.testdata_filepath` method.
 
 Mule supports different UM file types using a series of classes; when 
 writing scripts you should generally select a class that corresponds to
@@ -41,13 +44,14 @@ like so:
 .. code-block:: python
 
     >>> import mule
-    >>> ff = mule.FieldsFile.from_file(test_files[1])
+    >>> test_ff_path = mule.tests.testdata_filepath("n48_eg_regular_sample.ff")
+    >>> ff = mule.FieldsFile.from_file(test_ff_path)
 
-This will load the 2nd file from the list of test files (a fields-file) using
+This will load a file from the list of test files (a fields-file) using
 the :class:`mule.FieldsFile` class.  You should find you can load a Dump using
 the :class:`mule.DumpFile` class, an LBC file using the :class:`mule.LBCFile` 
 class, or an Ancillary file using the :class:`mule.AncilFile` class in the 
-same way.
+same way (the filetypes are indicated by the extension of the test filenames).
 
 .. Note::
     
@@ -55,7 +59,8 @@ same way.
     the classes other than the :class:`mule.FieldsFile` class (or similarly 
     for the other classes) it will not work; the classes can detect if the file 
     they are given appears to be the correct type - based on information from 
-    the  headers (more on this later).
+    the  headers (more on this later).  You will also find you *cannot* load
+    a "pp" file with any of the classes (again more on this later).
 
 Alternatively, there is a convenience method which will allow you to attempt
 to load a file when you aren't sure of the type (or more likely - where you
@@ -64,12 +69,14 @@ will return whichever type appears to be correct:
 
 .. code-block:: python
 
-    >>> umf = mule.load_umfile(test_files[0])
+    >>> test_file = mule.tests.testdata_filepath("eg_boundary_sample.lbc")
+    >>> umf = mule.load_umfile(test_file)
     >>> type(umf)
     <class 'mule.lbc.LBCFile'>
-    >>> umf = mule.load_umfile(test_files[1])
+    >>> test_file = mule.tests.testdata_filepath("n48_eg_dump_special.dump")
+    >>> umf = mule.load_umfile(test_file)
     >>> type(umf)
-    <class 'mule.ff.FieldsFile'>
+    <class 'mule.dump.DumpFile'>
 
 .. Warning::
 
@@ -336,7 +343,8 @@ Did you manage to output the land packed field?  Here's a solution:
 
 .. code-block:: python
 
-    >>> ff = mule.FieldsFile.from_file(test_files[1])
+    >>> test_file = mule.tests.testdata_filepath("n48_eg_regular_sample.ff")
+    >>> ff = mule.FieldsFile.from_file(test_file)
     >>> ff.fields = ff.fields[0:2]
     >>> ff.fields[1].lbpack = 120
     >>> ff.fields[1].lbrow = 0
@@ -467,6 +475,51 @@ attached entries will be replaced):
     >>> ff.attach_stashmaster_info(sm)
 
 Please see UMDP-CO4 for further details on the contents of the STASH entries.
+
+Working with pp files
+---------------------
+
+Mule also has some basic support for reading and writing pp files - these are
+a descendant format of a :class:`mule.FieldsFile`, but do not preserve enough 
+of the typical file structure to be represented by a :class:`mule.UMFile` 
+variant.  Instead a pp file is treated more as a read/write method - for example
+to read in one of the pp files from the test suite:
+
+.. code-block:: python
+
+    >>> from mule.pp import fields_from_pp_file
+    >>> test_file = mule.tests.testdata_filepath("n48_multi_field.pp")
+    >>> fields = fields_from_pp_file(test_file)
+
+This will return a list containing :class:`mule.pp.PPField` objects (which
+are functionally very similar to :class:`mule.Field` objects).  These will have
+lookup properties, a :meth:`get_data` method and everything you would expect
+from a field object created as part of a :class:`mule.UMFile`.  You should 
+be able to use the two interchangably (e.g. if you wish to output a field
+read from a pp file into a fields-file simply insert its 
+:class:`mule.pp.PPField` object into the list of fields attached to your 
+:class:`mule.UMFile` object).  
+
+pp files can also be variable resolution, and for these an extra property
+is attached to each :class:`mule.pp.PPField` object called 
+:meth:`pp_extra_data` which contains information about the variable grid.
+(You can see an example if you try loading the `ukv_eg_variable_sample.pp` 
+file).
+
+You can write out field objects to a pp file in a similar way:
+
+.. code-block:: python
+
+    >>> from mule.pp import fields_to_pp_file
+    >>> fields_to_pp_file(fields)
+
+.. Note::
+
+    If you are trying to output pp fields which originated in a variable
+    resolution :class:`mule.UMFile` you will need to provide a reference to
+    the original :class:`mule.UMFile` object as a keyword to the above call.
+    This will cause Mule to calculate the appropriate extra data to attach
+    to the pp fields.
 
 Conclusion
 ----------

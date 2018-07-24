@@ -96,7 +96,8 @@ KNOWN_EXPECTED_PROPERTIES = {
 _UM_FILE_TYPES = {'dump': DumpFile,
                   'ff': FieldsFile,
                   'lbc': LBCFile,
-                  'anc': AncilFile}
+                  'anc': AncilFile,
+                  'pp': None}
 
 
 class Test_all_sample_data(tests.MuleTest):
@@ -113,6 +114,10 @@ class Test_all_sample_data(tests.MuleTest):
         for path, name, filetype in zip(TESTFILE_PATHS,
                                         TESTFILE_NAMES,
                                         TESTFILE_TYPES):
+            # Skip the pp files (they don't work the same at all)
+            if filetype == "pp":
+                continue
+
             # Test load_umfile the file.
             ffv = load_umfile(path)
 
@@ -131,6 +136,9 @@ class Test_all_sample_data(tests.MuleTest):
         for path, name, filetype in zip(TESTFILE_PATHS,
                                         TESTFILE_NAMES,
                                         TESTFILE_TYPES):
+            # Skip the pp files (they don't work the same at all)
+            if filetype == "pp":
+                continue
 
             # Check you can load it as the expected specific type.
             typeclass = _UM_FILE_TYPES.get(filetype)
@@ -145,6 +153,10 @@ class Test_all_sample_data(tests.MuleTest):
         for path, name, filetype in zip(TESTFILE_PATHS,
                                         TESTFILE_NAMES,
                                         TESTFILE_TYPES):
+
+            # Skip the pp files (they don't work the same at all)
+            if filetype == "pp":
+                continue
 
             # Check you can load it as a generic UMFile.
             ffv = UMFile.from_file(path)
