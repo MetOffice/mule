@@ -19,16 +19,18 @@ if [ $# -lt 3 ] ; then
     echo "USAGE: "
     echo "   $(basename $0) [--sstpert_lib <sstpert_lib>]"
     echo "                  [--wafccb_lib <wafccb_lib>]"
+    echo "                  [--spiral_lib ]"
     echo "                  <lib_dest> <bin_dest> <shumlib> "
     echo ""
     echo "   Must be called from the top-level of a working "
     echo "   copy of the UM mule project, containing the 3"
     echo "   module folders (um_packing, um_utils and mule)"
     echo ""
-    echo "   Optionally the um_sstpert and um_wafccb "
-    echo "   extensions can also be included (but they are "
-    echo "   not by default because the required libraries "
-    echo "   are available only under a UM license)"
+    echo "   Optionally the um_sstpert, um_wafccb and/or "
+    echo "   um_spiral extensions can be included (but they are "
+    echo "   not by default because they aren't required for "
+    echo "   any core Mule functionality, and the sstpert/wafccb "
+    echo "   libraries are only available under a UM license)"
     echo ""
     echo "ARGS: "
     echo "  * <lib_dest>"
@@ -46,12 +48,14 @@ if [ $# -lt 3 ] ; then
     echo "  * --wafccb_lib <wafccb_lib>"
     echo "      (Optional) The location of the UM wafccb"
     echo "      library for linking the um_wafccb extension."
+    echo "  * --spiral_lib"
+    echo "      (Optional) Toggles the building of the UM spiral_search"
+    echo "      extension (uses the Shumlib location from <shumlib>)."
     echo ""
     echo "  After running the script the directory "
     echo "  named in <lib_dest> should be suitable to "
-    echo "  add to python's path via a .pth file, and "
-    echo "  after doing this the execs in <bin_dest> "
-    echo "  should become functional."
+    echo "  add to python's path, and after doing this "
+    echo "  the execs in <bin_dest> should become functional."
     echo ""
     exit 1
 fi
@@ -59,12 +63,15 @@ fi
 # Process the optional arguments
 SSTPERT_LIB=
 WAFCCB_LIB=
+SPIRAL_LIB=
 while [ $# -gt 3 ] ; do
     case "$1" in
         --sstpert_lib) shift
-                      SSTPERT_LIB=$1 ;;
+                     SSTPERT_LIB=$1 ;;
         --wafccb_lib) shift
                      WAFCCB_LIB=$1 ;;
+        --spiral_lib) 
+                     SPIRAL_LIB="build" ;;
         *) echo "Unrecognised argument: $1"
            exit 1 ;;
     esac
@@ -81,6 +88,9 @@ if [ -n "$SSTPERT_LIB" ] ; then
 fi
 if [ -n "$WAFCCB_LIB" ] ; then
     MODULE_LIST="$MODULE_LIST um_wafccb"
+fi
+if [ -n "$SPIRAL_LIB" ] ; then
+    MODULE_LIST="$MODULE_LIST um_spiral_search"
 fi
 
 # A few hardcoded settings
@@ -126,7 +136,7 @@ fi
 
 # Check that shumlib is found
 if [ ! -d $SHUMLIB ] ; then
-  echo "Packing library directory '$SHUMLIB' not found"
+  echo "Shumlib directory '$SHUMLIB' not found"
   exit 1
 fi
 
@@ -186,6 +196,18 @@ if [ -n "$WAFCCB_LIB" ] ; then
         -I$WAFCCB_LIB/include \
         -L$WAFCCB_LIB/lib \
         -R$WAFCCB_LIB/lib
+fi
+
+# Spiral search library (if being used)
+if [ -n "$SPIRAL_LIB" ] ; then
+    echo "Changing directory to spiral search module:" $wc_root/um_spiral_search
+    cd $wc_root/um_spiral_search
+
+    echo "Building spiral search module..."
+    $PYTHONEXEC setup.py build_ext --inplace \
+        -I$SHUMLIB/include \
+        -L$SHUMLIB/lib \
+        -R$SHUMLIB/lib
 fi
 
 #----------------------------------------------#

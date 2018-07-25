@@ -13,7 +13,7 @@ documentation included in SHUMlib contains details on how to do this, or your
 site may already have a central install).  Once you have located the install 
 save the path to a variable (as we will need it multiple times):
 
-    DIR=/path/to/the/shumlib/packing/library
+    DIR=/path/to/the/shumlib/library
 
 (The above path should be the one containing the "include" and "lib"
 subdirectories, with several libraries including "libshum_wgdos_packing.so" 
@@ -21,7 +21,8 @@ shared object present in "lib")
 
 Then use the following command to build the extension:
 
-    python setup.py build_ext --inplace -I$DIR/include -L$DIR/lib -R$DIR/lib
+    python setup.py build_ext --inplace \
+             -I$DIR/include -L$DIR/lib -R$DIR/lib
 
 Installation (Central)
 ======================

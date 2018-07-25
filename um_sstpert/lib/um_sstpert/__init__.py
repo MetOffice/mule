@@ -1,6 +1,6 @@
 # (C) Crown Copyright 2018, Met Office. All rights reserved.
 #
-# This file is part of the UM packing library extension module for Mule.
+# This file is part of the UM sstpert library extension module for Mule.
 #
 # Mule is free software: you can redistribute it and/or modify it under
 # the terms of the Modified BSD License, as published by the
