@@ -49,6 +49,7 @@ import os
 import re
 import sys
 import mule
+import mule.pp
 import argparse
 import textwrap
 import warnings
@@ -780,6 +781,11 @@ def _main():
             if stashm is None:
                 msg = "Cannot load user supplied STASHmaster"
                 raise ValueError(msg)
+
+        # Abort for pp files (they don't have the required information)
+        if mule.pp.file_is_pp_file(filename):
+            msg = "File {0} is a pp file, which cutout does not support"
+            raise ValueError(msg.format(filename))
 
         # Load the file using Mule - filter it according to the file types
         # which cutout can handle

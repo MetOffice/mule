@@ -64,6 +64,28 @@ _WRITE_OPERATORS = {
     }
 
 
+def file_is_pp_file(file_path):
+    """
+    Checks to see if a given file is a pp file.
+
+    Args:
+        * file_path:
+            Path to the file to be checked.
+
+    Returns:
+        * True if file is a pp file, False otherwise.
+
+    """
+    # The logic behind this is that the first 32-bit word of a pp file should
+    # be the record length of the first record (a lookup entry).  Since this
+    # has 64, 4-byte words we check to see if it is 64*4 = 256.  In a regular
+    # UM File the first 64-bit word should be either 15, 20 or IMDI, and in
+    # each of these cases it is not possible for the first half of the word
+    # to be 256, making this a safe way to detect a pp file.
+    first_word = np.fromfile(file_path, dtype=">i4", count=1)
+    return first_word == 256
+
+
 def fields_from_pp_file(pp_file_obj_or_path):
     """
     Reads in a PP file as a list of field objects.

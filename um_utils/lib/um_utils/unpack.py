@@ -32,6 +32,7 @@ import sys
 import argparse
 import textwrap
 import mule
+import mule.pp
 from um_utils.version import report_modules
 from um_utils.pumf import _banner
 
@@ -104,13 +105,26 @@ def _main():
 
     output_filename = args.output_filename
 
-    # Read in file as a FieldsFile - MakeBC frames do not pass fieldsfile
-    # validation so will generate some warnings
-    origfile = mule.FieldsFile.from_file(input_filename)
-    # unpack fieldsfile
+    # Check if the file is a pp file
+    pp_mode = mule.pp.file_is_pp_file(input_filename)
+    if pp_mode:
+        # Make an empty fieldsfile object and attach the pp file's
+        # field objects to it
+        origfile = mule.FieldsFile()
+        origfile.fields = mule.pp.fields_from_pp_file(input_filename)
+        origfile._source_path = input_filename
+    else:
+        # Read in file as a FieldsFile
+        origfile = mule.FieldsFile.from_file(input_filename)
+
+    # Unpack fieldsfile
     unpackedfile = unpack(origfile)
+
     # Write file
-    unpackedfile.to_file(output_filename)
+    if pp_mode:
+        mule.pp.fields_to_pp_file(output_filename, unpackedfile.fields)
+    else:
+        unpackedfile.to_file(output_filename)
 
 
 if __name__ == "__main__":

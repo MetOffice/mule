@@ -511,7 +511,7 @@ You can write out field objects to a pp file in a similar way:
 .. code-block:: python
 
     >>> from mule.pp import fields_to_pp_file
-    >>> fields_to_pp_file(fields)
+    >>> fields_to_pp_file("output_file.pp", fields)
 
 .. Note::
 

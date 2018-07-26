@@ -35,6 +35,7 @@ Usage:
 import os
 import sys
 import mule
+import mule.pp
 import argparse
 import textwrap
 from um_utils.version import report_modules
@@ -172,6 +173,11 @@ def _main():
     if not os.path.exists(input_filename):
         msg = "File not found: {0}".format(input_filename)
         raise ValueError(msg)
+
+    # Abort for pp files (they don't have the required information)
+    if mule.pp.file_is_pp_file(input_filename):
+        msg = "File {0} is a pp file, which fixframe does not support"
+        raise ValueError(msg.format(input_filename))
 
     output_filename = args.output_filename
 

@@ -82,6 +82,7 @@ Global comparison settings:
 import re
 import sys
 import mule
+import mule.pp
 import errno
 import argparse
 import textwrap
@@ -1357,11 +1358,24 @@ def _main():
         COMPARISON_SETTINGS["only_report_failures"] = False
         COMPARISON_SETTINGS["show_missing"] = True
 
-    # Get the filenames
-    file_1 = mule.load_umfile(args.file_1, stashmaster=stashm)
-    file_2 = mule.load_umfile(args.file_2, stashmaster=stashm)
+    # Check if either of these are pp files
+    um_files = []
+    pp_mode = False
+    for input_file in (args.file_1, args.file_2):
+        if mule.pp.file_is_pp_file(input_file):
+            # Make an empty fieldsfile object and attach the pp file's
+            # field objects to it
+            pp_mode = True
+            um_file = mule.FieldsFile()
+            um_file.fields = mule.pp.fields_from_pp_file(input_file)
+            um_file._source_path = input_file
+            if stashm is not None:
+                um_file.attach_stashmaster_info(stashm)
+        else:
+            um_file = mule.load_umfile(input_file, stashmaster=stashm)
+        um_files.append(um_file)
 
-    comparison = UMFileComparison(file_1, file_2)
+    comparison = UMFileComparison(um_files[0], um_files[1])
 
     # Now print a report to stdout, if a SIGPIPE is received handle
     # it appropriately
@@ -1376,8 +1390,14 @@ def _main():
 
     # If requested, and any data differences exist, write to diff file
     if args.diff_file is not None:
+        # Cannot do this if a pp file was involved
+        if pp_mode:
+            msg = ("At least one of the files was a pp file, cannot "
+                   "produce a difference file in this case")
+            raise ValueError(msg)
+
         diff_file = args.diff_file
-        new_ff = file_1.copy()
+        new_ff = um_files[0].copy()
         new_ff.fields = [field for field in comparison.field_comparisons
                          if not field.data_match and field.data_shape_match]
 
@@ -1386,7 +1406,7 @@ def _main():
         mask_required = [field.lbpack % 100 != 0 for field in new_ff.fields]
         if any(mask_required):
             lsm = None
-            for field in file_1.fields:
+            for field in um_files[0].fields:
                 if field.lbrel in (2, 3) and field.lbuser4 == 30:
                     lsm = field
                     break

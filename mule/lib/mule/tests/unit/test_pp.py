@@ -28,6 +28,23 @@ from mule.pp import fields_from_pp_file, fields_to_pp_file
 
 class Test_load_fields(tests.MuleTest):
     """Test the reading of different files"""
+    def test_pp_file_format_check(self):
+
+        pp_file = testdata_filepath("n48_multi_field.pp")
+        self.assertTrue(mule.pp.file_is_pp_file(pp_file))
+
+        um_file = testdata_filepath("n48_multi_field.ff")
+        self.assertFalse(mule.pp.file_is_pp_file(um_file))
+
+        um_file = testdata_filepath("soil_params.anc")
+        self.assertFalse(mule.pp.file_is_pp_file(um_file))
+
+        um_file = testdata_filepath("eg_boundary_sample.lbc")
+        self.assertFalse(mule.pp.file_is_pp_file(um_file))
+
+        um_file = testdata_filepath("n48_eg_dump_special.dump")
+        self.assertFalse(mule.pp.file_is_pp_file(um_file))
+
     def test_read_ppfile_fix_grid(self, fname=None):
 
         if fname is None:

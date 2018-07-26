@@ -68,6 +68,7 @@ import re
 import sys
 import errno
 import mule
+import mule.pp
 import six
 import numpy as np
 import argparse
@@ -429,7 +430,21 @@ def _main():
     filename = args.input_file
 
     if os.path.exists(filename):
-        um_file = mule.load_umfile(filename, stashmaster=stashm)
+        # Check if this is a pp file
+        if mule.pp.file_is_pp_file(filename):
+            # Make an empty fieldsfile object and attach the pp file's
+            # field objects to it
+            um_file = mule.FieldsFile()
+            um_file.fields = mule.pp.fields_from_pp_file(filename)
+            um_file._source_path = filename
+            if stashm is not None:
+                um_file.attach_stashmaster_info(stashm)
+            # Override the component filter as only the lookup is
+            # available in a pp file
+            PRINT_SETTINGS["component_filter"] = ["lookup"]
+        else:
+            um_file = mule.load_umfile(filename, stashmaster=stashm)
+
         # Now print the object to stdout, if a SIGPIPE is received handle
         # it appropriately
         try:

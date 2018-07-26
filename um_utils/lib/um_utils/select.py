@@ -47,6 +47,7 @@ combining the results.
 import os
 import sys
 import mule
+import mule.pp
 import argparse
 import textwrap
 from um_utils.pumf import _banner
@@ -246,8 +247,19 @@ def _main():
 
     # Load the input files
     selected_fields = []
+    pp_mode = False
     for ifile, input_file in enumerate(input_files):
-        umf = mule.load_umfile(input_file)
+        # Check if this is a pp file
+        if mule.pp.file_is_pp_file(input_file):
+            pp_mode = True
+            umf = mule.FieldsFile()
+            umf.fields = mule.pp.fields_from_pp_file(input_file)
+            umf._source_path = input_file
+        elif not pp_mode:
+            umf = mule.load_umfile(input_file)
+        else:
+            msg = "Cannot mix and match UM files and pp files"
+            raise ValueError(msg)
 
         # Iterate through the cases - each returns a list of matching fields
         for case in case_dicts:
@@ -257,7 +269,7 @@ def _main():
                        exclude=case.get("exclude", None)))
 
         # Copy first file to use for writing output
-        if ifile == 0:
+        if ifile == 0 and not pp_mode:
             umf_out = umf.copy()
 
     # Prune out duplicates while preserving their order
@@ -266,10 +278,12 @@ def _main():
         x for x in selected_fields if not (x in dupes or dupes.add(x))]
 
     # Attach the new set of fields to the first original file object
-    # and write it back out
-    umf_out.fields = unique_fields
-
-    umf_out.to_file(output_file)
+    # and write it back out, or write out a pp file
+    if pp_mode:
+        mule.pp.fields_to_pp_file(output_file, unique_fields)
+    else:
+        umf_out.fields = unique_fields
+        umf_out.to_file(output_file)
 
 
 if __name__ == "__main__":
