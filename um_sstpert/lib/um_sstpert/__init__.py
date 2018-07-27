@@ -1,4 +1,8 @@
-# (C) Crown Copyright 2018, Met Office. All rights reserved.
+# *****************************COPYRIGHT******************************
+# (C) Crown copyright Met Office. All rights reserved.
+# For further details please refer to the file LICENCE.txt
+# which you should have received as part of this distribution.
+# *****************************COPYRIGHT******************************
 #
 # This file is part of the UM sstpert library extension module for Mule.
 #
@@ -44,7 +48,7 @@ from .um_sstpert import sstpert
 from um_utils.version import report_modules
 from um_utils.pumf import _banner
 
-__version__ = "2017.08.1"
+__version__ = "2018.07.1"
 
 
 def gen_pert_field(clim_fields, alpha, ens_member, date):

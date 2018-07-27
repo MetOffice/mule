@@ -1,5 +1,8 @@
 /**********************************************************************/
-/* (C) Crown Copyright 2018, Met Office. All rights reserved.         */
+/* (C) Crown copyright Met Office. All rights reserved.               */
+/* For further details please refer to the file LICENCE.txt           */
+/* which you should have received as part of this distribution.       */
+/* *****************************COPYRIGHT******************************/
 /*                                                                    */
 /* This file is part of the UM SSTPert library extension module       */
 /* for use with Mule.                                                 */

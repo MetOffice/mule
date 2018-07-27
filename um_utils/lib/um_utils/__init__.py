@@ -1,4 +1,8 @@
-# (C) Crown Copyright 2018, Met Office. All rights reserved.
+# *****************************COPYRIGHT******************************
+# (C) Crown copyright Met Office. All rights reserved.
+# For further details please refer to the file LICENCE.txt
+# which you should have received as part of this distribution.
+# *****************************COPYRIGHT******************************
 #
 # This file is part of the UM utilities module, which use the Mule API.
 #
@@ -15,4 +19,4 @@
 # along with these utilities.
 # If not, see <http://opensource.org/licenses/BSD-3-Clause>.
 
-__version__ = "2017.08.1"
+__version__ = "2018.07.1"

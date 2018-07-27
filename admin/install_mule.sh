@@ -258,6 +258,22 @@ for module in $MODULE_LIST ; do
     unpack_and_copy $module
 done
 
+#------------------------#
+# Cleanup install files  #
+#------------------------#
+function cleanup(){
+    module=$1
+    echo "Changing directory to $module module:" $wc_root/$module
+    cd $wc_root/$module
+
+    echo "Cleaning $module module"
+    $PYTHONEXEC setup.py clean
+}
+
+for module in $MODULE_LIST ; do
+   cleanup $module
+done
+
 # Cleanup the temporary directory
 echo "Cleaning up temporary directory: $SCRATCHDIR"
 rm -rf $SCRATCHDIR

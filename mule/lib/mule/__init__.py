@@ -57,7 +57,7 @@ import six
 from contextlib import contextmanager
 from mule.stashmaster import STASHmaster
 
-__version__ = "2017.08.1"
+__version__ = "2018.07.1"
 
 # UM fixed length header names and positions
 _UM_FIXED_LENGTH_HEADER = [
@@ -1450,7 +1450,11 @@ class UMFile(object):
             lookup = np.fromfile(source,
                                  dtype='>i{0}'.format(self.WORD_SIZE),
                                  count=np.product(shape))
-            lookup = lookup.reshape(shape, order="F")
+            # Catch if the file has no lookups/data to read
+            if len(lookup) > 0:
+                lookup = lookup.reshape(shape, order="F")
+            else:
+                lookup = None
         else:
             lookup = None
 
