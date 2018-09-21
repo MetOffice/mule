@@ -32,6 +32,35 @@ import unittest as tests
 
 from mule import Field
 
+# Test for availability of mock (which is *not* a standard library at Python 2
+# (it was added to the standard library unittest at Python 3)
+try:
+    if six.PY2:
+        import mock
+    elif six.PY3:
+        import unittest.mock as mock
+except ImportError:
+    MOCK_AVAILABLE = False
+else:
+    MOCK_AVAILABLE = True
+
+
+def skip_mock(fn):
+    """
+    Decorator which can be used to skip a test if the mock library isn't
+    available.  This will completely disable the definition of a method or
+    class if it is decorated like this:
+
+    @skip_mock
+    def test_which_uses_mock(*args):
+        etc
+
+    """
+    skip = tests.skipIf(
+        condition=not MOCK_AVAILABLE,
+        reason="Test required 'mock'")
+    return skip(fn)
+
 
 def _testdata_path():
     """Define the path to the directory containing testing datafiles."""

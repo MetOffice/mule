@@ -978,11 +978,13 @@ def summary_report(comparison, stdout=None):
     # Report on the maximum RMS diff percentage
     if comparison.max_rms_diff_1[0] > 0.0:
         stdout.write(
-            "Maximum RMS diff as % of data in file 1: {0!r} (field {1})\n"
+            "Maximum RMS diff as % of data in file 1: "
+            "{0:<18.17g} (field {1})\n"
             .format(*comparison.max_rms_diff_1))
     if comparison.max_rms_diff_2[0] > 0.0:
         stdout.write(
-            "Maximum RMS diff as % of data in file 2: {0!r} (field {1})\n"
+            "Maximum RMS diff as % of data in file 2: "
+            "{0:<18.17g} (field {1})\n"
             .format(*comparison.max_rms_diff_2))
 
     if (comparison.max_rms_diff_1[0] > 0.0 or
@@ -1186,21 +1188,21 @@ def full_report(comparison, stdout=None, **kwargs):
             stdout.write("Data differences:\n")
             stdout.write("  Number of point differences  : {0}/{1}\n"
                          .format(*comp_field.compared))
-            stdout.write("  Maximum absolute difference  : {0!r}\n"
+            stdout.write("  Maximum absolute difference  : {0:<18.17g}\n"
                          .format(comp_field.max_diff))
-            stdout.write("  RMS difference               : {0!r}\n"
+            stdout.write("  RMS difference               : {0:<18.17g}\n"
                          .format(comp_field.rms_diff))
             if comp_field.rms_norm_diff_1 is None:
                 stdout.write("  RMS diff as % of file_1 data : "
                              "NaN (File 1 data all zero) \n")
             else:
-                stdout.write("  RMS diff as % of file_1 data : {0!r}\n"
+                stdout.write("  RMS diff as % of file_1 data : {0:<18.17g}\n"
                              .format(comp_field.rms_norm_diff_1))
             if comp_field.rms_norm_diff_2 is None:
                 stdout.write("  RMS diff as % of file_2 data : "
                              "NaN (File 2 data all zero) \n")
             else:
-                stdout.write("  RMS diff as % of file_2 data : {0!r}\n"
+                stdout.write("  RMS diff as % of file_2 data : {0:<18.17g}\n"
                              .format(comp_field.rms_norm_diff_2))
 
         stdout.write("\n")

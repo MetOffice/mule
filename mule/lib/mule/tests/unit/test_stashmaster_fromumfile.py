@@ -29,12 +29,6 @@ from six.moves import (filter, input, map, range, zip)  # noqa
 import mule.tests as tests
 from mule.stashmaster import STASHmaster
 
-import six
-if six.PY2:
-    from mock import patch
-elif six.PY3:
-    from unittest.mock import patch
-
 
 class FakeFixedLength(object):
     def __init__(self, dataset_type, model_version, mdi):
@@ -43,11 +37,12 @@ class FakeFixedLength(object):
         self.MDI = mdi
 
 
+# Skip the definition of these tests if the "mock" module isn't available
+@tests.skip_mock
 class TestStashmasterFromUmfile(tests.MuleTest):
-
     def test_fromumfile_mdi_version(self):
         self.fixed_length_header = FakeFixedLength(1, -99, -99)
-        with patch('warnings.warn') as warn:
+        with tests.mock.patch('warnings.warn') as warn:
             STASHmaster.from_umfile(self)
             expected_msg = ('Fixed length header does not define the UM model '
                             'version number, unable to load STASHmaster file.')
@@ -55,7 +50,7 @@ class TestStashmasterFromUmfile(tests.MuleTest):
 
     def test_fromfile_ancil(self):
         self.fixed_length_header = FakeFixedLength(4, 1003, -99)
-        with patch('warnings.warn') as warn:
+        with tests.mock.patch('warnings.warn') as warn:
             STASHmaster.from_umfile(self)
             expected_msg = ('Ancillary files do not define the UM version '
                             'number in the Fixed Length Header. '
@@ -66,7 +61,7 @@ class TestStashmasterFromUmfile(tests.MuleTest):
     def test_fromumfile_non_ancil(self):
         self.fixed_length_header = FakeFixedLength(1, 1003, -99)
         to_patch = 'mule.stashmaster.STASHmaster.from_version'
-        with patch(to_patch) as from_version:
+        with tests.mock.patch(to_patch) as from_version:
             STASHmaster.from_umfile(self)
             from_version.assert_called_once_with('10.3')
 

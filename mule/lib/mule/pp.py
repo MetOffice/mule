@@ -50,12 +50,24 @@ class PPField3(PPField, mule.Field3):
 # Mapping to go from release number to field object
 FIELD_SELECT = {2: PPField2, 3: PPField3}
 
+
+# Similarly, adjust the record size for the read providers required here
+PP_WORD_SIZE = 4
+
+
+class _ReadPPProviderUnpacked(mule.ff._ReadFFProviderCray32Packed):
+    DISK_RECORD_SIZE = PP_WORD_SIZE
+
+
+class _ReadPPProviderWGDOSPacked(mule.ff._ReadFFProviderWGDOSPacked):
+    DISK_RECORD_SIZE = PP_WORD_SIZE
+
 # Create mappings for the lbpack n3-n1 digits (similar to how the mule file
 # classes contain mappings like these).  The only real difference is that the
 # "Unpacked" provider uses the 32-bit class (since PP files are 32-bit)
 _READ_PROVIDERS = {
-    "000": mule.ff._ReadFFProviderCray32Packed,
-    "001": mule.ff._ReadFFProviderWGDOSPacked,
+    "000": _ReadPPProviderUnpacked,
+    "001": _ReadPPProviderWGDOSPacked,
     }
 
 _WRITE_OPERATORS = {
@@ -150,7 +162,7 @@ def fields_from_pp_file(pp_file_obj_or_path):
         # This should be equivalent to lbnrec, but can sometimes be set to
         # zero... so to allow the existing provider to work add this value
         # to the reference field's headers
-        field_ref.lbnrec = reclen//4
+        field_ref.lbnrec = reclen//PP_WORD_SIZE
 
         # Associate the provider
         offset = pp_file.tell()
@@ -167,10 +179,16 @@ def fields_from_pp_file(pp_file_obj_or_path):
         provider = _READ_PROVIDERS[lbpack321](field_ref, pp_file, offset)
         field = type(field_ref)(ints, reals, provider)
 
+        # Change the DTYPE variables back to 64-bit - this is slightly hacky
+        # but *only* the UM File logic in the main part of Mule utilises this,
+        # and it will go wrong if it gets a PPField with it set to 32-bit
+        field.DTYPE_REAL = ">f8"
+        field.DTYPE_INT = ">i8"
+
         # Now check if the field contains extra data
         if field.lbext > 0:
             # Skip past the field data only (relative seek to avoid overflows)
-            pp_file.seek((field.lblrec - field.lbext)*4, 1)
+            pp_file.seek((field.lblrec - field.lbext)*PP_WORD_SIZE, 1)
 
             # Save the current file position
             start = pp_file.tell()
@@ -179,7 +197,7 @@ def fields_from_pp_file(pp_file_obj_or_path):
             # end of the record is reached
             vectors = {}
             ext_consumed = 0
-            while pp_file.tell() - start < field.lbext*4:
+            while pp_file.tell() - start < field.lbext*PP_WORD_SIZE:
 
                 # First read the code
                 vector_code = np.fromfile(pp_file, ">i4", 1)[0]
@@ -247,13 +265,11 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
 
         # Similar to the mule file classes, the unpacking of data can be
         # skipped if the packing and accuracy are unchanged and the fields
-        # were already PP fields
-        if (field._can_copy_deferred_data(field.lbpack, field.bacc) and
-           isinstance(field, PPField)):
-
+        # have the appropriate word size on disk
+        if (field._can_copy_deferred_data(
+                field.lbpack, field.bacc, PP_WORD_SIZE)):
             # Get the raw bytes containing the data
             data_bytes = field._get_raw_payload_bytes()
-
         else:
             # If the field has been modified follow a similar set of steps to
             # the mule file classes
@@ -266,8 +282,13 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
 
             data_bytes, _ = _WRITE_OPERATORS[lbpack321].to_bytes(field)
 
-            field.lblrec = len(data_bytes)//4
-            field.lbnrec = len(data_bytes)//4
+        # Either way, make sure the header addresses are correct for a pp file
+        # both lbegin and lblnrec are zeroed, as pp files don't require a
+        # direct access seek point (lbegin) and being sequential they also
+        # don't have field padding (lbnrec)
+        field.lbegin = 0
+        field.lbnrec = 0
+        field.lblrec = len(data_bytes)//PP_WORD_SIZE
 
         # If the field appears to be variable resolution, attach the
         # relevant extra data (requires that a UM file object was given)
@@ -302,7 +323,7 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
                 cdc = umfile.column_dependent_constants
 
                 # Calculate U vectors
-                if grid_type == 18:  # U points
+                if grid_type in (11, 18):  # U points
                     vector[1] = cdc.lambda_u
                     if stagger == "new_dynamics":
                         vector[12] = cdc.lambda_p
@@ -328,7 +349,7 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
                                                cdc.lambda_u[-1]])
 
                 # Calculate V vectors
-                if grid_type == 19:  # V points
+                if grid_type in (11, 19):  # V points
                     vector[2] = rdc.phi_v
                     if stagger == "new_dynamics":
                         vector[14] = rdc.phi_p
@@ -366,7 +387,8 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
 
         # Calculate the record length (pp files are not direct-access, so each
         # record begins and ends with its own length)
-        lookup_reclen = np.array((len(ints) + len(reals))*4).astype(">i4")
+        lookup_reclen = np.array(
+            (len(ints) + len(reals))*PP_WORD_SIZE).astype(">i4")
 
         # Write the first record (the field header)
         pp_file.write(lookup_reclen)
@@ -378,7 +400,7 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
         reclen = len(data_bytes)
 
         if vector:
-            reclen += extra_len*4
+            reclen += extra_len*PP_WORD_SIZE
             keys = [1, 2, 12, 13, 14, 15]
             sizes = ([field.lbnpt, field.lbrow] +
                      [field.lbnpt]*2 + [field.lbrow]*2)

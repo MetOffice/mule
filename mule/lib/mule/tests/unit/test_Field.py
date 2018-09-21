@@ -29,12 +29,6 @@ import numpy as np
 import mule.tests as tests
 from mule import Field, _NullReadProvider
 
-import six
-if six.PY2:
-    import mock
-elif six.PY3:
-    import unittest.mock as mock
-
 
 class Test_int_headers(tests.MuleTest):
     def test(self):
@@ -70,12 +64,16 @@ class Test__can_copy_deferred_data(tests.MuleTest):
                        old_bacc=-6, new_bacc=-6,
                        absent_provider=False):
 
-        lookup_entry = mock.Mock(lbpack=old_lbpack, bacc=old_bacc)
+        class dummy_lookup(object):
+            lbpack = old_lbpack
+            bacc = old_bacc
+        lookup_entry = dummy_lookup()
+
         provider = _NullReadProvider(lookup_entry, None, None)
         if absent_provider:
             provider = None
         field = Field(list(range(45)), list(range(19)), provider)
-        return field._can_copy_deferred_data(new_lbpack, new_bacc)
+        return field._can_copy_deferred_data(new_lbpack, new_bacc, 8)
 
     def test_okay_simple(self):
         self.assertTrue(self._check_formats(1234, 1234))
@@ -87,7 +85,7 @@ class Test__can_copy_deferred_data(tests.MuleTest):
         self.assertFalse(self._check_formats(1234, 1234, absent_provider=True))
 
     def test_fail_different_bacc(self):
-        self.assertFalse(self._check_formats(1234, 1234, new_bacc=-8))
+        self.assertFalse(self._check_formats(1, 1, new_bacc=-8))
 
 
 if __name__ == '__main__':

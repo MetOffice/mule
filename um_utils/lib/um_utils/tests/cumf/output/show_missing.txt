@@ -71,7 +71,7 @@ File_1 lookup info:
   t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-99)
 Data differences:
   Number of point differences  : 11/12
-  Maximum absolute difference  : 44.0
+  Maximum absolute difference  : 44                
   RMS difference               : 25.974346318370873
   RMS diff as % of file_1 data : 382.97084310253518
   RMS diff as % of file_2 data : 76.594168620507048

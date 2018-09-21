@@ -744,23 +744,31 @@ class Field(six.with_metaclass(_HeaderMetaclass, object)):
             data = self._data_provider._read_bytes()
         return data
 
-    def _can_copy_deferred_data(self, required_lbpack, required_bacc):
+    def _can_copy_deferred_data(self, required_lbpack, required_bacc,
+                                required_word):
         """
         Return whether or not it is possible to simply re-use the bytes
         making up the field; for this to be possible the data must be
-        unmodified, and the requested output packing must be the same
-        as the input packing.
+        unmodified, and the requested output packing and disk word size must
+        be the same as the input.
 
         """
         # Whether or not this is possible depends on if the Field's
         # data provider has been wrapped in any operations
         compatible = hasattr(self._data_provider, "_read_bytes")
         if compatible:
+            # Is the packing code the same
             src_lbpack = self._data_provider.source.lbpack
-            src_bacc = self._data_provider.source.bacc
-            # The packing words are compatible if nothing else is different.
-            compatible = (required_lbpack == src_lbpack and
-                          required_bacc == src_bacc)
+            compatible = required_lbpack == src_lbpack
+
+            # If it's WGDOS packing, the accuracy matters too
+            if src_lbpack == 1:
+                src_bacc = self._data_provider.source.bacc
+                compatible = compatible and required_bacc == src_bacc
+            else:
+                # Otherwise the disk size matters
+                src_word = self._data_provider.DISK_RECORD_SIZE
+                compatible = compatible and required_word == src_word
 
         return compatible
 
@@ -1514,7 +1522,7 @@ class UMFile(object):
                     # Check number format is valid
                     if num_format not in (0, 2, 3):
                         msg = 'Unsupported number format (lbpack N4): {0}'
-                        raise ValueError(msg.format(format))
+                        raise ValueError(msg.format(num_format))
 
                     # With that check out of the way remove the N4 digit and
                     # proceed with the N1 - N3 digits
@@ -1688,14 +1696,27 @@ class UMFile(object):
                     if field.lbpack % 10 == 1 and int(field.bacc) == -99:
                         field.lbpack = 10*(field.lbpack//10)
 
-                    if field._can_copy_deferred_data(field.lbpack, field.bacc):
+                    if field._can_copy_deferred_data(
+                            field.lbpack, field.bacc, self.WORD_SIZE):
                         # The original, unread file data is encoded as wanted,
                         # so extract the raw bytes and write them back out
                         # again unchanged; however first trim off any existing
                         # padding to allow the code below to re-pad the output
                         data_bytes = field._get_raw_payload_bytes()
-                        data_bytes = data_bytes[:field.lblrec*self.WORD_SIZE]
+                        data_bytes = data_bytes[
+                            :field.lblrec *
+                            field._data_provider.DISK_RECORD_SIZE]
                         output_file.write(data_bytes)
+
+                        # Calculate lblrec and lbnrec based on what will be
+                        # written (just in case they are wrong or have come
+                        # from a pp file)
+                        field.lblrec = (
+                            field._data_provider.DISK_RECORD_SIZE *
+                            field.lblrec // self.WORD_SIZE)
+                        field.lbnrec = (
+                            field.lblrec -
+                            (field.lblrec % -self._WORDS_PER_SECTOR))
                     else:
 
                         # Strip just the n1-n3 digits from the lbpack value
