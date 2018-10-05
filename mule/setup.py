@@ -46,18 +46,19 @@ class CleanCommand(setuptools.Command):
 
 
 setuptools.setup(
-      name='mule',
-      version='2018.07.1',
-      description='Unified Model Fields File interface',
-      author='UM Systems Team',
-      url='https://code.metoffice.gov.uk/trac/um',
-      cmdclass={'clean': CleanCommand},
-      package_dir={'': 'lib'},
-      packages=['mule',
-                'mule.tests',
-                'mule.tests.unit',
-                'mule.tests.integration',
-                'mule.example_code'],
-      package_data={'mule':
-                    [os.path.relpath(path, "lib/mule")
-                     for path in glob('lib/mule/tests/test_datafiles/*')]})
+    name='mule',
+    version='2018.07.1',
+    description='Unified Model Fields File interface',
+    author='UM Systems Team',
+    url='https://code.metoffice.gov.uk/trac/um',
+    cmdclass={'clean': CleanCommand},
+    package_dir={'': 'lib'},
+    packages=['mule',
+              'mule.tests',
+              'mule.tests.unit',
+              'mule.tests.integration',
+              'mule.example_code'],
+    package_data={'mule':
+                  [os.path.relpath(path, "lib/mule")
+                   for path in (glob('lib/mule/tests/test_datafiles/*') +
+                                ['lib/mule/tests/test_stashmaster'])]})

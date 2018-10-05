@@ -31,6 +31,11 @@ import tempfile
 import unittest as tests
 
 from mule import Field
+import mule.stashmaster
+
+# Override the STASHmaster to pickup the one local to these tests
+mule.stashmaster.STASHMASTER_PATH_PATTERN = os.path.join(
+    os.path.dirname(__file__), "test_stashmaster")
 
 # Test for availability of mock (which is *not* a standard library at Python 2
 # (it was added to the standard library unittest at Python 3)
