@@ -91,6 +91,7 @@ import errno
 import argparse
 import textwrap
 import numpy as np
+import warnings
 from six import StringIO
 from collections import defaultdict
 from um_utils.stashmaster import STASHmaster
@@ -1407,20 +1408,37 @@ def _main():
         new_ff.fields = [field for field in comparison.field_comparisons
                          if not field.data_match and field.data_shape_match]
 
-        # If any of these fields require the land-sea-mask to be written out
-        # add it to the start of the file list here
-        mask_required = [field.lbpack % 100 != 0 for field in new_ff.fields]
-        if any(mask_required):
-            lsm = None
-            for field in um_files[0].fields:
-                if field.lbrel in (2, 3) and field.lbuser4 == 30:
-                    lsm = field
-                    break
-            if lsm is None:
-                msg = "Unable to write diff file, land-sea mask not present"
-                raise ValueError(msg)
-            new_ff.fields.insert(0, lsm)
+        # Check if a land sea mask exists in the first file
+        lsm = None
+        for field in um_files[0].fields:
+            if field.lbrel in (2, 3) and field.lbuser4 == 30:
+                lsm = field
+                break
 
+        # Now double check that there weren't any differences between the
+        # mask in the 2 files (if there were, the output for a land/sea
+        # compressed field in this diff file will be very misleading)
+        for field in new_ff.fields:
+            if field.lbuser4 == 30:
+                # If there is a land/sea mask difference, disable it
+                lsm = None
+
+        # Now check for land/sea packed fields within the diff file
+        for ifield, field in enumerate(new_ff.fields):
+            if (field.lbpack // 10) % 10 != 0:
+                if lsm is not None:
+                    # If we have the LSM, add it to the diff file
+                    new_ff.fields.insert(0, lsm)
+                    break
+                else:
+                    # Otherwise Mule won't let us output the field, so warn
+                    # about this here and then remove it from the diff file
+                    msg = ("Unable to output Field {0} as it is land/sea "
+                           "packed but no suitable land-sea mask was found")
+                    warnings.warn(msg.format(ifield + 1))
+                    new_ff.fields.remove(field)
+
+        # Assuming there are still writable fields in the diff file, write it
         if len(new_ff.fields) > 0:
             new_ff.to_file(diff_file)
 
