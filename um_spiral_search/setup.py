@@ -51,7 +51,7 @@ class CleanCommand(setuptools.Command):
 
 setuptools.setup(
     name='um_spiral_search',
-    version='2018.07.1',
+    version='2019.01.1',
     description='Unified Model Spiral Search extension',
     author='UM Systems Team',
     url='https://code.metoffice.gov.uk/trac/um',

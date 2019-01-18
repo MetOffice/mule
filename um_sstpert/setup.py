@@ -51,7 +51,7 @@ class CleanCommand(setuptools.Command):
 
 setuptools.setup(
     name='um_sstpert',
-    version='2018.07.1',
+    version='2019.01.1',
     description='Unified Model SST-perturbation extension and utility',
     author='UM Systems Team',
     url='https://code.metoffice.gov.uk/trac/um',

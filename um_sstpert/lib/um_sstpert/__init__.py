@@ -48,7 +48,7 @@ from .um_sstpert import sstpert
 from um_utils.version import report_modules
 from um_utils.pumf import _banner
 
-__version__ = "2018.07.1"
+__version__ = "2019.01.1"
 
 
 def gen_pert_field(clim_fields, alpha, ens_member, date):

@@ -19,4 +19,4 @@
 # along with these utilities.
 # If not, see <http://opensource.org/licenses/BSD-3-Clause>.
 
-__version__ = "2018.07.1"
+__version__ = "2019.01.1"
