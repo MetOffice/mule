@@ -70,4 +70,5 @@ setuptools.setup(
                     include_dirs=[np.get_include()],
                     libraries=["shum_byteswap",
                                "shum_wgdos_packing",
-                               "shum_string_conv"])])})
+                               "shum_string_conv",
+                               "shum_constants"])])})
