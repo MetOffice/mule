@@ -26,6 +26,7 @@ from __future__ import (absolute_import, division, print_function)
 
 import six
 import mule
+import struct
 import numpy as np
 
 GRID_STAGGER = {3: "new_dynamics", 6: "endgame"}
@@ -47,6 +48,7 @@ class PPField2(PPField, mule.Field2):
 class PPField3(PPField, mule.Field3):
     pass
 
+
 # Mapping to go from release number to field object
 FIELD_SELECT = {2: PPField2, 3: PPField3}
 
@@ -62,18 +64,19 @@ class _ReadPPProviderUnpacked(mule.ff._ReadFFProviderCray32Packed):
 class _ReadPPProviderWGDOSPacked(mule.ff._ReadFFProviderWGDOSPacked):
     DISK_RECORD_SIZE = PP_WORD_SIZE
 
+
 # Create mappings for the lbpack n3-n1 digits (similar to how the mule file
 # classes contain mappings like these).  The only real difference is that the
 # "Unpacked" provider uses the 32-bit class (since PP files are 32-bit)
 _READ_PROVIDERS = {
     "000": _ReadPPProviderUnpacked,
     "001": _ReadPPProviderWGDOSPacked,
-    }
+}
 
 _WRITE_OPERATORS = {
     "000": mule.ff._WriteFFOperatorCray32Packed(),
-    "001": mule.ff._WriteFFOperatorWGDOSPacked(),
-    }
+    "001": mule.ff._WriteFFOperatorWGDOSPacked()
+}
 
 
 def file_is_pp_file(file_path):
@@ -162,15 +165,15 @@ def fields_from_pp_file(pp_file_obj_or_path):
         # This should be equivalent to lbnrec, but can sometimes be set to
         # zero... so to allow the existing provider to work add this value
         # to the reference field's headers
-        field_ref.lbnrec = reclen//PP_WORD_SIZE
+        field_ref.lbnrec = reclen // PP_WORD_SIZE
 
         # Associate the provider
         offset = pp_file.tell()
 
         # Strip just the n1-n3 digits from the lbpack value
         # and check for a suitable write operator
-        lbpack321 = "{0:03d}".format(field_ref.lbpack -
-                                     ((field_ref.lbpack//1000) % 10)*1000)
+        lbpack321 = "{0:03d}".format(
+            field_ref.lbpack - ((field_ref.lbpack // 1000) % 10) * 1000)
 
         if lbpack321 not in _READ_PROVIDERS:
             msg = "Field{0}; Cannot interpret unsupported packing code {1}"
@@ -188,7 +191,7 @@ def fields_from_pp_file(pp_file_obj_or_path):
         # Now check if the field contains extra data
         if field.lbext > 0:
             # Skip past the field data only (relative seek to avoid overflows)
-            pp_file.seek((field.lblrec - field.lbext)*PP_WORD_SIZE, 1)
+            pp_file.seek((field.lblrec - field.lbext) * PP_WORD_SIZE, 1)
 
             # Save the current file position
             start = pp_file.tell()
@@ -197,7 +200,7 @@ def fields_from_pp_file(pp_file_obj_or_path):
             # end of the record is reached
             vectors = {}
             ext_consumed = 0
-            while pp_file.tell() - start < field.lbext*PP_WORD_SIZE:
+            while pp_file.tell() - start < field.lbext * PP_WORD_SIZE:
 
                 # First read the code
                 vector_code = np.fromfile(pp_file, ">i4", 1)[0]
@@ -235,7 +238,8 @@ def fields_from_pp_file(pp_file_obj_or_path):
     return fields
 
 
-def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
+def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
+                      umfile=None, keep_addressing=False):
     """
     Writes a list of field objects to a PP file.
 
@@ -251,6 +255,10 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
             resolution grid, provide a :class:`mule.UMFile` subclass
             instance here to add the row + column dependent
             constant information to the pp field "extra data".
+        * keep_addressing:
+            Whether or not to preserve the values of LBNREC, LBEGIN
+            and LBUSER(2) from the original file - these are not used
+            by pp files so by default will be set to zero.
 
     """
     if isinstance(pp_file_obj_or_path, six.string_types):
@@ -270,11 +278,16 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
                 field.lbpack, field.bacc, PP_WORD_SIZE)):
             # Get the raw bytes containing the data
             data_bytes = field._get_raw_payload_bytes()
+            # Remove any padding from WGDOS fields
+            if field.lbpack == 1:
+                true_len = struct.unpack(">i", data_bytes[:4])[0]
+                data_bytes = data_bytes[:true_len*4]
+
         else:
             # If the field has been modified follow a similar set of steps to
             # the mule file classes
-            lbpack321 = "{0:03d}".format(field.lbpack -
-                                         ((field.lbpack//1000) % 10)*1000)
+            lbpack321 = "{0:03d}".format(
+                field.lbpack - ((field.lbpack // 1000) % 10) * 1000)
 
             if lbpack321 not in _WRITE_OPERATORS:
                 msg = "Cannot write out packing code {0}"
@@ -282,30 +295,29 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
 
             data_bytes, _ = _WRITE_OPERATORS[lbpack321].to_bytes(field)
 
-        # Either way, make sure the header addresses are correct for a pp file
-        # both lbegin and lblnrec are zeroed, as pp files don't require a
-        # direct access seek point (lbegin) and being sequential they also
-        # don't have field padding (lbnrec)
-        field.lbegin = 0
-        field.lbnrec = 0
-        field.lblrec = len(data_bytes)//PP_WORD_SIZE
+        # Calculate LBLREC
+        field.lblrec = len(data_bytes) // PP_WORD_SIZE
+
+        # Ensure the value of LBLREC lies on a whole 8-byte word
+        if field.lblrec % 2 != 0:
+            field.lblrec += 1
+            data_bytes += b"\x00\x00\x00\x00"
 
         # If the field appears to be variable resolution, attach the
         # relevant extra data (requires that a UM file object was given)
         vector = {}
-        if (field.bzx == field.bmdi or
-                field.bzy == field.bmdi or
-                field.bdx == field.bmdi or
-                field.bdy == field.bmdi):
+        if (field.bzx == field.bmdi
+                or field.bzy == field.bmdi
+                or field.bdx == field.bmdi
+                or field.bdy == field.bmdi):
 
             # The variable resolution data can either be already attached
             # to the field (most likely if it has already come from an existing
             # pp file) or be supplied via a umfile object + STASH entry...
-
-            if (hasattr(field, "pp_extra_data") and
-                    field.pp_extra_data is not None):
+            if (hasattr(field, "pp_extra_data")
+                    and field.pp_extra_data is not None):
                 vector = field.pp_extra_data
-                extra_len = 6 + 3*field.lbnpt + 3*field.lbrow
+                extra_len = 6 + 3 * field.lbnpt + 3 * field.lbrow
             else:
                 if umfile is None:
                     msg = ("Variable resolution field/s found, but no "
@@ -328,25 +340,25 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
                     if stagger == "new_dynamics":
                         vector[12] = cdc.lambda_p
                         vector[13] = np.append(cdc.lambda_p[1:-1],
-                                               [2.0*cdc.lambda_u[-1] -
-                                                cdc.lambda_p[-1]])
+                                               [2.0 * cdc.lambda_u[-1]
+                                                - cdc.lambda_p[-1]])
                     elif stagger == "endgame":
-                        vector[12] = np.append([2.0*cdc.lambda_u[0] -
-                                                cdc.lambda_p[0]],
+                        vector[12] = np.append([2.0 * cdc.lambda_u[0]
+                                                - cdc.lambda_p[0]],
                                                cdc.lambda_p[:-1])
                         vector[13] = cdc.lambda_p
                 else:  # Any other grid types
                     vector[1] = cdc.lambda_p
                     if stagger == "new_dynamics":
-                        vector[12] = np.append([2.0*cdc.lambda_p[1] -
-                                                cdc.lambda_v[1]],
+                        vector[12] = np.append([2.0 * cdc.lambda_p[1]
+                                                - cdc.lambda_v[1]],
                                                cdc.lambda_u[1:])
                         vector[13] = cdc.lambda_u
                     elif stagger == "endgame":
                         vector[12] = cdc.lambda_u
                         vector[13] = np.append(cdc.lambda_u[1:],
-                                               [2.0*cdc.lambda_p[-1] -
-                                               cdc.lambda_u[-1]])
+                                               [2.0 * cdc.lambda_p[-1]
+                                               - cdc.lambda_u[-1]])
 
                 # Calculate V vectors
                 if grid_type in (11, 19):  # V points
@@ -354,32 +366,40 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
                     if stagger == "new_dynamics":
                         vector[14] = rdc.phi_p
                         vector[15] = np.append(rdc.phi_p[1:],
-                                               [2.0*rdc.phi_v[-1] -
-                                                rdc.phi_p[-1]])
+                                               [2.0 * rdc.phi_v[-1]
+                                                - rdc.phi_p[-1]])
                     elif stagger == "endgame":
-                        vector[14] = np.append([2.0*rdc.phi_v[0] -
-                                                rdc.phi_p[0]],
+                        vector[14] = np.append([2.0 * rdc.phi_v[0]
+                                                - rdc.phi_p[0]],
                                                rdc.phi_p[:-1])
                         vector[15] = np.append(rdc.phi_p[:-1],
-                                               [2.0*rdc.phi_v[-1] -
-                                                rdc.phi_p[-1]])
+                                               [2.0 * rdc.phi_v[-1]
+                                                - rdc.phi_p[-1]])
                 else:  # Any other grid types
                     vector[2] = rdc.phi_p[:-1]
                     if stagger == "new_dynamics":
-                        vector[14] = np.append([2.0*rdc.phi_p[0] -
-                                                rdc.phi_v[0]],
+                        vector[14] = np.append([2.0 * rdc.phi_p[0]
+                                                - rdc.phi_v[0]],
                                                rdc.phi_v[1:])
                         vector[15] = np.append(rdc.phi_v[:-1],
-                                               [2.0*rdc.phi_p[-1] -
-                                                rdc.phi_v[-1]])
+                                               [2.0 * rdc.phi_p[-1]
+                                                - rdc.phi_v[-1]])
                     elif stagger == "endgame":
                         vector[14] = rdc.phi_v[:-1]
                         vector[15] = rdc.phi_v[1:]
 
                 # Work out extra data sizes and adjust the headers accordingly
-                extra_len = 6 + 3*field.lbnpt + 3*field.lbrow
+                extra_len = 6 + 3 * field.lbnpt + 3 * field.lbrow
                 field.lbext = extra_len
                 field.lblrec += extra_len
+
+        # (Optionally) zero LBNREC, LBEGIN and LBUSER2, since they have no
+        # meaning in a pp file (because pp files have sequential records
+        # rather than direct)
+        if not keep_addressing:
+            field.lbnrec = 0
+            field.lbegin = 0
+            field.lbuser2 = 0
 
         # Convert the numbers from the lookup to 32-bit
         ints = field._lookup_ints.astype(">i4")
@@ -388,7 +408,7 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
         # Calculate the record length (pp files are not direct-access, so each
         # record begins and ends with its own length)
         lookup_reclen = np.array(
-            (len(ints) + len(reals))*PP_WORD_SIZE).astype(">i4")
+            (len(ints) + len(reals)) * PP_WORD_SIZE).astype(">i4")
 
         # Write the first record (the field header)
         pp_file.write(lookup_reclen)
@@ -400,16 +420,16 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields, umfile=None):
         reclen = len(data_bytes)
 
         if vector:
-            reclen += extra_len*PP_WORD_SIZE
+            reclen += extra_len * PP_WORD_SIZE
             keys = [1, 2, 12, 13, 14, 15]
-            sizes = ([field.lbnpt, field.lbrow] +
-                     [field.lbnpt]*2 + [field.lbrow]*2)
+            sizes = ([field.lbnpt, field.lbrow]
+                     + [field.lbnpt] * 2 + [field.lbrow] * 2)
 
         pp_file.write(np.array(reclen).astype(">i4"))
         pp_file.write(data_bytes)
         if vector:
             for key, size in zip(keys, sizes):
-                pp_file.write(np.array(1000*size + key).astype(">i4"))
+                pp_file.write(np.array(1000 * size + key).astype(">i4"))
                 pp_file.write(vector[key].astype(">f4"))
         pp_file.write(np.array(reclen).astype(">i4"))
     pp_file.close()

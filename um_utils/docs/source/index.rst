@@ -19,6 +19,7 @@ This is the documentation for the UM utilities, which use the Mule API.
    um_utils/trim
    um_utils/version
    um_utils/unpack
+   um_utils/convpp
 
 Indices and tables
 ==================

@@ -9,7 +9,7 @@
 #
 # In most cases the modules can be directly installed via the usual 
 # python setuptools methods.  However in some cases this might not be 
-# possible, so this script instead builds all 3 modules to a dummy
+# possible, so this script instead builds all modules to a dummy
 # install location in a temporary directory and then copies the 
 # results to the chosen destinations.
 #
@@ -19,15 +19,15 @@ if [ $# -lt 3 ] ; then
     echo "USAGE: "
     echo "   $(basename $0) [--sstpert_lib <sstpert_lib>]"
     echo "                  [--wafccb_lib <wafccb_lib>]"
-    echo "                  [--spiral_lib ]"
+    echo "                  [--spiral_lib ] [--ppibm_lib]"
     echo "                  <lib_dest> <bin_dest> <shumlib> "
     echo ""
     echo "   Must be called from the top-level of a working "
     echo "   copy of the UM mule project, containing the 3"
     echo "   module folders (um_packing, um_utils and mule)"
     echo ""
-    echo "   Optionally the um_sstpert, um_wafccb and/or "
-    echo "   um_spiral extensions can be included (but they are "
+    echo "   Optionally the um_sstpert, um_wafccb, um_spiral and/or "
+    echo "   um_ppibm extensions can be included (but they are "
     echo "   not by default because they aren't required for "
     echo "   any core Mule functionality, and the sstpert/wafccb "
     echo "   libraries are only available under a UM license)"
@@ -51,6 +51,9 @@ if [ $# -lt 3 ] ; then
     echo "  * --spiral_lib"
     echo "      (Optional) Toggles the building of the UM spiral_search"
     echo "      extension (uses the Shumlib location from <shumlib>)."
+    echo "  * --ppibm_lib"
+    echo "      (Optional) Toggles the building of the UM ppibm"
+    echo "      extension (uses the Shumlib location from <shumlib>)."
     echo ""
     echo "  After running the script the directory "
     echo "  named in <lib_dest> should be suitable to "
@@ -64,6 +67,7 @@ fi
 SSTPERT_LIB=
 WAFCCB_LIB=
 SPIRAL_LIB=
+PPIBM_LIB=
 while [ $# -gt 3 ] ; do
     case "$1" in
         --sstpert_lib) shift
@@ -72,6 +76,8 @@ while [ $# -gt 3 ] ; do
                      WAFCCB_LIB=$1 ;;
         --spiral_lib) 
                      SPIRAL_LIB="build" ;;
+        --ppibm_lib) 
+                     PPIBM_LIB="build" ;;
         *) echo "Unrecognised argument: $1"
            exit 1 ;;
     esac
@@ -91,6 +97,9 @@ if [ -n "$WAFCCB_LIB" ] ; then
 fi
 if [ -n "$SPIRAL_LIB" ] ; then
     MODULE_LIST="$MODULE_LIST um_spiral_search"
+fi
+if [ -n "$PPIBM_LIB" ] ; then
+    MODULE_LIST="$MODULE_LIST um_ppibm"
 fi
 
 # A few hardcoded settings
@@ -204,6 +213,18 @@ if [ -n "$SPIRAL_LIB" ] ; then
     cd $wc_root/um_spiral_search
 
     echo "Building spiral search module..."
+    $PYTHONEXEC setup.py build_ext --inplace \
+        -I$SHUMLIB/include \
+        -L$SHUMLIB/lib \
+        -R$SHUMLIB/lib
+fi
+
+# PP IBM library (if being used)
+if [ -n "$PPIBM_LIB" ] ; then
+    echo "Changing directory to ppibm module:" $wc_root/um_ppibm
+    cd $wc_root/um_ppibm
+
+    echo "Building ppibm module..."
     $PYTHONEXEC setup.py build_ext --inplace \
         -I$SHUMLIB/include \
         -L$SHUMLIB/lib \
