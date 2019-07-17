@@ -373,8 +373,8 @@ def cutout_coords(ff_src, sw_lon, sw_lat, ne_lon, ne_lat,
             ff_src.fixed_length_header.grid_staggering))
     stagger = GRID_STAGGER[ff_src.fixed_length_header.grid_staggering]
 
-    # Adjust the starting indices if required
-    if stagger == "endgame":
+    # Adjust the starting indices if required (does not apply to EG ancils)
+    if stagger == "endgame" and ff_src.fixed_length_header.dataset_type != 4:
         zx += 0.5*dx
         zy += 0.5*dy
 
@@ -502,8 +502,9 @@ def cutout(ff_src, x_start, y_start, x_points, y_points, stdout=None):
     check_regular_grid(dx, dy, fail_context='header', mdi=rmdi)
 
     # Want to extract the co-ords of the first P point in the file
-    if stagger == "new_dynamics":
-        # For ND grids this is given directly
+    if (stagger == "new_dynamics" or (stagger == "endgame" and
+         ff_src.fixed_length_header.dataset_type == 4)):
+        # For ND grids and EG ancils this is given directly
         zy0 = ff_src.real_constants.start_lat
         zx0 = ff_src.real_constants.start_lon
     elif stagger == "endgame":
@@ -534,8 +535,9 @@ def cutout(ff_src, x_start, y_start, x_points, y_points, stdout=None):
     ff_dest = ff_src.copy()
 
     # Calculate new file headers describing the cutout domain
-    if stagger == "new_dynamics":
-        # For ND grids this is given directly
+    if (stagger == "new_dynamics" or (stagger == "endgame" and
+         ff_dest.fixed_length_header.dataset_type == 4)):
+        # For ND grids and EG ancils this is given directly
         ff_dest.real_constants.start_lat = zy0 + (y_start - 1)*dy
         ff_dest.real_constants.start_lon = zx0 + (x_start - 1)*dx
     elif stagger == "endgame":
@@ -817,6 +819,7 @@ def _main():
     else:
         msg = "File not found: {0}".format(filename)
         raise ValueError(msg)
+
 
 if __name__ == "__main__":
     _main()

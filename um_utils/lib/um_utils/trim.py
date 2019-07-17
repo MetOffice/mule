@@ -168,7 +168,7 @@ def trim_fixed_region(ff_src, region_x, region_y, stdout=None):
     num_x_regions = len(lambda_p_regions)
     num_y_regions = len(phi_p_regions)
 
-    stdout.write(_banner("Locating fixed regions")+"\n")
+    stdout.write(_banner("Locating fixed regions") + "\n")
 
     # Double check the requested region actually exists in the results
     if num_x_regions < region_x or region_x <= 0:
@@ -240,15 +240,24 @@ def trim_fixed_region(ff_src, region_x, region_y, stdout=None):
     # For the origin, take the lat/lon values at the start of the selected
     # region and back-trace to what the first P point would have been if the
     # entire grid were at the fixed resolution calculated above
-    new_zx = lambda_p[x_start] - new_dx*x_start
-    new_zy = phi_p[y_start] - new_dy*y_start
+    new_zx = lambda_p[x_start] - new_dx * x_start
+    new_zy = phi_p[y_start] - new_dy * y_start
+    p_zx = new_zx
+    p_zy = new_zy
     if stagger == "endgame":
         # For EG grids the origin is an additional half grid spacing
         # behind the P origin (calculated above)
-        new_zx = new_zx - 0.5*new_dx
-        new_zy = new_zy - 0.5*new_dy
-    ff.real_constants.start_lon = new_zx
-    ff.real_constants.start_lat = new_zy
+        new_zx = new_zx - 0.5 * new_dx
+        new_zy = new_zy - 0.5 * new_dy
+
+    if (stagger == "new_dynamics" or (stagger == "endgame" and
+         ff.fixed_length_header.dataset_type == 4)):
+        # In all ND files and EG ancils the real constants match P origin
+        ff.real_constants.start_lon = p_zx
+        ff.real_constants.start_lat = p_zy
+    elif stagger == "endgame":
+        ff.real_constants.start_lon = new_zx
+        ff.real_constants.start_lat = new_zy
 
     # Fixed files don't have row/column dependent constants, so discard them
     ff.row_dependent_constants = None
@@ -274,21 +283,21 @@ def trim_fixed_region(ff_src, region_x, region_y, stdout=None):
         if grid_type == 19:  # V Points
             if stagger == "new_dynamics":
                 field.bzx = new_zx - new_dx
-                field.bzy = new_zy - 0.5*new_dy
+                field.bzy = new_zy - 0.5 * new_dy
             elif stagger == "endgame":
-                field.bzx = new_zx - 0.5*new_dx
+                field.bzx = new_zx - 0.5 * new_dx
                 field.bzy = new_zy - new_dy
         elif grid_type == 18:  # U Points
             if stagger == "new_dynamics":
-                field.bzx = new_zx - 0.5*new_dx
+                field.bzx = new_zx - 0.5 * new_dx
                 field.bzy = new_zy - new_dy
             elif stagger == "endgame":
                 field.bzx = new_zx - new_dx
-                field.bzy = new_zy - 0.5*new_dy
+                field.bzy = new_zy - 0.5 * new_dy
         elif grid_type == 11:  # UV Points
             if stagger == "new_dynamics":
-                field.bzx = new_zx - 0.5*new_dx
-                field.bzy = new_zy - 0.5*new_dy
+                field.bzx = new_zx - 0.5 * new_dx
+                field.bzy = new_zy - 0.5 * new_dy
             elif stagger == "endgame":
                 field.bzx = new_zx - new_dx
                 field.bzy = new_zy - new_dy
@@ -297,8 +306,8 @@ def trim_fixed_region(ff_src, region_x, region_y, stdout=None):
                 field.bzx = new_zx - new_dx
                 field.bzy = new_zy - new_dy
             elif stagger == "endgame":
-                field.bzx = new_zx - 0.5*new_dx
-                field.bzy = new_zy - 0.5*new_dy
+                field.bzx = new_zx - 0.5 * new_dx
+                field.bzy = new_zy - 0.5 * new_dy
 
     # Should now be able to hand things off to cutout - note that since
     # normally cutout expects the start indices to be 1-based we have to adjust
@@ -330,8 +339,7 @@ def _main():
     parser = argparse.ArgumentParser(
         usage=argparse.SUPPRESS,
         description=title + textwrap.dedent(help_prolog),
-        formatter_class=argparse.RawTextHelpFormatter,
-        )
+        formatter_class=argparse.RawTextHelpFormatter,)
 
     # No need to output help text for the files (it's obvious)
     parser.add_argument("input_file", help=argparse.SUPPRESS)
