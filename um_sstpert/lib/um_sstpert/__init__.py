@@ -44,7 +44,7 @@ import numpy as np
 from datetime import datetime
 
 import mule
-from .um_sstpert import sstpert
+from .um_sstpert import sstpert, sstpertseed
 from um_utils.version import report_modules
 from um_utils.pumf import _banner
 
@@ -111,7 +111,8 @@ def gen_pert_field(clim_fields, alpha, ens_member, date):
                    date.hour + 1,  # Add 1 here because fieldcalc did it
                    date.minute,
                    ens_member,
-                   ens_member + 100])
+                   ens_member + 100],
+                   dtype=np.int64)
 
     # Call the library
     pert_data = sstpert(alpha, dt, clim_array)
@@ -132,6 +133,37 @@ def gen_pert_field(clim_fields, alpha, ens_member, date):
     pert_field.lbpack = 0
 
     return pert_field
+
+
+def gen_seed(ens_member, date):
+    """
+    Generate a seed
+
+    Args:
+        * date:
+            Datetime object giving the desired date for the perturbed field.
+
+    Returns:
+        * seed:
+            A seed value.
+
+    """
+
+    # The library also requires some of the other arguments be packed into an
+    # array similar to the UM's "dt" array:
+    dt = np.array([date.year,
+                   date.month,
+                   date.day,
+                   0,              # This element is a UTC offset and always 0
+                   date.hour + 1,  # Add 1 here because fieldcalc did it
+                   date.minute,
+                   ens_member,
+                   ens_member + 100],
+                   dtype=np.int64)
+
+    # Call the library
+    seed = sstpertseed(dt)
+    return seed
 
 
 def gen_pert_file(umf_clim, alpha, ens_member, date):

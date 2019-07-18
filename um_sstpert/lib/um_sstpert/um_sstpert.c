@@ -35,6 +35,7 @@
 #include "sstpert.h"
 
 #if PY_MAJOR_VERSION >= 3
+#define PyInt_FromLong PyLong_FromLong
 #define MOD_ERROR_VAL NULL
 #define MOD_SUCCESS_VAL(val) val
 #define MOD_INIT(name) PyMODINIT_FUNC PyInit_##name(void)
@@ -53,10 +54,15 @@
 MOD_INIT(um_sstpert);
 
 static PyObject *sstpert_py(PyObject *self, PyObject *args);
+static PyObject *sstpertseed_py(PyObject *self, PyObject *args);
 
 MOD_INIT(um_sstpert)
 {
   PyDoc_STRVAR(um_sstpert__doc__,
+  "This extension module provides access to the UM SST perturbation library.\n"
+  );
+
+  PyDoc_STRVAR(sstpert__doc__,
   "Generate a SST perturbation field from a climatology and target date.\n\n"
   "Usage:\n"
   "  um_sstpert.sstpert(factor, dt, climatology)\n\n"
@@ -70,8 +76,21 @@ MOD_INIT(um_sstpert)
   "  2 Dimensional numpy.ndarray containing SST pert field data.\n"
   );
 
+  PyDoc_STRVAR(sstpertseed__doc__,
+  "Generate a random seed from a target date.\n\n"
+  "Usage:\n"
+  "  um_sstpert.sstpertseed(dt)\n\n"
+  "Args:\n"
+  "* dt          - 8 element array giving year, month, day, hour, offset,\n"
+  "                minutes, ensemble member number and ensemble member + 100.\n"
+  "Returns:\n"
+  "  Random seed value\n"
+  );
+
+
   static PyMethodDef um_sstpertMethods[] = {
-    {"sstpert", sstpert_py, METH_VARARGS, um_sstpert__doc__},
+    {"sstpert", sstpert_py, METH_VARARGS, sstpert__doc__},
+    {"sstpertseed", sstpertseed_py, METH_VARARGS, sstpertseed__doc__},
     {NULL, NULL, 0, NULL}
   };
 
@@ -159,4 +178,32 @@ static PyObject *sstpert_py(PyObject *self, PyObject *args)
   #endif
 
   return (PyObject *)npy_array_out;
+}
+
+static PyObject *sstpertseed_py(PyObject *self, PyObject *args)
+{
+  // Setup and obtain inputs passed from python
+  PyArrayObject *dt;
+
+  if (!PyArg_ParseTuple(args, "O", &dt )) return NULL;
+
+  // Cast self to void to avoid unused parameter errors
+  (void) self;
+
+  // Attach to the dt array
+  npy_intp *dims_dt = PyArray_DIMS(dt);
+  int64_t len_dt = dims_dt[0];
+  int64_t *dt_ptr = (int64_t *) PyArray_DATA(dt);
+  if (len_dt != 8) {
+    PyErr_SetString(PyExc_ValueError, "Date array must have 8 elements");
+    return NULL;
+  }
+
+  int64_t seed;
+
+  sstpertseed(dt_ptr, &seed);
+
+  PyObject *seedval = NULL;
+  seedval = PyInt_FromLong((long) seed);
+  return seedval;
 }

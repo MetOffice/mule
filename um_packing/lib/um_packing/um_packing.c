@@ -121,7 +121,7 @@ static PyObject *wgdos_unpack_py(PyObject *self, PyObject *args)
   //   - d   an integer
   if (!PyArg_ParseTuple(args, "s#d", &bytes_in, &n_bytes, &mdi)) return NULL;
 
-  // Cast self to void to avoid unused paramter errors
+  // Cast self to void to avoid unused parameter errors
   (void) self;
 
   // Status variable to store various error codes
