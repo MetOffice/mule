@@ -42,7 +42,7 @@ class ValidateError(ValueError):
         super(ValidateError, self).__init__(msg)
 
 
-def validate_umf(umf, filename=None, warn=False):
+def validate_umf(umf, filename=None, warn=False, GridArakawaA=False):
     """
     Main validation method, ensures that certain quantities are the
     expected sizes and different header quantities are self-consistent.
@@ -54,7 +54,9 @@ def validate_umf(umf, filename=None, warn=False):
         * warn:
             If True, issue a warning rather than a failure in the event
             that the object fails to validate.
-
+        * GridArakawaA:
+            If True, switch validation to use grid staggering allowed in GRIB
+            files - namely Arakawa A grids
     """
     # Change the component list into a dictionary to make it easier to
     # access components later:
@@ -73,8 +75,13 @@ def validate_umf(umf, filename=None, warn=False):
         validation_errors += validate_grid_staggering(umf, (2, 3, 6))
     else:
         # But in general, only grid-staggerings of 3 (NewDynamics) or 6
-        # (ENDGame) are valid
-        validation_errors += validate_grid_staggering(umf, (3, 6))
+        # (ENDGame) are valid,
+        # The exception is dumps generated from GRIB files, which should be 1
+        # (Arakawa A grids).
+        if (GridArakawaA):
+            validation_errors += validate_grid_staggering(umf, (1,))
+        else:
+            validation_errors += validate_grid_staggering(umf, (3, 6))
 
     # Integer and real constants are mandatory and have particular
     # lengths that must be matched

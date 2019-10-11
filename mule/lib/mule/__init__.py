@@ -1783,11 +1783,13 @@ class UMFile(object):
         output_file.seek(0)
         self.fixed_length_header.to_file(output_file)
 
+
 # Import the derived UM File formats
-from mule.ff import FieldsFile
-from mule.lbc import LBCFile
-from mule.ancil import AncilFile
-from mule.dump import DumpFile
+from mule.ff import FieldsFile  # noqa: E402
+from mule.lbc import LBCFile  # noqa: E402
+from mule.ancil import AncilFile  # noqa: E402
+from mule.dump import DumpFile  # noqa: E402
+from mule.dumpfromgrib import DumpFromGribFile  # noqa: E402
 
 # Mapping from known dataset types to the appropriate class to use with
 # load_umfile
@@ -1823,6 +1825,10 @@ def load_umfile(unknown_umfile, stashmaster=None):
         # a suitable subclass
         flh = FixedLengthHeader.from_file(open_file)
         file_class = DATASET_TYPE_MAPPING.get(flh.dataset_type)
+
+        # modify the file class if this is a dump on an Arakawa A grid.
+        if (flh.dataset_type == 1) and (flh.grid_staggering == 1):
+            file_class = DumpFromGribFile
 
         if not file_class:
             msg = ("Unknown dataset_type {0}, supported types are {1}"
