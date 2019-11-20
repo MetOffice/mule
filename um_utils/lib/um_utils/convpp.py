@@ -52,6 +52,9 @@ def convpp(fields, output_file, um_file, ibm_format=False,
     # this is caught later in the actual writing routines)
     for field in fields:
         field.lbpack = field.lbpack % 10
+        # 32-bit truncated data in a UM file is "unpacked" data in a pp file
+        if field.lbpack == 2:
+            field.lbpack = 0
 
     if ibm_format:
         if not PPIBM_AVAILABLE:

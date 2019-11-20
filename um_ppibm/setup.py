@@ -52,7 +52,7 @@ class CleanCommand(setuptools.Command):
 
 setuptools.setup(
     name='um_ppibm',
-    version='2019.01.1',
+    version='2019.11.1',
     description='Unified Model pp conversion utility with IBM number format',
     author='UM Systems Team',
     url='https://code.metoffice.gov.uk/trac/um',
