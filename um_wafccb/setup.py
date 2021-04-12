@@ -49,6 +49,7 @@ class CleanCommand(setuptools.Command):
                 elif os.path.isdir(cleanpath[0]):
                     shutil.rmtree(cleanpath[0])
 
+
 setuptools.setup(
     name='um_wafccb',
     version='2020.01.1',
@@ -58,14 +59,10 @@ setuptools.setup(
     cmdclass={'clean': CleanCommand},
     package_dir={'': 'lib'},
     packages=['um_wafccb'],
-    features={
-        'wafccb': setuptools.Feature(
-            "UM WAFC CB library (requires UM Licence)",
-            standard=True,
-            ext_modules=[
-                setuptools.Extension(
-                    'um_wafccb.um_wafccb',
-                    ['lib/um_wafccb/um_wafccb.c'],
-                    include_dirs=[np.get_include()],
-                    libraries=["um_wafccb"]),
-                ])})
+    ext_modules=[
+        setuptools.Extension(
+            'um_wafccb.um_wafccb',
+            ['lib/um_wafccb/um_wafccb.c'],
+            include_dirs=[np.get_include()],
+            libraries=["um_wafccb"]),
+            ])

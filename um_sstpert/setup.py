@@ -49,6 +49,7 @@ class CleanCommand(setuptools.Command):
                 elif os.path.isdir(cleanpath[0]):
                     shutil.rmtree(cleanpath[0])
 
+
 setuptools.setup(
     name='um_sstpert',
     version='2020.01.1',
@@ -58,19 +59,14 @@ setuptools.setup(
     cmdclass={'clean': CleanCommand},
     package_dir={'': 'lib'},
     packages=['um_sstpert'],
-    features={
-        'sstpert': setuptools.Feature(
-            "UM SST-pert library (requires UM Licence)",
-            standard=True,
-            ext_modules=[
-                setuptools.Extension(
-                    'um_sstpert.um_sstpert',
-                    ['lib/um_sstpert/um_sstpert.c'],
-                    include_dirs=[np.get_include()],
-                    libraries=["um_sstpert",
-                               "shum_string_conv",
-                               "shum_constants"])
-                ])},
+    ext_modules=[
+        setuptools.Extension(
+            'um_sstpert.um_sstpert',
+            ['lib/um_sstpert/um_sstpert.c'],
+            include_dirs=[np.get_include()],
+            libraries=["um_sstpert",
+                       "shum_string_conv",
+                       "shum_constants"])],
     entry_points={
         'console_scripts': [
             'mule-sstpert = um_sstpert:_main',

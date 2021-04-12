@@ -59,15 +59,11 @@ setuptools.setup(
     cmdclass={'clean': CleanCommand},
     package_dir={'': 'lib'},
     packages=['um_ppibm', ],
-    features={
-        'ieee2ibm32': setuptools.Feature(
-            "SHUMlib IBM conversion routine",
-            standard=True,
-            ext_modules=[
-                setuptools.Extension(
-                    'um_ppibm.um_ieee2ibm32',
-                    ['lib/um_ppibm/um_ieee2ibm32.c'],
-                    include_dirs=[np.get_include()],
-                    libraries=["shum_string_conv",
-                               "shum_byteswap",
-                               "shum_data_conv"])])})
+    ext_modules=[
+        setuptools.Extension(
+            'um_ppibm.um_ieee2ibm32',
+            ['lib/um_ppibm/um_ieee2ibm32.c'],
+            include_dirs=[np.get_include()],
+            libraries=["shum_string_conv",
+                       "shum_byteswap",
+                       "shum_data_conv"])])
