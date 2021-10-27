@@ -26,12 +26,14 @@ is available)
 
 """
 import sys
+import re
 import mule
 import mule.pp
 import argparse
 import textwrap
 from um_utils.pumf import pprint, _banner
 from um_utils.version import report_modules
+import mule.stashmaster
 
 # See if the IBM conversion module is available
 try:
@@ -105,6 +107,14 @@ def _main():
         '--keep_addressing', "-k", action='store_true',
         help="Don't modify address elements LBNREC, LBEGIN and LBUSER(2)\n"
              "(might be required for legacy compatability)")
+    parser.add_argument(
+        "--stashmaster",
+        help="either the full path to a valid stashmaster file, or a UM \n"
+        "version number e.g. '10.2'; if given a number convpp will look in \n"
+        "the path defined by: \n"
+        "  mule.stashmaster.STASHMASTER_PATH_PATTERN \n"
+        "which by default is : \n"
+        "  $UMDIR/vnX.X/ctldata/STASHmaster/STASHmaster_A\n")
 
     # If the user supplied no arguments, print the help text and exit
     if len(sys.argv) == 1:
@@ -122,6 +132,14 @@ def _main():
 
     if mule.pp.file_is_pp_file(input_file):
         raise ValueError("Input file should be a UM File, not a PP file")
+
+    if args.stashmaster is not None:
+        if re.match(r"\d+.\d+", args.stashmaster):
+            mule.stashmaster.STASHMASTER_PATH_PATTERN = (
+                "$UMDIR/vn{0}/ctldata/STASHmaster/STASHmaster_A"
+                .format(args.stashmaster))
+        else:
+            mule.stashmaster.STASHMASTER_PATH_PATTERN = args.stashmaster
 
     um_file = mule.load_umfile(input_file)
 
