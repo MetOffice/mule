@@ -156,7 +156,8 @@ elif not pkgutil.get_loader("mo_pack") is None:
                     packed byte data.
 
             """
-            data_bytes = mo_pack.compress_wgdos(data.astype("f4"), acc, mdi)
+            data_buffer = mo_pack.compress_wgdos(data.astype("f4"), acc, mdi)
+            data_bytes = data_buffer.tobytes()
             return data_bytes
 
     except ImportError as err:
