@@ -7,10 +7,10 @@
 #
 # Mule, UM packing extension and UM library installation script
 #
-# In most cases the modules can be directly installed via the usual 
-# python setuptools methods.  However in some cases this might not be 
+# In most cases the modules can be directly installed via the usual
+# python setuptools methods.  However in some cases this might not be
 # possible, so this script instead builds all modules to a dummy
-# install location in a temporary directory and then copies the 
+# install location in a temporary directory and then copies the
 # results to the chosen destinations.
 #
 set -eu
@@ -86,9 +86,9 @@ while [ $# -gt 3 ] ; do
                      SSTPERT_LIB=$1 ;;
         --wafccb_lib) shift
                      WAFCCB_LIB=$1 ;;
-        --spiral_lib)  
+        --spiral_lib)
                      SPIRAL_LIB="build" ;;
-        --ppibm_lib) 
+        --ppibm_lib)
                      PPIBM_LIB="build" ;;
         --library_lock)
                      LIBRARY_LOCK="lock" ;;
@@ -116,8 +116,13 @@ if [ -n "$PPIBM_LIB" ] ; then
     MODULE_LIST="$MODULE_LIST um_ppibm"
 fi
 
-# A few hardcoded settings
-PYTHONEXEC=${PYTHONEXEC:-python2.7}
+# Find out the version of the current interpreter, since this is what we
+# will be trying to install against
+PYTHONVER=$(python -c "from platform import python_version ; print(python_version())")
+PYTHONEXEC=python$(cut -d . -f-2 <<< $PYTHONVER)
+echo "Installing against Python $PYTHONVER"
+
+# Setup a temporary directory where the install will be initially created
 SCRATCHDIR=$(mktemp -d)
 SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
 
@@ -129,7 +134,7 @@ if [ ! ${BIN_DEST:0:1} == "/" ] ; then
     BIN_DEST=$PWD/$BIN_DEST
 fi
 
-# Create install directores - they may already exist but should be 
+# Create install directores - they may already exist but should be
 # empty if they do, also check the modules exist in the cwd
 exit=0
 for module in $MODULE_LIST ; do
@@ -176,7 +181,7 @@ if [ -n "$WAFCCB_LIB" ] && [ ! -d $WAFCCB_LIB ] ; then
 fi
 
 # Make a temporary directory to hold the installs
-mkdir -p $SCRATCHLIB 
+mkdir -p $SCRATCHLIB
 ln -s $SCRATCHDIR/lib $SCRATCHDIR/lib64
 
 # The install command will complain if this directory isn't on the path
@@ -196,7 +201,7 @@ wc_root=$(pwd)
 # use ln -r for this or realpath but since they aren't as common as we'd
 # like let's use Python
 function pyrelpath(){
-    $PYTHONEXEC -c "import os.path; print(os.path.relpath(\"$1\",\"$2\"))"
+    python -c "import os.path; print(os.path.relpath(\"$1\",\"$2\"))"
 }
 
 # Packing library first
@@ -214,7 +219,7 @@ else
 fi
 
 echo "Building packing module..."
-$PYTHONEXEC setup.py build_ext --inplace \
+python setup.py build_ext --inplace \
    -I$SHUMLIB/include -L$SHUMLIB/lib -R$rpath
 
 # SSTPert library (if being used)
@@ -235,7 +240,7 @@ if [ -n "$SSTPERT_LIB" ] ; then
     fi
 
     echo "Building sstpert module..."
-    $PYTHONEXEC setup.py build_ext --inplace \
+    python setup.py build_ext --inplace \
         -I$SSTPERT_LIB/include \
         -L$SSTPERT_LIB/lib:$SHUMLIB/lib \
         -R$rpath
@@ -257,7 +262,7 @@ if [ -n "$WAFCCB_LIB" ] ; then
     fi
 
     echo "Building wafccb module..."
-    $PYTHONEXEC setup.py build_ext --inplace \
+    python setup.py build_ext --inplace \
         -I$WAFCCB_LIB/include \
         -L$WAFCCB_LIB/lib \
         -R$rpath
@@ -279,7 +284,7 @@ if [ -n "$SPIRAL_LIB" ] ; then
     fi
 
     echo "Building spiral search module..."
-    $PYTHONEXEC setup.py build_ext --inplace \
+    python setup.py build_ext --inplace \
         -I$SHUMLIB/include \
         -L$SHUMLIB/lib \
         -R$rpath
@@ -301,7 +306,7 @@ if [ -n "$PPIBM_LIB" ] ; then
     fi
 
     echo "Building ppibm module..."
-    $PYTHONEXEC setup.py build_ext --inplace \
+    python setup.py build_ext --inplace \
         -I$SHUMLIB/include \
         -L$SHUMLIB/lib \
         -R$rpath
@@ -316,7 +321,7 @@ function install(){
     cd $wc_root/$module
 
     echo "Installing $module module to $SCRATCHDIR"
-    $PYTHONEXEC setup.py install --prefix $SCRATCHDIR
+    python setup.py install --prefix $SCRATCHDIR
 }
 
 for module in $MODULE_LIST ; do
@@ -336,7 +341,7 @@ function unpack_and_copy(){
       unzip_dir=$SCRATCHLIB/${module}_unzipped_egg
       unzip $egg -d $unzip_dir
       egg=$unzip_dir
-    fi  
+    fi
 
     destdir=$LIB_DEST/$module
     echo "Installing $module to $destdir"
@@ -346,7 +351,7 @@ function unpack_and_copy(){
     # For the execs, also copy these to the bin directory
     if [ $module == "um_utils" ] || [ $module == "um_sstpert" ] ; then
         echo "Installing $module execs and info to $BIN_DEST/"
-        cp -vr $egg/EGG-INFO $BIN_DEST/$module.egg-info        
+        cp -vr $egg/EGG-INFO $BIN_DEST/$module.egg-info
         cp -vr $SCRATCHDIR/bin/* $BIN_DEST/
     fi
 }
@@ -364,7 +369,7 @@ function cleanup(){
     cd $wc_root/$module
 
     echo "Cleaning $module module"
-    $PYTHONEXEC setup.py clean
+    python setup.py clean
 }
 
 for module in $MODULE_LIST ; do
