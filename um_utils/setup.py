@@ -79,4 +79,5 @@ setuptools.setup(
             'mule-fixframe = um_utils.fixframe:_main',
             'mule-unpack = um_utils.unpack:_main',
             'mule-select = um_utils.select:_main',
-            'mule-convpp = um_utils.convpp:_main']})
+            'mule-convpp = um_utils.convpp:_main',
+            'mule-editmask = um_utils.editmask:_main']})

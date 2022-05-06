@@ -20,6 +20,7 @@ This is the documentation for the UM utilities, which use the Mule API.
    um_utils/version
    um_utils/unpack
    um_utils/convpp
+   um_utils/editmask
 
 Indices and tables
 ==================
@@ -27,4 +28,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
