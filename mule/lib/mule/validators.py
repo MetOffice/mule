@@ -397,14 +397,17 @@ def validate_field_grid_type(umf, field):
         return [msg.format(file_rotated, field_rotated)]
 
     # In some cases output fields from the UM contain fields which aren't on
-    # the whole domain (a STASH option) - these won't validate so don't try
+    # the whole domain (a STASH option) - these won't validate unless the
+    # LBPROC code 524288 has been set to indicate they are not on the full
+    # model grid
     file_hem = umf.fixed_length_header.horiz_grid_type % 100
     if (field.lbhem != file_hem and umf.fixed_length_header.dataset_type != 5):
-        msg = ("Cannot validate field due to incompatible grid type:\n"
-               "  File grid : {0}\n"
-               "  Field grid: {1}")
-        return [
-            msg.format(file_hem, field.lbhem)]
+        if field.lbproc & 524288 == 0:
+            msg = ("Cannot validate field due to incompatible grid type:\n"
+                   "  File grid : {0}\n"
+                   "  Field grid: {1}")
+            return [
+                msg.format(file_hem, field.lbhem)]
 
 
 def validate_variable_resolution_field(umf, field):
@@ -587,9 +590,10 @@ def validate_regular_field(umf, field):
         # should provide a reasonable validation for these.
         return validate_regular_field_nostash(umf, field)
 
-    # Some fields may be Zonal means, indicated by lbproc - these won't test
-    # correctly below so use the non-STASH enabled routine instead
-    if field.lbproc & 64 != 0:
+    # Some fields may be Zonal means or on a reduced domain, as indicated
+    # by lbproc - these won't test correctly below so use the non-STASH
+    # enabled routine instead
+    if field.lbproc & 64 != 0 or field.lbproc & 524288 != 0:
         return validate_regular_field_nostash(umf, field)
 
     # Unless the grid type was unhandled, proceed to perform the
@@ -659,17 +663,18 @@ def validate_regular_field_nostash(umf, field):
     # grid-spacing of the P grid in the header (allow an
     # additional 1% tolerance for rounding errors)
     out_msg = []
-    if (lon_end_diff_steps > 1.01 or
-            lon_start_diff_steps > 1.01):
-        msg = ("Field grid longitudes inconsistent\n"
-               "  File grid : {0} to {1}, spacing {2}\n"
-               "  Field grid: {3} to {4}, spacing {5}\n"
-               "  Extents should be within 1 field grid-spacing")
-        out_msg.append(msg.format(
-            umf.real_constants.start_lon,
-            file_end_lon, umf.real_constants.col_spacing,
-            field.bzx + field.bdx, field_end_lon,
-            field.bdx))
+    if field.lbproc & 524288 == 0 or field.lbproc == -99:
+        if (lon_end_diff_steps > 1.01 or
+                lon_start_diff_steps > 1.01):
+            msg = ("Field grid longitudes inconsistent\n"
+                   "  File grid : {0} to {1}, spacing {2}\n"
+                   "  Field grid: {3} to {4}, spacing {5}\n"
+                   "  Extents should be within 1 field grid-spacing")
+            out_msg.append(msg.format(
+                umf.real_constants.start_lon,
+                file_end_lon, umf.real_constants.col_spacing,
+                field.bzx + field.bdx, field_end_lon,
+                field.bdx))
 
     # And repeat the same tests for the latitudes
     lat_start_diff_steps = (
@@ -685,15 +690,16 @@ def validate_regular_field_nostash(umf, field):
 
     # Similarly for the latitudes 1.0 grid spacing with a
     # 1% tolerance
-    if (lat_end_diff_steps > 1.01 or
-            lat_start_diff_steps > 1.01):
-        msg = ("Field grid latitudes inconsistent\n"
-               "  File grid : {0} to {1}, spacing {2}\n"
-               "  Field grid: {3} to {4}, spacing {5}\n"
-               "  Extents should be within 1 field grid-spacing")
-        out_msg.append(msg.format(
-            umf.real_constants.start_lat,
-            file_end_lat, umf.real_constants.row_spacing,
-            field.bzy + field.bdy, field_end_lat,
-            field.bdy))
+    if field.lbproc & 524288 == 0 or field.lbproc == -99:
+        if (lat_end_diff_steps > 1.01 or
+                lat_start_diff_steps > 1.01):
+            msg = ("Field grid latitudes inconsistent\n"
+                   "  File grid : {0} to {1}, spacing {2}\n"
+                   "  Field grid: {3} to {4}, spacing {5}\n"
+                   "  Extents should be within 1 field grid-spacing")
+            out_msg.append(msg.format(
+                umf.real_constants.start_lat,
+                file_end_lat, umf.real_constants.row_spacing,
+                field.bzy + field.bdy, field_end_lat,
+                field.bdy))
     return out_msg
