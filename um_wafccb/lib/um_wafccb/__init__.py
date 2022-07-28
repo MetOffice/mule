@@ -20,4 +20,4 @@
 
 from .um_wafccb import wafccb
 
-__version__ = "2022.05.1"
+__version__ = "2022.07.1"

@@ -52,7 +52,7 @@ class CleanCommand(setuptools.Command):
 
 setuptools.setup(
     name='um_wafccb',
-    version='2022.05.1',
+    version='2022.07.1',
     description='Unified Model WAFC CB extension',
     author='UM Systems Team',
     url='https://code.metoffice.gov.uk/trac/um',

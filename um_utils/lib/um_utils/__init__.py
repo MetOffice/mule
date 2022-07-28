@@ -19,4 +19,4 @@
 # along with these utilities.
 # If not, see <http://opensource.org/licenses/BSD-3-Clause>.
 
-__version__ = "2022.05.1"
+__version__ = "2022.07.1"

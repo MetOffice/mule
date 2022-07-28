@@ -32,16 +32,16 @@ set -eu
 # Setup what version of things should be used
 
 # Mule version for build (will be checked out from SRS)
-mule_ver=2022.05.1
+mule_ver=2022.07.1
 # UM version for sstpert and wafccb libraries (will be looked up in $UMDIR)
-um_ver=vn12.2
+um_ver=vn13.0
 # Shumlib version (will be looked up in $UMDIR)
-shum_ver=2021.10.1
+shum_ver=2022.7.1
 
 # Set library locations and which specific builds to use on each platform
 hostname=$(hostname)
 if [[ $hostname == uan01 ]] ; then  # EXZ
-  shum=$UMDIR/shumlib/shumlib-$shum_ver/meto-ex1a-crayftn-12.0.3-craycc-12.0.3
+  shum=$UMDIR/shumlib/shumlib-$shum_ver/meto-ex1a-crayftn-14.0.0-craycc-14.0.0
   sst=$UMDIR/$um_ver/ex1a/sstpert_cce
   wafc=$UMDIR/$um_ver/ex1a/wafccb_cce
 

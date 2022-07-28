@@ -20,4 +20,4 @@
 
 from .um_packing import wgdos_pack, wgdos_unpack, get_shumlib_version
 
-__version__ = "2022.05.1"
+__version__ = "2022.07.1"
