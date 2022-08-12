@@ -36,7 +36,7 @@ mule_ver=2022.07.1
 # UM version for sstpert and wafccb libraries (will be looked up in $UMDIR)
 um_ver=vn13.0
 # Shumlib version (will be looked up in $UMDIR)
-shum_ver=2022.7.1
+shum_ver=2022.07.1
 
 # Set library locations and which specific builds to use on each platform
 hostname=$(hostname)
