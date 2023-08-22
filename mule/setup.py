@@ -47,7 +47,7 @@ class CleanCommand(setuptools.Command):
 
 setuptools.setup(
     name='mule',
-    version='2022.07.1',
+    version='2023.08.1',
     description='Unified Model Fields File interface',
     author='UM Systems Team',
     url='https://code.metoffice.gov.uk/trac/um',
