@@ -40,7 +40,7 @@ shum_ver=2023.08.1
 
 # Set library locations and which specific builds to use on each platform
 hostname=$(hostname)
-if [[ $hostname == uan01 ]] ; then  # EXZ
+if [[ $hostname == uan01 ]] || [[ $hostname == login* ]] ; then  # EX
   shum=$UMDIR/shumlib/shumlib-$shum_ver/meto-ex1a-crayftn-15.0.0-craycc-15.0.0
   sst=$UMDIR/$um_ver/ex1a/sstpert_cce
   wafc=$UMDIR/$um_ver/ex1a/wafccb_cce
