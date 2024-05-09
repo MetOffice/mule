@@ -87,9 +87,10 @@ for omp in openmp no-openmp ; do
     # Mule's install script, with all of the optional features enabled
     # (this is a central install so we want everything)
     admin/install_mule.sh \
-        --library_lock --ppibm_lib --spiral_lib \
+        --library_lock --ppibm_lib --spiral_lib --packing_lib\
         --sstpert_lib $sst --wafccb_lib $wafc \
-        ../$dest_dir/$omp/lib ../$dest_dir/$omp/bin $shum/$omp
+        --shumlib_path $shum/$omp \
+        ../$dest_dir/$omp/lib ../$dest_dir/$omp/bin
 
     # Check the build works by running the unit-tests
     for mod in um_packing mule um_utils um_spiral_search ; do

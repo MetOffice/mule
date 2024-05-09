@@ -15,12 +15,13 @@
 #
 set -eu
 
-if [ $# -lt 3 ] ; then
+if [ $# -lt 2 ] ; then
     echo "USAGE: "
-    echo "   $(basename $0) [--sstpert_lib <sstpert_lib>]"
+    echo "   $(basename $0) [--shumlib_path <shumlib_path>]"
+    echo "                  [--sstpert_lib <sstpert_lib>]"
     echo "                  [--wafccb_lib <wafccb_lib>]"
-    echo "                  [--spiral_lib ] [--ppibm_lib]"
-    echo "                  <lib_dest> <bin_dest> <shumlib> "
+    echo "                  [--spiral_lib ] [--ppibm_lib] [--packing_lib]"
+    echo "                  <lib_dest> <bin_dest> "
     echo ""
     echo "   Must be called from the top-level of a working "
     echo "   copy of the UM mule project, containing the 3"
@@ -39,7 +40,7 @@ if [ $# -lt 3 ] ; then
     echo "  * <bin_dest>"
     echo "      The destination directory for the "
     echo "      UM utility execs to be installed to."
-    echo "  * <shumlib>"
+    echo "  * --shumlib_path <shumlib_path>"
     echo "      The location of the UM shared library"
     echo "      for linking the um_packing extension."
     echo "  * --sstpert_lib <sstpert_lib>"
@@ -65,6 +66,9 @@ if [ $# -lt 3 ] ; then
     echo "      <lib_dest>.  This allows Mule and its dependent"
     echo "      libraries to be moved around together provided their"
     echo "      relative positions remain the same."
+    echo "  * --packing_lib"
+    echo "      (Optional) Toggles the building of the UM packing"
+    echo "      extension (uses the Shumlib location from <shumlib>)."
     echo ""
     echo "  After running the script the directory "
     echo "  named in <lib_dest> should be suitable to "
@@ -75,13 +79,19 @@ if [ $# -lt 3 ] ; then
 fi
 
 # Process the optional arguments
+PACKING_LIB=
 SSTPERT_LIB=
 WAFCCB_LIB=
 SPIRAL_LIB=
 PPIBM_LIB=
 LIBRARY_LOCK=
-while [ $# -gt 3 ] ; do
+SHUMLIB=
+while [ $# -gt 2 ] ; do
     case "$1" in
+        --shumlib_path) shift
+                     SHUMLIB=$1 ;;
+        --packing_lib)
+                     PACKING_LIB="build" ;;
         --sstpert_lib) shift
                      SSTPERT_LIB=$1 ;;
         --wafccb_lib) shift
@@ -100,9 +110,11 @@ done
 
 LIB_DEST=$1
 BIN_DEST=$2
-SHUMLIB=$3
 
-MODULE_LIST="mule um_packing um_utils"
+MODULE_LIST="mule um_utils"
+if [ -n "$PACKING_LIB" ] ; then
+    MODULE_LIST="$MODULE_LIST um_packing"
+fi
 if [ -n "$SSTPERT_LIB" ] ; then
     MODULE_LIST="$MODULE_LIST um_sstpert"
 fi
@@ -120,7 +132,7 @@ fi
 # will be trying to install against
 PYTHONVER=$(python -c "from platform import python_version ; print(python_version())")
 PYTHONEXEC=python$(cut -d . -f-2 <<< $PYTHONVER)
-echo "Installing against Python $PYTHONVER"
+echo "[INFO] Installing against Python $PYTHONVER"
 
 # Setup a temporary directory where the install will be initially created
 SCRATCHDIR=$(mktemp -d)
@@ -134,49 +146,51 @@ if [ ! ${BIN_DEST:0:1} == "/" ] ; then
     BIN_DEST=$PWD/$BIN_DEST
 fi
 
-# Create install directores - they may already exist but should be
+# Create install directories - they may already exist but should be
 # empty if they do, also check the modules exist in the cwd
 exit=0
 for module in $MODULE_LIST ; do
     mkdir -p $LIB_DEST/$module
     if [ "$(ls -A $LIB_DEST/$module)" ] ; then
-        echo "Directory '$LIB_DEST/$module' exists but is non-empty"
+        echo "[INFO] Directory '$LIB_DEST/$module' exists but is non-empty"
         exit=1
     fi
     if [ ! -d ./$module ] ; then
-	echo "Directory ./$module not found, is this a working copy?"
-	exit=1
+        echo "[ERROR] Directory ./$module not found, is this a working copy?"
+        exit=1
     fi
 done
 if [ $exit -eq 1 ] ; then
-    echo "Please ensure install directories are clear and re-start"
-    echo "from the top level of a UM mule project working copy"
+    echo "[ERROR] Please ensure install directories are clear and re-start"
+    echo "[ERROR] from the top level of a UM mule project working copy"
     exit 1
 fi
 
 # Likewise for the directory for binaries
 mkdir -p $BIN_DEST
 if [ "$(ls $BIN_DEST/mule-* 2> /dev/null)" ] ; then
-  echo "Execs already exist in '$BIN_DEST'"
-  echo "Please ensure these are removed and re-start"
+  echo "[ERROR] Execs already exist in '$BIN_DEST'"
+  echo "[ERROR] Please ensure these are removed and re-start"
   exit 1
 fi
 
-# Check that shumlib is found
-if [ ! -d $SHUMLIB ] ; then
-  echo "Shumlib directory '$SHUMLIB' not found"
-  exit 1
+# If shumlib is needed, check that it can be found
+if [ -n "$PACKING_LIB" ] || [ -n "$SSTPERT_LIB" ] || [ -n "$SPIRAL_LIB" ] || [ -n "$PPIBM_LIB" ] || [ -n "$LIBRARY_LOCK" ]; then
+    if [ ! -d $SHUMLIB ] ; then
+      echo "[ERROR] Shumlib directory '$SHUMLIB' not found"
+      exit 1
+    fi
 fi
 
 # If using it, check the sstpert lib is found
 if [ -n "$SSTPERT_LIB" ] && [ ! -d $SSTPERT_LIB ] ; then
-  echo "SSTpert library directory '$SSTPERT_LIB' not found"
+  echo "[ERROR] SSTpert library directory '$SSTPERT_LIB' not found"
   exit 1
 fi
 
 # If using it, check the wafccb lib is found
 if [ -n "$WAFCCB_LIB" ] && [ ! -d $WAFCCB_LIB ] ; then
-  echo "WAFC CB library directory '$WAFCCB_LIB' not found"
+  echo "[ERROR] WAFC CB library directory '$WAFCCB_LIB' not found"
   exit 1
 fi
 
@@ -205,26 +219,28 @@ function pyrelpath(){
 }
 
 # Packing library first
-echo "Changing directory to packing module:" $wc_root/um_packing
-cd $wc_root/um_packing
+if [ -n "$PACKING_LIB" ] ; then
+    echo "[INFO] Building packing module..."
+    echo "[INFO] Changing directory to packing module:" $wc_root/um_packing
+    cd $wc_root/um_packing
 
-# Work out the relative path from the final location of this module to
-# the shumlib library and create a sym-link (if library lock active)
-if [ -n "$LIBRARY_LOCK" ] ; then
-    relshum=$(pyrelpath $SHUMLIB/lib $LIB_DEST/um_packing)
-    ln -s $relshum $LIB_DEST/um_packing/shumlib_lib
-    rpath=\$ORIGIN/shumlib_lib
-else
-    rpath=$SHUMLIB/lib
+    # Work out the relative path from the final location of this module to
+    # the shumlib library and create a sym-link (if library lock active)
+    if [ -n "$LIBRARY_LOCK" ] ; then
+        relshum=$(pyrelpath $SHUMLIB/lib $LIB_DEST/um_packing)
+        ln -s $relshum $LIB_DEST/um_packing/shumlib_lib
+        rpath=\$ORIGIN/shumlib_lib
+    else
+        rpath=$SHUMLIB/lib
+    fi
+
+    python setup.py build_ext --inplace \
+       -I$SHUMLIB/include -L$SHUMLIB/lib -R$rpath
 fi
-
-echo "Building packing module..."
-python setup.py build_ext --inplace \
-   -I$SHUMLIB/include -L$SHUMLIB/lib -R$rpath
 
 # SSTPert library (if being used)
 if [ -n "$SSTPERT_LIB" ] ; then
-    echo "Changing directory to sstpert module:" $wc_root/um_sstpert
+    echo "[INFO] Changing directory to sstpert module:" $wc_root/um_sstpert
     cd $wc_root/um_sstpert
 
     # Work out the relative path from the final location of this module to
@@ -239,7 +255,7 @@ if [ -n "$SSTPERT_LIB" ] ; then
         rpath=$SSTPERT_LIB/lib:$SHUMLIB/lib
     fi
 
-    echo "Building sstpert module..."
+    echo "[INFO] Building sstpert module..."
     python setup.py build_ext --inplace \
         -I$SSTPERT_LIB/include \
         -L$SSTPERT_LIB/lib:$SHUMLIB/lib \
@@ -248,7 +264,7 @@ fi
 
 # WAFC CB library (if being used)
 if [ -n "$WAFCCB_LIB" ] ; then
-    echo "Changing directory to wafccb module:" $wc_root/um_wafccb
+    echo "[INFO] Changing directory to wafccb module:" $wc_root/um_wafccb
     cd $wc_root/um_wafccb
 
     # Work out the relative path from the final location of this module to
@@ -261,7 +277,7 @@ if [ -n "$WAFCCB_LIB" ] ; then
         rpath=$WAFCCB_LIB/lib
     fi
 
-    echo "Building wafccb module..."
+    echo "[INFO] Building wafccb module..."
     python setup.py build_ext --inplace \
         -I$WAFCCB_LIB/include \
         -L$WAFCCB_LIB/lib \
@@ -270,7 +286,7 @@ fi
 
 # Spiral search library (if being used)
 if [ -n "$SPIRAL_LIB" ] ; then
-    echo "Changing directory to spiral search module:" $wc_root/um_spiral_search
+    echo "[INFO] Changing directory to spiral search module:" $wc_root/um_spiral_search
     cd $wc_root/um_spiral_search
 
     # Work out the relative path from the final location of this module to
@@ -283,7 +299,7 @@ if [ -n "$SPIRAL_LIB" ] ; then
         rpath=$SHUMLIB/lib
     fi
 
-    echo "Building spiral search module..."
+    echo "[INFO] Building spiral search module..."
     python setup.py build_ext --inplace \
         -I$SHUMLIB/include \
         -L$SHUMLIB/lib \
@@ -292,7 +308,7 @@ fi
 
 # PP IBM library (if being used)
 if [ -n "$PPIBM_LIB" ] ; then
-    echo "Changing directory to ppibm module:" $wc_root/um_ppibm
+    echo "[INFO] Changing directory to ppibm module:" $wc_root/um_ppibm
     cd $wc_root/um_ppibm
 
     # Work out the relative path from the final location of this module to
@@ -305,7 +321,7 @@ if [ -n "$PPIBM_LIB" ] ; then
         rpath=$SHUMLIB/lib
     fi
 
-    echo "Building ppibm module..."
+    echo "[INFO] Building ppibm module..."
     python setup.py build_ext --inplace \
         -I$SHUMLIB/include \
         -L$SHUMLIB/lib \
@@ -317,10 +333,10 @@ fi
 #----------------------------------------------#
 function install(){
     module=$1
-    echo "Changing directory to $module module:" $wc_root/$module
+    echo "[INFO] Changing directory to $module module:" $wc_root/$module
     cd $wc_root/$module
 
-    echo "Installing $module module to $SCRATCHDIR"
+    echo "[INFO] Installing $module module to $SCRATCHDIR"
     python setup.py install --prefix $SCRATCHDIR
 }
 
@@ -337,20 +353,20 @@ function unpack_and_copy(){
 
     # The egg might be zipped - if it is unzip it in place
     if [ ! -d $egg ] ; then
-      echo "Unpacking zipped egg..."
+      echo "[INFO] Unpacking zipped egg..."
       unzip_dir=$SCRATCHLIB/${module}_unzipped_egg
       unzip $egg -d $unzip_dir
       egg=$unzip_dir
     fi
 
     destdir=$LIB_DEST/$module
-    echo "Installing $module to $destdir"
+    echo "[INFO] Installing $module to $destdir"
     mkdir -p $destdir
     cp -vr $egg/$module/* $destdir
 
     # For the execs, also copy these to the bin directory
     if [ $module == "um_utils" ] || [ $module == "um_sstpert" ] ; then
-        echo "Installing $module execs and info to $BIN_DEST/"
+        echo "[INFO] Installing $module execs and info to $BIN_DEST/"
         cp -vr $egg/EGG-INFO $BIN_DEST/$module.egg-info
         cp -vr $SCRATCHDIR/bin/* $BIN_DEST/
     fi
@@ -365,10 +381,10 @@ done
 #------------------------#
 function cleanup(){
     module=$1
-    echo "Changing directory to $module module:" $wc_root/$module
+    echo "[INFO] Changing directory to $module module:" $wc_root/$module
     cd $wc_root/$module
 
-    echo "Cleaning $module module"
+    echo "[INFO] Cleaning $module module"
     python setup.py clean
 }
 
@@ -377,5 +393,5 @@ for module in $MODULE_LIST ; do
 done
 
 # Cleanup the temporary directory
-echo "Cleaning up temporary directory: $SCRATCHDIR"
+echo "[INFO] Cleaning up temporary directory: $SCRATCHDIR"
 rm -rf $SCRATCHDIR
