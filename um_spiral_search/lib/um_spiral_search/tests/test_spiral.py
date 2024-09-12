@@ -468,7 +468,7 @@ class Test_spiral_search(tests.UMSpiralTest):
             # Check that the warning was raised, and that the call still
             # returned the value
             self.assertEqual(len(warning_msgs), 1)
-            self.assertRegexpMatches(
+            self.assertRegex(
                 warning_msgs[0].message.args[0],
                 "Despite being constrained there were no resolved points "
                 "of any type within the limit")
@@ -571,7 +571,7 @@ class Test_spiral_search(tests.UMSpiralTest):
             # Check that the warning was raised, and that the call still
             # returned the value
             self.assertEqual(len(warning_msgs), 1)
-            self.assertRegexpMatches(
+            self.assertRegex(
                 warning_msgs[0].message.args[0],
                 "Despite being constrained there were no resolved points "
                 "of any type within the limit")
