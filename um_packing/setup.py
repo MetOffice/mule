@@ -52,7 +52,7 @@ class CleanCommand(setuptools.Command):
 
 setuptools.setup(
     name='um_packing',
-    version='2023.08.1',
+    version='2024.11.1',
     description='Unified Model packing library extension',
     author='UM Systems Team',
     url='https://code.metoffice.gov.uk/trac/um',
