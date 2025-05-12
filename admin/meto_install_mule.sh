@@ -40,7 +40,7 @@ shum_ver=2024.11.1
 
 # Set library locations and which specific builds to use on each platform
 hostname=$(hostname)
-if [[ $hostname == cazld* ]] ; then # AZSPICE
+if [[ $hostname == caz* ]] ; then # AZSPICE
   shum=$UMDIR/shumlib/shumlib-2024.03.1/azspice-gfortran-12.2.0-gcc-12.2.0
   sst=$UMDIR/$um_ver/linux/sstpert_gnu
   wafc=$UMDIR/$um_ver/linux/wafccb_gnu
@@ -49,21 +49,6 @@ elif [[ $hostname == uan01 ]] || [[ $hostname == login* ]] ; then  # EX
   shum=$UMDIR/shumlib/shumlib-$shum_ver/meto-ex1a-crayftn-15.0.0-craycc-15.0.0
   sst=$UMDIR/$um_ver/ex1a/sstpert_cce
   wafc=$UMDIR/$um_ver/ex1a/wafccb_cce
-
-elif [[ $hostname == xc* ]] ; then  # XC40
-  # Use ivybridge chipset as we want these things to be able to work interactively
-  # on the login nodes
-  module swap craype-haswell craype-ivybridge
-  shum=$UMDIR/shumlib/shumlib-$shum_ver/meto-xc40-ivybridge-crayftn-8.4.3-craycc-8.4.3
-  sst=$UMDIR/$um_ver/xc40/sstpert_cce
-  wafc=$UMDIR/$um_ver/xc40/wafccb_cce
-
-else  # Desktop/SPICE
-  ulimit -s unlimited
-  module swap ifort/16.0_64
-  shum=$UMDIR/shumlib/shumlib-$shum_ver/meto-x86-ifort-16.0.1-gcc-4.4.7
-  sst=$UMDIR/$um_ver/linux/sstpert_gcc_ifort
-  wafc=$UMDIR/$um_ver/linux/wafccb_gcc_ifort
 fi
 
 # Get a copy of the mule trunk at the required version - if it has already been
