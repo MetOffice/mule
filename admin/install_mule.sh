@@ -128,9 +128,13 @@ if [ -n "$PPIBM_LIB" ] ; then
     MODULE_LIST="$MODULE_LIST um_ppibm"
 fi
 
+# If MULE_PYTHON_EXEC is set, then use that, otherwise use `python`
+mule_python_exec=${MULE_PYTHON_EXEC:-"python"}
+echo "mule python exec: $mule_python_exec"
+
 # Find out the version of the current interpreter, since this is what we
 # will be trying to install against
-PYTHONVER=$(python -c "from platform import python_version ; print(python_version())")
+PYTHONVER=$($mule_python_exec -c "from platform import python_version ; print(python_version())")
 PYTHONEXEC=python$(cut -d . -f-2 <<< $PYTHONVER)
 echo "[INFO] Installing against Python $PYTHONVER"
 
@@ -215,7 +219,7 @@ wc_root=$(pwd)
 # use ln -r for this or realpath but since they aren't as common as we'd
 # like let's use Python
 function pyrelpath(){
-    python -c "import os.path; print(os.path.relpath(\"$1\",\"$2\"))"
+    $mule_python_exec -c "import os.path; print(os.path.relpath(\"$1\",\"$2\"))"
 }
 
 # Packing library first
@@ -234,7 +238,7 @@ if [ -n "$PACKING_LIB" ] ; then
         rpath=$SHUMLIB/lib
     fi
 
-    python setup.py build_ext --inplace \
+    $mule_python_exec setup.py build_ext --inplace \
        -I$SHUMLIB/include -L$SHUMLIB/lib -R$rpath
 fi
 
@@ -256,7 +260,7 @@ if [ -n "$SSTPERT_LIB" ] ; then
     fi
 
     echo "[INFO] Building sstpert module..."
-    python setup.py build_ext --inplace \
+    $mule_python_exec setup.py build_ext --inplace \
         -I$SSTPERT_LIB/include \
         -L$SSTPERT_LIB/lib:$SHUMLIB/lib \
         -R$rpath
@@ -278,7 +282,7 @@ if [ -n "$WAFCCB_LIB" ] ; then
     fi
 
     echo "[INFO] Building wafccb module..."
-    python setup.py build_ext --inplace \
+    $mule_python_exec setup.py build_ext --inplace \
         -I$WAFCCB_LIB/include \
         -L$WAFCCB_LIB/lib \
         -R$rpath
@@ -300,7 +304,7 @@ if [ -n "$SPIRAL_LIB" ] ; then
     fi
 
     echo "[INFO] Building spiral search module..."
-    python setup.py build_ext --inplace \
+    $mule_python_exec setup.py build_ext --inplace \
         -I$SHUMLIB/include \
         -L$SHUMLIB/lib \
         -R$rpath
@@ -322,7 +326,7 @@ if [ -n "$PPIBM_LIB" ] ; then
     fi
 
     echo "[INFO] Building ppibm module..."
-    python setup.py build_ext --inplace \
+    $mule_python_exec setup.py build_ext --inplace \
         -I$SHUMLIB/include \
         -L$SHUMLIB/lib \
         -R$rpath
@@ -337,7 +341,7 @@ function install(){
     cd $wc_root/$module
 
     echo "[INFO] Installing $module module to $SCRATCHDIR"
-    python setup.py install --prefix $SCRATCHDIR
+    $mule_python_exec setup.py install --prefix $SCRATCHDIR
 }
 
 for module in $MODULE_LIST ; do
@@ -385,7 +389,7 @@ function cleanup(){
     cd $wc_root/$module
 
     echo "[INFO] Cleaning $module module"
-    python setup.py clean
+    $mule_python_exec setup.py clean
 }
 
 for module in $MODULE_LIST ; do
