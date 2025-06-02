@@ -341,7 +341,7 @@ function install(){
     cd $wc_root/$module
 
     echo "[INFO] Installing $module module to $SCRATCHDIR"
-    $mule_python_exec setup.py install --prefix $SCRATCHDIR
+    $mule_python_exec -m pip install . --prefix $SCRATCHDIR
 }
 
 for module in $MODULE_LIST ; do
@@ -353,25 +353,17 @@ done
 #------------------------------------------------------------#
 function unpack_and_copy(){
     module=$1
-    egg=$SCRATCHLIB/$module*.egg
-
-    # The egg might be zipped - if it is unzip it in place
-    if [ ! -d $egg ] ; then
-      echo "[INFO] Unpacking zipped egg..."
-      unzip_dir=$SCRATCHLIB/${module}_unzipped_egg
-      unzip $egg -d $unzip_dir
-      egg=$unzip_dir
-    fi
+    egg=$SCRATCHLIB/$module
 
     destdir=$LIB_DEST/$module
     echo "[INFO] Installing $module to $destdir"
     mkdir -p $destdir
-    cp -vr $egg/$module/* $destdir
+    cp -vr $SCRATCHLIB/$module/* $destdir
 
     # For the execs, also copy these to the bin directory
     if [ $module == "um_utils" ] || [ $module == "um_sstpert" ] ; then
         echo "[INFO] Installing $module execs and info to $BIN_DEST/"
-        cp -vr $egg/EGG-INFO $BIN_DEST/$module.egg-info
+        cp -vr $SCRATCHLIB/$module*.dist-info $BIN_DEST
         cp -vr $SCRATCHDIR/bin/* $BIN_DEST/
     fi
 }
