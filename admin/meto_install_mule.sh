@@ -40,12 +40,12 @@ shum_ver=2024.11.1
 
 # Set library locations and which specific builds to use on each platform
 hostname=$(hostname)
-if [[ $hostname == caz* ]] ; then # AZSPICE
+if [[ $hostname == caz* ]] && [[ $hostname != cazccylc* ]] ; then # AZSPICE
   shum=$UMDIR/shumlib/shumlib-2024.03.1/azspice-gfortran-12.2.0-gcc-12.2.0
   sst=$UMDIR/$um_ver/linux/sstpert_gnu
   wafc=$UMDIR/$um_ver/linux/wafccb_gnu
 
-elif [[ $hostname == uan01 ]] || [[ $hostname == login* ]] ; then  # EX
+elif [[ $hostname == uan01 ]] || [[ $hostname == login* ]] || [[ $hostname == cazccylc* ]] ; then  # EX
   shum=$UMDIR/shumlib/shumlib-$shum_ver/meto-ex1a-crayftn-15.0.0-craycc-15.0.0
   sst=$UMDIR/$um_ver/ex1a/sstpert_cce
   wafc=$UMDIR/$um_ver/ex1a/wafccb_cce
