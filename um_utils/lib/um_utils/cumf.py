@@ -1045,7 +1045,12 @@ def full_report(comparison, stdout=None, **kwargs):
         # Capture the widest width needed for each element
         for index, (value_1, value_2) in diffmap:
             # Set the index string to be the numerical value
-            indexstr = str(index)
+            # As of Numpy 2.0 str((np.int, np.int)) has different formatting, so
+            # actively create the same formatting here to satisfy unit tests
+            try:
+                indexstr = f"({', '.join(str(x) for x in index)})"
+            except TypeError:
+                indexstr = str(index)
             if name_mapping is not None:
                 # If a mapping was given, add the associated name here
                 for map_name, map_ind in name_mapping:

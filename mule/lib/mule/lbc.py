@@ -92,7 +92,7 @@ class _ReadLBCProviderUnpacked(mule.RawReadProvider):
         field = self.source
         data_bytes = self._read_bytes()
         dtype = mule.ff._DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
-        data = np.fromstring(data_bytes, dtype, count=field.lblrec)
+        data = np.frombuffer(data_bytes, dtype, count=field.lblrec)
         data = data.reshape(field.lbhem - 100, -1)
         return data
 
@@ -118,7 +118,7 @@ class _WriteLBCOperatorUnpacked(object):
         data = field.get_data()
         dtype = mule.ff._DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
         data = data.astype(dtype)
-        return data.tostring(), data.size
+        return data.tobytes(), data.size
 
 
 class _WriteLBCOperatorCray32Packed(_WriteLBCOperatorUnpacked):

@@ -190,7 +190,7 @@ class _ReadFFProviderUnpacked(mule.RawReadProvider):
             count = field.lbrow*field.lbnpt
         else:
             count = field.lblrec
-        data = np.fromstring(data_bytes, dtype, count=count)
+        data = np.frombuffer(data_bytes, dtype, count=count)
         if size_present:
             data = data.reshape(field.lbrow, field.lbnpt)
         return data
@@ -242,7 +242,7 @@ class _ReadFFProviderLandPacked(mule.RawReadProvider):
                    "has no associated Land-Sea mask")
             raise ValueError(msg)
         dtype = _DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
-        data_p = np.fromstring(data_bytes, dtype, count=field.lblrec)
+        data_p = np.frombuffer(data_bytes, dtype, count=field.lblrec)
         if self._LAND:
             mask = np.where(self._lsm_source.ravel() == 1.0)[0]
         else:
@@ -312,7 +312,7 @@ class _WriteFFOperatorUnpacked(object):
         data = field.get_data()
         dtype = _DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
         data = data.astype(dtype)
-        return data.tostring(), data.size
+        return data.tobytes(), data.size
 
 
 class _WriteFFOperatorWGDOSPacked(_WriteFFOperatorUnpacked):
@@ -388,7 +388,7 @@ class _WriteFFOperatorLandPacked(_WriteFFOperatorUnpacked):
         data = data.ravel()[mask]
         dtype = _DATA_DTYPES[self.WORD_SIZE][field.lbuser1]
         data = data.astype(dtype)
-        return data.tostring(), data.size
+        return data.tobytes(), data.size
 
 
 class _WriteFFOperatorSeaPacked(_WriteFFOperatorLandPacked):

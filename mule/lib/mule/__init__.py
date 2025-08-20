@@ -473,7 +473,7 @@ class BaseHeaderComponent2D(BaseHeaderComponent):
 
         """
         values = np.fromfile(source, dtype=cls.DTYPE,
-                             count=np.product((dim1, dim2)))
+                             count=np.prod((dim1, dim2)))
         values = values.reshape((dim1, dim2), order="F")
         return cls(values)
 
@@ -1457,7 +1457,7 @@ class UMFile(object):
 
             lookup = np.fromfile(source,
                                  dtype='>i{0}'.format(self.WORD_SIZE),
-                                 count=np.product(shape))
+                                 count=np.prod(shape))
             # Catch if the file has no lookups/data to read
             if len(lookup) > 0:
                 lookup = lookup.reshape(shape, order="F")
