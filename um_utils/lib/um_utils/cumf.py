@@ -1275,7 +1275,9 @@ def _main():
         help="ignore specific indices of a component; provide the name of \n"
         "the component and a comma separated list of indices or ranges \n"
         "(i.e. M:N) to ignore.  This may be specified multiple times to \n"
-        "ignore indices from more than one component\n ",
+        "ignore indices from more than one component. \n"
+        "If this option is not used, by default mule-cumf will ignore \n"
+        "creation time in fixed length header only\n ",
         metavar="component_name=index1[,index2][...]",
         action="append")
     parser.add_argument(
