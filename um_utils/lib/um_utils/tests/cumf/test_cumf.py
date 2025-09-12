@@ -39,7 +39,7 @@ _ADD_NEW_TESTS = False
 
 class TestCumf(tests.UMUtilsNDTest):
 
-    def run_comparison(self, ff1, ff2, testname, **kwargs):
+    def run_comparison(self, ff1, ff2, testname, expected_difference=False, **kwargs):
         """
         Main test function, takes the name of a test to provide the
         output file and runs a comparison and report, then compares
@@ -51,7 +51,8 @@ class TestCumf(tests.UMUtilsNDTest):
 
         # Run cumf to produce reports, capturing the output
         strbuffer = StringIO()
-        cumf.full_report(comp, stdout=strbuffer, **kwargs)
+        files_differ = cumf.full_report(comp, stdout=strbuffer, **kwargs)
+        self.assertEqual(expected_difference, files_differ)
 
         # The expected output is kept in the "output" directory
         expected_output = os.path.join(
@@ -75,6 +76,9 @@ class TestCumf(tests.UMUtilsNDTest):
             else:
                 msg = "Test file not found: {0}"
                 raise ValueError(msg.format(expected_output))
+
+        return files_differ
+
 
     def create_2_different_files(self):
         nx, ny, nz = 4, 3, 5
@@ -139,23 +143,25 @@ class TestCumf(tests.UMUtilsNDTest):
     def test_default(self):
         # Test of default cumf output
         ff1, ff2 = self.create_2_different_files()
-        self.run_comparison(ff1, ff2, "default")
+        self.run_comparison(ff1, ff2, "default", expected_difference=True)
 
     def test_ignore_missing(self):
         # Test of the ignore missing option
         ff1, ff2 = self.create_2_different_files()
-        self.run_comparison(ff1, ff2, "ignore_missing", ignore_missing=True)
+        self.run_comparison(ff1, ff2, "ignore_missing", expected_difference=True, ignore_missing=True)
 
     def test_report_successes(self):
         # Test of the full output option
         ff1, ff2 = self.create_2_different_files()
         self.run_comparison(ff1, ff2, "report_successes",
+                            expected_difference=True,
                             only_report_failures=False)
 
     def test_ignore_template(self):
         # Test of the ignore templates
         ff1, ff2 = self.create_2_different_files()
         self.run_comparison(ff1, ff2, "ignore_template",
+                            expected_difference=True,
                             ignore_templates={"fixed_length_header": [9],
                                               "integer_constants": [8],
                                               "lookup": [29]})
@@ -164,12 +170,14 @@ class TestCumf(tests.UMUtilsNDTest):
         # Test of show-missing
         ff1, ff2 = self.create_2_different_files()
         self.run_comparison(ff1, ff2, "show_missing",
+                            expected_difference=True,
                             show_missing=True)
 
     def test_show_missing_maxone(self):
         # Test of show-missing
         ff1, ff2 = self.create_2_different_files()
         self.run_comparison(ff1, ff2, "show_missing_maxone",
+                            expected_difference=True,
                             show_missing=True,
                             show_missing_max=1)
 
@@ -177,6 +185,7 @@ class TestCumf(tests.UMUtilsNDTest):
         # Test of show-missing with full output
         ff1, ff2 = self.create_2_different_files()
         self.run_comparison(ff1, ff2, "show_missing_full",
+                            expected_difference=True,
                             show_missing=True,
                             only_report_failures=False)
 
@@ -187,7 +196,7 @@ class TestCumf(tests.UMUtilsNDTest):
         ff2._source_path = "[Test generated file 2]"
         ff2.fields = list(ff1.fields)
         ff2.fields[2], ff2.fields[3] = ff1.fields[3], ff1.fields[2]
-        self.run_comparison(ff1, ff2, "no_difference")
+        self.run_comparison(ff1, ff2, "no_difference", expected_difference=False)
 
     def test_order_missmatch_full(self):
         # Test of show-missing with full output
@@ -197,6 +206,7 @@ class TestCumf(tests.UMUtilsNDTest):
         ff2.fields = list(ff1.fields)
         ff2.fields[2], ff2.fields[3] = ff1.fields[3], ff1.fields[2]
         self.run_comparison(ff1, ff2, "order_missmatch_full",
+                            expected_difference=False,
                             show_missing=True,
                             only_report_failures=False)
 
@@ -208,7 +218,7 @@ class TestCumf(tests.UMUtilsNDTest):
         for field in ff2.fields:
             field.lbuser4 = 500
         self.run_comparison(ff1, ff2, "show_missing_alldifferent",
-                            show_missing=True)
+                            expected_difference=True, show_missing=True)
 
     def test_no_difference(self):
         # Test with no differences
@@ -216,7 +226,7 @@ class TestCumf(tests.UMUtilsNDTest):
         ff2 = ff1.copy()
         ff2._source_path = "[Test generated file 2]"
         ff2.fields = list(ff1.fields)
-        self.run_comparison(ff1, ff2, "no_difference")
+        self.run_comparison(ff1, ff2, "no_difference", expected_difference=False)
 
     def test_no_difference_show_missing(self):
         # Test no differences and show-missing (which should
@@ -226,7 +236,7 @@ class TestCumf(tests.UMUtilsNDTest):
         ff2._source_path = "[Test generated file 2]"
         ff2.fields = list(ff1.fields)
         self.run_comparison(ff1, ff2, "no_difference",
-                            show_missing=True)
+                            expected_difference=False, show_missing=True)
 
     def test_no_difference_full(self):
         # Test no differences with full output
@@ -235,7 +245,8 @@ class TestCumf(tests.UMUtilsNDTest):
         ff2._source_path = "[Test generated file 2]"
         ff2.fields = list(ff1.fields)
         self.run_comparison(ff1, ff2, "no_difference_full",
-                            only_report_failures=False)
+                            expected_difference=False, only_report_failures=False)
+
 
 if __name__ == "__main__":
     tests.main()

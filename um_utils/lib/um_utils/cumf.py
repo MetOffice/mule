@@ -845,11 +845,16 @@ def summary_report(comparison, stdout=None):
     stdout.write("File 1: {0}\n".format(comparison.file_1._source_path))
     stdout.write("File 2: {0}\n".format(comparison.file_2._source_path))
 
+    # Assume files differ unless proven otherwise
+    files_differ = True
+
     # First of all do the files compare overall
     if comparison.match:
         stdout.write("Files compare\n")
+        files_differ = False
     else:
         stdout.write("Files DO NOT compare\n")
+        files_differ = True
 
     # Warn if the files are not the same type
     if not comparison.files_are_same_type:
@@ -908,7 +913,7 @@ def summary_report(comparison, stdout=None):
     if fields_compared != total_fields and fields_compared == 0:
         if not comparison.show_missing:
             stdout.write("\n")
-            return
+            return files_differ
 
     # Report missing fields if requested
     if comparison.show_missing:
@@ -974,7 +979,7 @@ def summary_report(comparison, stdout=None):
     # If not all fields were compared, report here, and exit if none were
     # compared
     if fields_compared != total_fields and fields_compared == 0:
-        return
+        return files_differ
 
     # Report on the maximum RMS diff percentage
     if comparison.max_rms_diff_1[0] > 0.0:
@@ -991,6 +996,8 @@ def summary_report(comparison, stdout=None):
     if (comparison.max_rms_diff_1[0] > 0.0 or
             comparison.max_rms_diff_2[0] > 0.0):
         stdout.write("\n")
+
+    return files_differ
 
 
 def full_report(comparison, stdout=None, **kwargs):
@@ -1028,7 +1035,7 @@ def full_report(comparison, stdout=None, **kwargs):
             raise ValueError(msg.format(keyword))
 
     # The full report contains the summary at the beginning
-    summary_report(comparison, stdout)
+    files_differ = summary_report(comparison, stdout)
 
     # Create the component list from the base file class
     component_list = (["fixed_length_header"] +
@@ -1213,6 +1220,8 @@ def full_report(comparison, stdout=None, **kwargs):
 
         stdout.write("\n")
 
+    return files_differ
+
 
 def _main():
     """
@@ -1316,6 +1325,12 @@ def _main():
         metavar='[=N]',
         help="display missing fields from either file. If given, N is the\n"
         " maximum number of fields to display.\n")
+    parser.add_argument(
+        "--fail-if-differ",
+        help="if set, then exit with a return code of 1 if two files differ.\n",
+        action='store_true',
+        default=False
+    )
 
     # If the user supplied no arguments, print the help text and exit
     if len(sys.argv) == 1:
@@ -1395,9 +1410,9 @@ def _main():
     # it appropriately
     try:
         if args.summary:
-            summary_report(comparison)
+            files_differ = summary_report(comparison)
         else:
-            full_report(comparison)
+            files_differ = full_report(comparison)
     except IOError as error:
         if error.errno != errno.EPIPE:
             raise
@@ -1449,6 +1464,10 @@ def _main():
         if len(new_ff.fields) > 0:
             new_ff.to_file(diff_file)
 
+    # If the files differ and the --fail-if-differ option has been used then
+    # exit with a value of 1.
+    if files_differ and args.fail_if_differ:
+        sys.exit(1)
 
 if __name__ == "__main__":
     _main()
