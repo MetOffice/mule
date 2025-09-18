@@ -51,25 +51,27 @@ elif [[ $hostname == uan01 ]] || [[ $hostname == login* ]] || [[ $hostname == ca
   wafc=$UMDIR/$um_ver/ex1a/wafccb_cce
 fi
 
-# Get a copy of the mule trunk at the required version - if it has already been
-# checked out, re-use the copy already present.  Note that this leaves a working
-# copy in the current directory, which you may want to clean up once finished
-if [ ! -d mule_trunk_$mule_ver ] ; then
-  fcm co fcm:mule.xm_tr@$mule_ver mule_trunk_$mule_ver
-fi
-cd mule_trunk_$mule_ver
+# Run from git clone containing this script
+clone_location="$(dirname "$0")/.."
+cd $clone_location
 
 # Find out the versions of Python and Numpy the environment has
 pythonver=$(python -c "from platform import python_version ; print(python_version())")
 numpyver=$(python -c "import numpy; print(numpy.__version__)")
 
 # Construct the name of the install directory for this Mule install
-dest_dir=python-${pythonver}_numpy-${numpyver}
+dest_dir=$(realpath ../python-${pythonver}_numpy-${numpyver})
 # Don't overwrite/rebuild an existing install
 if [ -d $dest_dir ] ; then
     echo "$dest_dir already exists..."
     exit 1
 fi
+
+echo "Installing mule for Python ${pythonver} and Numpy ${numpyver}"
+echo "Insalling from clone at $(realpath $clone_location)"
+echo "Installing to ${dest_dir}"
+echo ""
+echo ""
 
 # Run the build twice - once with and once without openmp
 for omp in openmp no-openmp ; do
@@ -80,11 +82,11 @@ for omp in openmp no-openmp ; do
         --library_lock --ppibm_lib --spiral_lib --packing_lib\
         --sstpert_lib $sst --wafccb_lib $wafc \
         --shumlib_path $shum/$omp \
-        ../$dest_dir/$omp/lib ../$dest_dir/$omp/bin
+        $dest_dir/$omp/lib $dest_dir/$omp/bin
 
     # Check the build works by running the unit-tests
     for mod in um_packing mule um_utils um_spiral_search ; do
-        PYTHONPATH=../$dest_dir/$omp/lib python -m unittest discover -v $mod.tests
+        PYTHONPATH=$dest_dir/$omp/lib python -m unittest discover -v $mod.tests
     done
 
     # By default the entry-point scripts created this way will be tied to
@@ -94,6 +96,6 @@ for omp in openmp no-openmp ; do
     # to be called when a compatible environment is loaded; which the
     # modules we setup make sure of).  So we'll replace the first line of
     # the entry point scripts with the generic environment python invocation
-    sed -i "s:^#!.*:#!/usr/bin/env python:g" ../$dest_dir/$omp/bin/mule-*
+    sed -i "s:^#!.*:#!/usr/bin/env python:g" $dest_dir/$omp/bin/mule-*
 
 done
