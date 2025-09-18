@@ -1,0 +1,110 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* CUMF-II Comparison Report *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+File 1: [Test generated file 1]
+File 2: [Test generated file 2]
+Files DO NOT compare
+  * 0 differences in fixed_length_header (with 7 ignored indices)
+  * 7 field differences, of which 7 are in data
+
+Compared 7/7 fields, with 0 matches
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* Field 1/7 - U COMPNT OF WIND AFTER TIMESTEP *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Lookup compares, data DOES NOT compare
+Compared 64/64 lookup values.
+File_1 lookup info:
+  t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-99)
+Data differences:
+  Number of point differences  : 4/12
+  Maximum absolute difference  : nan               
+  RMS difference               : nan               
+  RMS diff as % of file_1 data : NaN (File 1 data all zero) 
+  RMS diff as % of file_2 data : nan               
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* Field 2/7 - THETA AFTER TIMESTEP *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Lookup compares, data DOES NOT compare
+Compared 64/64 lookup values.
+File_1 lookup info:
+  t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-99)
+Data differences:
+  Number of point differences  : 4/12
+  Maximum absolute difference  : nan               
+  RMS difference               : nan               
+  RMS diff as % of file_1 data : NaN (File 1 data all zero) 
+  RMS diff as % of file_2 data : nan               
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* Field 3/7 - 10 METRE WIND SPEED ON B GRID *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Lookup compares, data DOES NOT compare
+Compared 64/64 lookup values.
+File_1 lookup info:
+  t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-99)
+Data differences:
+  Number of point differences  : 4/12
+  Maximum absolute difference  : nan               
+  RMS difference               : nan               
+  RMS diff as % of file_1 data : NaN (File 1 data all zero) 
+  RMS diff as % of file_2 data : nan               
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* Field 4/7 - THETA AFTER TIMESTEP *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Lookup compares, data DOES NOT compare
+Compared 64/64 lookup values.
+File_1 lookup info:
+  t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-99)
+Data differences:
+  Number of point differences  : 4/12
+  Maximum absolute difference  : nan               
+  RMS difference               : nan               
+  RMS diff as % of file_1 data : NaN (File 1 data all zero) 
+  RMS diff as % of file_2 data : nan               
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* Field 5/7 - THETA AFTER TIMESTEP *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Lookup compares, data DOES NOT compare
+Compared 64/64 lookup values.
+File_1 lookup info:
+  t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-99)
+Data differences:
+  Number of point differences  : 4/12
+  Maximum absolute difference  : nan               
+  RMS difference               : nan               
+  RMS diff as % of file_1 data : NaN (File 1 data all zero) 
+  RMS diff as % of file_2 data : nan               
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* Field 6/7 - THETA AFTER TIMESTEP *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Lookup compares, data DOES NOT compare
+Compared 64/64 lookup values.
+File_1 lookup info:
+  t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-99)
+Data differences:
+  Number of point differences  : 4/12
+  Maximum absolute difference  : nan               
+  RMS difference               : nan               
+  RMS diff as % of file_1 data : NaN (File 1 data all zero) 
+  RMS diff as % of file_2 data : nan               
+
+%%%%%%%%%%%%%%
+* Field 7/7  *
+%%%%%%%%%%%%%%
+Lookup compares, data DOES NOT compare
+Compared 64/64 lookup values.
+File_1 lookup info:
+  t1(2015/-99/-99 -99:-99:-99)  lblev(-99)/blev(0.0)  lbproc(-99)
+Data differences:
+  Number of point differences  : 4/12
+  Maximum absolute difference  : nan               
+  RMS difference               : nan               
+  RMS diff as % of file_1 data : NaN (File 1 data all zero) 
+  RMS diff as % of file_2 data : nan               
+

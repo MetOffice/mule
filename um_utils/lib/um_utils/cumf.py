@@ -305,8 +305,7 @@ class DifferenceOperator(mule.DataOperator):
 
         # Store whether the field matches, and several statistical measures
         # of the differences if any are found
-        bool_field = data1 == data2
-        new_field.data_match = np.all(bool_field)
+        new_field.data_match = np.array_equal(data1, data2, equal_nan=True)
 
         # If the fields aren't the same shape, it isn't possible to calculate
         # anymore comparison information
@@ -316,6 +315,7 @@ class DifferenceOperator(mule.DataOperator):
             return new_field
 
         if not new_field.data_match:
+            bool_field = data1 == data2
             diff = np.abs(data1 - data2)
             # Maximum absolute difference and RMS difference
             new_field.max_diff = np.max(diff)
@@ -343,7 +343,7 @@ class DifferenceOperator(mule.DataOperator):
             new_field.rms_diff = 0.0
             new_field.rms_norm_diff_1 = 0.0
             new_field.rms_norm_diff_2 = 0.0
-            new_field.compared = (0, bool_field.size)
+            new_field.compared = (0, data1.size)
 
         # Add 1 to lbproc - to indicate it is a different between fields
         # (note the default "Field" objects do not know this property)

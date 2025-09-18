@@ -37,6 +37,22 @@ from um_utils import cumf
 _ADD_NEW_TESTS = False
 
 
+class NanInserter(mule.DataOperator):
+    """Operator which converts a field to np.float32 and inserts a np.nan entry"""
+    def __init__(self):
+        pass
+    def new_field(self, source_field):
+        """Creates the new field object"""
+        field = source_field.copy()
+        return field
+    def transform(self, source_field, new_field):
+        """Perform the data manipulation"""
+        data = source_field.get_data()
+        data_out = np.float32(data)
+        data_out[-1] = np.nan
+        return data_out
+
+
 class TestCumf(tests.UMUtilsNDTest):
 
     def run_comparison(self, ff1, ff2, testname, expected_difference=False, **kwargs):
@@ -247,6 +263,48 @@ class TestCumf(tests.UMUtilsNDTest):
         self.run_comparison(ff1, ff2, "no_difference_full",
                             expected_difference=False, only_report_failures=False)
 
+    def test_no_difference_full_with_nans(self):
+        # Test that there are no differences when nans are present
+        ff1, _ = self.create_2_different_files()
+
+        nan_inserter = NanInserter()
+        for ifield, field in enumerate(ff1.fields):
+            ff1.fields[ifield] = nan_inserter(field)
+
+        ff2 = ff1.copy()
+        ff2._source_path = "[Test generated file 2]"
+        ff2.fields = list(ff1.fields)
+
+        # Create the comparison object
+        comp = cumf.UMFileComparison(ff1, ff1)
+
+        # Run cumf to produce reports, capturing the output
+        strbuffer = StringIO()
+        files_differ = cumf.full_report(comp, stdout=strbuffer)
+
+        self.run_comparison(ff1, ff2, "no_difference_full_nans",
+                            expected_difference=False)
+
+    def test_difference_full_with_nans(self):
+        # Test that there are still differences when nans are present
+        ff1, _ = self.create_2_different_files()
+        ff2 = ff1.copy()
+        ff2._source_path = "[Test generated file 2]"
+        ff2.fields = list(ff1.fields)
+
+        nan_inserter = NanInserter()
+        for ifield, field in enumerate(ff1.fields):
+            ff1.fields[ifield] = nan_inserter(field)
+
+        # Create the comparison object
+        comp = cumf.UMFileComparison(ff1, ff1)
+
+        # Run cumf to produce reports, capturing the output
+        strbuffer = StringIO()
+        files_differ = cumf.full_report(comp, stdout=strbuffer)
+
+        self.run_comparison(ff1, ff2, "difference_full_with_nans",
+                            expected_difference=True)
 
 if __name__ == "__main__":
     tests.main()

@@ -1,0 +1,12 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+* CUMF-II Comparison Report *
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+File 1: [Test generated file 1]
+File 2: [Test generated file 2]
+Files compare
+  * 0 differences in fixed_length_header (with 7 ignored indices)
+  * 0 field differences, of which 0 are in data
+
+Compared 7/7 fields, with 7 matches
+
