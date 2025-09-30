@@ -1,6 +1,6 @@
 # PR Summary
 
-Code Reviewer: < CR id, filled by SSD >
+Code Reviewer: <!-- CR id, filled by SSD -->
 
 <!-- To be completed by the developer -->
 
