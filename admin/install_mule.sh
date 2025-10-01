@@ -371,13 +371,7 @@ function unpack_and_copy(){
       cd ..
       echo "pwd2"
       pwd
-      ls
-      if [ ! -d $SCRATCHLIB ]; then
-        echo $SCRATCHLIB
-        echo "HERE"
-      else
-        echo "EXISTS"
-      fi
+      ls ./site-packages
       unzip_dir=$SCRATCHLIB/${module}_unzipped_egg
       unzip $egg -d $unzip_dir
       egg=$unzip_dir
