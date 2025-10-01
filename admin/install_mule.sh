@@ -342,7 +342,8 @@ function install(){
 
     echo "[INFO] Installing $module module to $SCRATCHDIR"
     # $mule_python_exec -m pip install . --prefix $SCRATCHDIR
-    $mule_python_exec setup.py install --prefix $SCRATCHDIR
+
+    $mule_python_exec setup.py install --prefix $SCRATCHLIB
 }
 
 for module in $MODULE_LIST ; do
