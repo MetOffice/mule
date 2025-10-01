@@ -362,7 +362,7 @@ function unpack_and_copy(){
     fi
     if [ ! -d $egg ] ; then
       echo "[INFO] Unpacking zipped egg..."
-      find -name *.egg* $SCRATCHDIR
+      find $SCRATCHDIR -name '*.egg*'
       unzip_dir=$SCRATCHLIB/${module}_unzipped_egg
       unzip $egg -d $unzip_dir
       egg=$unzip_dir
