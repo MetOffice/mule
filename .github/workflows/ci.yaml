@@ -1,0 +1,30 @@
+---
+name: CI
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - main
+      - 'releases/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Build
+        run: |
+          ./admin/install_mule.sh ./_build/lib ./_build/bin
+      - name: Test
+        run: |
+          cd _build/lib
+          for name in ./*; do
+            python -m unittest discover -v $name.tests
+          done
