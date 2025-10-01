@@ -367,7 +367,8 @@ function unpack_and_copy(){
       ls $SCRATCHLIB
       if [ ! -d $SCRATCHLIB ]; then
         echo $SCRATCHLIB
-        ls $SCRATCHLIB
+        cd $SCRATCHLIB
+        ls
         echo "HERE"
       else
         echo "EXISTS"
