@@ -364,7 +364,7 @@ function unpack_and_copy(){
       echo "[INFO] Unpacking zipped egg..."
       echo $egg
       echo $SCRATCHLIB
-      ls $SCRATCHLIB
+      echo $(ls $SCRATCHLIB)
       unzip_dir=$SCRATCHLIB/${module}_unzipped_egg
       unzip $egg -d $unzip_dir
       egg=$unzip_dir
