@@ -27,9 +27,12 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
       - name: Install dependencies
-        run: uv sync && uv pip install ./mule
-      - name: Build docs
+        run: uv sync && uv pip install ./mule ./um_utils
+      - name: Build mule docs
         run: uv run make clean html --directory ./mule/docs
+        working-directory: ${{ github.workspace }}
+      - name: Build um_utils docs
+        run: uv run make clean html --directory ./um_utils/docs
         working-directory: ${{ github.workspace }}
     #   - id: permissions
     #     name: Set permissions
