@@ -204,6 +204,8 @@ ln -s $SCRATCHDIR/lib $SCRATCHDIR/lib64
 
 # The install command will complain if this directory isn't on the path
 # so add it to the path here
+echo "here"
+echo $SCRATCHLIB
 export PYTHONPATH=${PYTHONPATH-""}:$SCRATCHLIB
 
 # Save a reference to the top-level directory
