@@ -66,11 +66,7 @@ if [ -d $dest_dir ] ; then
 fi
 
 echo "Installing mule for Python ${pythonver} and Numpy ${numpyver}"
-<<<<<<< HEAD
-echo "Insalling from clone at $(realpath $clone_location)"
-=======
 echo "Installing from clone at $(realpath $clone_location)"
->>>>>>> main
 echo "Installing to ${dest_dir}"
 echo ""
 echo ""
