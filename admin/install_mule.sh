@@ -140,7 +140,12 @@ echo "[INFO] Installing against Python $PYTHONVER"
 
 # Setup a temporary directory where the install will be initially created
 SCRATCHDIR=$(mktemp -d)
-SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
+pkg_loc=$($mule_python_exec -c "import site ; print(site.getsitepackages()[0])")
+if [[ $pkg_loc == *"site-packages"* ]]; then
+    SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
+else
+    SCRATCHLIB=$SCRATCHDIR/loc/lib/$PYTHONEXEC/dist-packages
+fi
 
 # Make relative paths absolute
 if [ ! ${LIB_DEST:0:1} == "/" ] ; then
@@ -341,8 +346,8 @@ function install(){
     cd $wc_root/$module
 
     echo "[INFO] Installing $module module to $SCRATCHDIR"
-    $mule_python_exec -m pip install . --prefix $SCRATCHDIR
-    # $mule_python_exec setup.py install --prefix $SCRATCHDIR
+    # $mule_python_exec -m pip install . --prefix $SCRATCHDIR
+    $mule_python_exec setup.py install --prefix $SCRATCHDIR
 }
 
 for module in $MODULE_LIST ; do
