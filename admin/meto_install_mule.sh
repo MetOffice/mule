@@ -31,8 +31,6 @@ set -eu
 
 # Setup what version of things should be used
 
-# Mule version for build (will be checked out from SRS)
-mule_ver=2025.10.1
 # UM version for sstpert and wafccb libraries (will be looked up in $UMDIR)
 um_ver=vn13.9
 # Shumlib version (will be looked up in $UMDIR)
@@ -68,7 +66,11 @@ if [ -d $dest_dir ] ; then
 fi
 
 echo "Installing mule for Python ${pythonver} and Numpy ${numpyver}"
+<<<<<<< HEAD
 echo "Insalling from clone at $(realpath $clone_location)"
+=======
+echo "Installing from clone at $(realpath $clone_location)"
+>>>>>>> main
 echo "Installing to ${dest_dir}"
 echo ""
 echo ""

@@ -30,6 +30,7 @@ class CleanCommand(setuptools.Command):
     Custom clean which gets rid of build files that the
     standard clean command does not
     """
+
     user_options = []
 
     def initialize_options(self):
@@ -39,8 +40,7 @@ class CleanCommand(setuptools.Command):
         pass
 
     def run(self):
-        for cleanpath in ["./build", "./dist", "./lib/*.egg-info",
-                          "./lib/*/*.so"]:
+        for cleanpath in ["./build", "./dist", "./lib/*.egg-info", "./lib/*/*.so"]:
             print("Removing: {0}...".format(cleanpath))
             cleanpath = glob(cleanpath)
             if cleanpath:
@@ -51,21 +51,25 @@ class CleanCommand(setuptools.Command):
 
 
 setuptools.setup(
-    name='um_packing',
-    version='2025.10.1',
-    description='Unified Model packing library extension',
-    author='UM Systems Team',
-    url='https://code.metoffice.gov.uk/trac/um',
-    cmdclass={'clean': CleanCommand},
-    package_dir={'': 'lib'},
-    packages=['um_packing',
-              'um_packing.tests'],
+    name="um_packing",
+    version="2025.10.1",
+    description="Unified Model packing library extension",
+    author="UM Systems Team",
+    url="https://code.metoffice.gov.uk/trac/um",
+    cmdclass={"clean": CleanCommand},
+    package_dir={"": "lib"},
+    packages=["um_packing", "um_packing.tests"],
     ext_modules=[
         setuptools.Extension(
-            'um_packing.um_packing',
-            ['lib/um_packing/um_packing.c'],
+            "um_packing.um_packing",
+            ["lib/um_packing/um_packing.c"],
             include_dirs=[np.get_include()],
-            libraries=["shum_byteswap",
-                       "shum_wgdos_packing",
-                       "shum_string_conv",
-                       "shum_constants"])])
+            libraries=[
+                "shum_byteswap",
+                "shum_wgdos_packing",
+                "shum_string_conv",
+                "shum_constants",
+            ],
+        )
+    ],
+)

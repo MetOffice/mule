@@ -30,6 +30,7 @@ class CleanCommand(setuptools.Command):
     Custom clean which gets rid of build files that the
     standard clean command does not
     """
+
     user_options = []
 
     def initialize_options(self):
@@ -39,8 +40,7 @@ class CleanCommand(setuptools.Command):
         pass
 
     def run(self):
-        for cleanpath in ["./build", "./dist", "./lib/*.egg-info",
-                          "./lib/*/*.so"]:
+        for cleanpath in ["./build", "./dist", "./lib/*.egg-info", "./lib/*/*.so"]:
             print("Removing: {0}...".format(cleanpath))
             cleanpath = glob(cleanpath)
             if cleanpath:
@@ -51,19 +51,22 @@ class CleanCommand(setuptools.Command):
 
 
 setuptools.setup(
-    name='um_ppibm',
-    version='2025.10.1',
-    description='Unified Model pp conversion utility with IBM number format',
-    author='UM Systems Team',
-    url='https://code.metoffice.gov.uk/trac/um',
-    cmdclass={'clean': CleanCommand},
-    package_dir={'': 'lib'},
-    packages=['um_ppibm', ],
+    name="um_ppibm",
+    version="2025.10.1",
+    description="Unified Model pp conversion utility with IBM number format",
+    author="UM Systems Team",
+    url="https://code.metoffice.gov.uk/trac/um",
+    cmdclass={"clean": CleanCommand},
+    package_dir={"": "lib"},
+    packages=[
+        "um_ppibm",
+    ],
     ext_modules=[
         setuptools.Extension(
-            'um_ppibm.um_ieee2ibm32',
-            ['lib/um_ppibm/um_ieee2ibm32.c'],
+            "um_ppibm.um_ieee2ibm32",
+            ["lib/um_ppibm/um_ieee2ibm32.c"],
             include_dirs=[np.get_include()],
-            libraries=["shum_string_conv",
-                       "shum_byteswap",
-                       "shum_data_conv"])])
+            libraries=["shum_string_conv", "shum_byteswap", "shum_data_conv"],
+        )
+    ],
+)

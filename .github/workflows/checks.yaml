@@ -1,0 +1,48 @@
+---
+name: Quality
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions: read-all
+
+jobs:
+
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+      - name: Install dependencies
+        run: uv sync
+      - name: Python Lint
+        run: uv run ruff check .
+      - name: Python Format Check
+        if: always()
+        run: uv run ruff format --check --diff -s --respect-gitignore .
+      - name: Shell Check
+        if: always()
+        run: |
+          find . -type f \( -name "*.*sh" -o ! -name "*.*" \) \
+            -not -path "*.git/*" -not -path "*.venv/*" -print0 \
+            | xargs -0 file | grep "shell script" | cut -d: -f1 \
+            | xargs -r uv run shellcheck -S warning \
+            && echo "All checks passed!"
+      - name: CPPLINT
+        # See: CPPLINT.cfg
+        if: always()
+        run: |
+          uv run cpplint --recursive --extensions=c,h \
+            --exclude=.git --exclude=.venv .
+      - name: Minimize uv cache
+        run: uv cache prune --ci
