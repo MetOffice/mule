@@ -27,6 +27,7 @@ jobs:
           cd _build/lib
           pwd
           ls
+          ls mule
           for name in ./*; do
             python -m unittest discover -v $name.tests
           done
