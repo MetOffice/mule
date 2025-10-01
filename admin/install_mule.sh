@@ -358,10 +358,11 @@ function unpack_and_copy(){
 
     # The egg might be zipped - if it is unzip it in place
     if [ ! -d $egg ] ; then
-      egg=$SCRATCHLIB/$module*.egg
+      egg="$SCRATCHLIB/$module*.egg"
     fi
     if [ ! -d $egg ] ; then
       echo "[INFO] Unpacking zipped egg..."
+      ls $SCRATCHLIB
       unzip_dir=$SCRATCHLIB/${module}_unzipped_egg
       unzip $egg -d $unzip_dir
       egg=$unzip_dir
