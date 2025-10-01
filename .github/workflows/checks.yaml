@@ -38,7 +38,7 @@ jobs:
             | xargs -0 file | grep "shell script" | cut -d: -f1 \
             | xargs -r uv run shellcheck -S warning \
             && echo "All checks passed!"
-      - name: C
+      - name: CPPLINT
         # See: CPPLINT.cfg
         if: always()
         run: |
