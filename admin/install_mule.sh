@@ -140,7 +140,7 @@ echo "[INFO] Installing against Python $PYTHONVER"
 
 # Setup a temporary directory where the install will be initially created
 SCRATCHDIR=$(mktemp -d)
-SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
+SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/dist-packages
 
 # Make relative paths absolute
 if [ ! ${LIB_DEST:0:1} == "/" ] ; then
@@ -204,8 +204,6 @@ ln -s $SCRATCHDIR/lib $SCRATCHDIR/lib64
 
 # The install command will complain if this directory isn't on the path
 # so add it to the path here
-echo "here"
-echo $SCRATCHLIB
 export PYTHONPATH=${PYTHONPATH-""}:$SCRATCHLIB
 
 # Save a reference to the top-level directory
@@ -344,8 +342,6 @@ function install(){
 
     echo "[INFO] Installing $module module to $SCRATCHDIR"
     # $mule_python_exec -m pip install . --prefix $SCRATCHDIR
-    echo $PYTHONPATH
-    echo $SCRATCHDIR
     $mule_python_exec setup.py install --prefix $SCRATCHDIR
 }
 
@@ -366,6 +362,7 @@ function unpack_and_copy(){
     fi
     if [ ! -d $egg ] ; then
       echo "[INFO] Unpacking zipped egg..."
+      find -name *.egg* $SCRATCHDIR
       unzip_dir=$SCRATCHLIB/${module}_unzipped_egg
       unzip $egg -d $unzip_dir
       egg=$unzip_dir
