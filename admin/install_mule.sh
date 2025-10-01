@@ -201,7 +201,6 @@ fi
 # Make a temporary directory to hold the installs
 mkdir -p $SCRATCHLIB
 ln -s $SCRATCHDIR/lib $SCRATCHDIR/lib64
-ln -s $SCRATCHDIR $SCRATCHDIR/local
 
 # The install command will complain if this directory isn't on the path
 # so add it to the path here
