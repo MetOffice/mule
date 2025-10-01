@@ -201,6 +201,7 @@ fi
 # Make a temporary directory to hold the installs
 mkdir -p $SCRATCHLIB
 ln -s $SCRATCHDIR/lib $SCRATCHDIR/lib64
+ln -s $SCRATCHDIR $SCRATCHDIR/local
 
 # The install command will complain if this directory isn't on the path
 # so add it to the path here
@@ -342,8 +343,7 @@ function install(){
 
     echo "[INFO] Installing $module module to $SCRATCHDIR"
     # $mule_python_exec -m pip install . --prefix $SCRATCHDIR
-
-    $mule_python_exec setup.py install --prefix $SCRATCHLIB
+    $mule_python_exec setup.py install --prefix $SCRATCHDIR
 }
 
 for module in $MODULE_LIST ; do
