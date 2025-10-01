@@ -31,8 +31,6 @@ set -eu
 
 # Setup what version of things should be used
 
-# Mule version for build (will be checked out from SRS)
-mule_ver=2024.11.1
 # UM version for sstpert and wafccb libraries (will be looked up in $UMDIR)
 um_ver=vn13.7
 # Shumlib version (will be looked up in $UMDIR)
