@@ -342,6 +342,7 @@ function install(){
 
     echo "[INFO] Installing $module module to $SCRATCHDIR"
     # $mule_python_exec -m pip install . --prefix $SCRATCHDIR
+    echo $PYTHONPATH
     $mule_python_exec setup.py install --prefix $SCRATCHDIR
 }
 
@@ -362,16 +363,6 @@ function unpack_and_copy(){
     fi
     if [ ! -d $egg ] ; then
       echo "[INFO] Unpacking zipped egg..."
-      echo $egg
-      echo $SCRATCHLIB
-      cd $SCRATCHLIB
-      echo "pwd1"
-      pwd
-      ls
-      cd ..
-      echo "pwd2"
-      pwd
-      ls ./site-packages
       unzip_dir=$SCRATCHLIB/${module}_unzipped_egg
       unzip $egg -d $unzip_dir
       egg=$unzip_dir
@@ -398,7 +389,6 @@ function unpack_and_copy(){
     fi
 }
 
-echo $MODULE_LIST
 for module in $MODULE_LIST ; do
     unpack_and_copy $module
 done
