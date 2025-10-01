@@ -29,8 +29,8 @@ jobs:
       - name: Install dependencies
         run: uv sync && uv pip install ./mule
       - name: Build docs
-        run: uv run make clean html
-        working-directory: ./mule/docs
+        run: uv run make clean html --directory ./mule/docs
+        working-directory: ${{ github.workspace }}
     #   - id: permissions
     #     name: Set permissions
     #     run: |
