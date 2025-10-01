@@ -341,8 +341,8 @@ function install(){
     cd $wc_root/$module
 
     echo "[INFO] Installing $module module to $SCRATCHDIR"
-    # $mule_python_exec -m pip install . --prefix $SCRATCHDIR
-    $mule_python_exec setup.py install --prefix $SCRATCHDIR
+    $mule_python_exec -m pip install . --prefix $SCRATCHDIR
+    # $mule_python_exec setup.py install --prefix $SCRATCHDIR
 }
 
 for module in $MODULE_LIST ; do
