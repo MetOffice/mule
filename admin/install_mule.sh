@@ -140,7 +140,7 @@ echo "[INFO] Installing against Python $PYTHONVER"
 
 # Setup a temporary directory where the install will be initially created
 SCRATCHDIR=$(mktemp -d)
-SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/dist-packages
+SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
 
 # Make relative paths absolute
 if [ ! ${LIB_DEST:0:1} == "/" ] ; then
