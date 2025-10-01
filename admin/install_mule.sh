@@ -369,9 +369,6 @@ function unpack_and_copy(){
       egg=$unzip_dir
     fi
 
-    echo "HERE"
-    ls $SCRATCHDIR
-
     destdir=$LIB_DEST/$module
     echo "[INFO] Installing $module to $destdir"
     mkdir -p $destdir
