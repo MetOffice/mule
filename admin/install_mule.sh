@@ -144,7 +144,7 @@ pkg_loc=$($mule_python_exec -c "import site ; print(site.getsitepackages()[0])")
 if [[ $pkg_loc == *"site-packages"* ]]; then
     SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
 else
-    SCRATCHLIB=$SCRATCHDIR/loc/lib/$PYTHONEXEC/dist-packages
+    SCRATCHLIB=$SCRATCHDIR/local/lib/$PYTHONEXEC/dist-packages
 fi
 
 # Make relative paths absolute
