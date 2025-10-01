@@ -39,7 +39,7 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           name: github-pages
-          path: ./mule/docs/_build/html
+          path: ./mule/docs/build/html
       - name: Minimize uv cache
         run: uv cache prune --ci
 
