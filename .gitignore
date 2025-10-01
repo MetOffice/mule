@@ -1,5 +1,9 @@
 # Gitignore created from github template
 
+# Virtual environment
+.venv/
+uv.lock
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
