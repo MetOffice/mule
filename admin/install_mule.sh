@@ -365,6 +365,11 @@ function unpack_and_copy(){
       echo $egg
       echo $SCRATCHLIB
       cd $SCRATCHLIB
+      echo "pwd1"
+      pwd
+      ls
+      cd ..
+      echo "pwd2"
       pwd
       ls
       if [ ! -d $SCRATCHLIB ]; then
