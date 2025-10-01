@@ -365,7 +365,7 @@ function unpack_and_copy(){
       echo $egg
       echo $SCRATCHLIB
       ls $SCRATCHLIB
-      if [ ! -f $(dirname $(dirname $(dirname $SCRATCHLIB))) ]; then
+      if [ ! -d $(dirname $(dirname $(dirname $SCRATCHLIB))) ]; then
         echo $(dirname $(dirname $(dirname $SCRATCHLIB)))
         echo "HERE"
       fi
