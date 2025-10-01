@@ -41,6 +41,7 @@ jobs:
           name: github-pages
           path: ./mule/docs/build/html
       - name: Minimize uv cache
+        if: always()
         run: uv cache prune --ci
 
   # Deploy job
