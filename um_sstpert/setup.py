@@ -30,6 +30,7 @@ class CleanCommand(setuptools.Command):
     Custom clean which gets rid of build files that the
     standard clean command does not
     """
+
     user_options = []
 
     def initialize_options(self):
@@ -39,8 +40,7 @@ class CleanCommand(setuptools.Command):
         pass
 
     def run(self):
-        for cleanpath in ["./build", "./dist", "./lib/*.egg-info",
-                          "./lib/*/*.so"]:
+        for cleanpath in ["./build", "./dist", "./lib/*.egg-info", "./lib/*/*.so"]:
             print("Removing: {0}...".format(cleanpath))
             cleanpath = glob(cleanpath)
             if cleanpath:
@@ -51,23 +51,25 @@ class CleanCommand(setuptools.Command):
 
 
 setuptools.setup(
-    name='um_sstpert',
-    version='2024.11.1',
-    description='Unified Model SST-perturbation extension and utility',
-    author='UM Systems Team',
-    url='https://code.metoffice.gov.uk/trac/um',
-    cmdclass={'clean': CleanCommand},
-    package_dir={'': 'lib'},
-    packages=['um_sstpert'],
+    name="um_sstpert",
+    version="2024.11.1",
+    description="Unified Model SST-perturbation extension and utility",
+    author="UM Systems Team",
+    url="https://code.metoffice.gov.uk/trac/um",
+    cmdclass={"clean": CleanCommand},
+    package_dir={"": "lib"},
+    packages=["um_sstpert"],
     ext_modules=[
         setuptools.Extension(
-            'um_sstpert.um_sstpert',
-            ['lib/um_sstpert/um_sstpert.c'],
+            "um_sstpert.um_sstpert",
+            ["lib/um_sstpert/um_sstpert.c"],
             include_dirs=[np.get_include()],
-            libraries=["um_sstpert",
-                       "shum_string_conv",
-                       "shum_constants"])],
+            libraries=["um_sstpert", "shum_string_conv", "shum_constants"],
+        )
+    ],
     entry_points={
-        'console_scripts': [
-            'mule-sstpert = um_sstpert:_main',
-            ]})
+        "console_scripts": [
+            "mule-sstpert = um_sstpert:_main",
+        ]
+    },
+)

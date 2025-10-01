@@ -29,6 +29,7 @@ class CleanCommand(setuptools.Command):
     Custom clean which gets rid of build files that the
     standard clean command does not
     """
+
     user_options = []
 
     def initialize_options(self):
@@ -46,19 +47,27 @@ class CleanCommand(setuptools.Command):
 
 
 setuptools.setup(
-    name='mule',
-    version='2024.11.1',
-    description='Unified Model Fields File interface',
-    author='UM Systems Team',
-    url='https://code.metoffice.gov.uk/trac/um',
-    cmdclass={'clean': CleanCommand},
-    package_dir={'': 'lib'},
-    packages=['mule',
-              'mule.tests',
-              'mule.tests.unit',
-              'mule.tests.integration',
-              'mule.example_code'],
-    package_data={'mule':
-                  [os.path.relpath(path, "lib/mule")
-                   for path in (glob('lib/mule/tests/test_datafiles/*') +
-                                ['lib/mule/tests/test_stashmaster'])]})
+    name="mule",
+    version="2024.11.1",
+    description="Unified Model Fields File interface",
+    author="UM Systems Team",
+    url="https://code.metoffice.gov.uk/trac/um",
+    cmdclass={"clean": CleanCommand},
+    package_dir={"": "lib"},
+    packages=[
+        "mule",
+        "mule.tests",
+        "mule.tests.unit",
+        "mule.tests.integration",
+        "mule.example_code",
+    ],
+    package_data={
+        "mule": [
+            os.path.relpath(path, "lib/mule")
+            for path in (
+                glob("lib/mule/tests/test_datafiles/*")
+                + ["lib/mule/tests/test_stashmaster"]
+            )
+        ]
+    },
+)
