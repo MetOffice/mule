@@ -356,6 +356,8 @@ function unpack_and_copy(){
     module=$1
     egg=$SCRATCHLIB/$module
 
+    ls $SCRATCHDIR
+
     # The egg might be zipped - if it is unzip it in place
     if [ ! -d $egg ] ; then
       egg="$SCRATCHLIB/$module*.egg"
