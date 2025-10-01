@@ -369,6 +369,8 @@ function unpack_and_copy(){
         echo $SCRATCHLIB
         ls $SCRATCHLIB
         echo "HERE"
+      else
+        echo "EXISTS"
       fi
       unzip_dir=$SCRATCHLIB/${module}_unzipped_egg
       unzip $egg -d $unzip_dir
