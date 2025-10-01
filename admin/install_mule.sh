@@ -365,9 +365,9 @@ function unpack_and_copy(){
       echo $egg
       echo $SCRATCHLIB
       ls $SCRATCHLIB
-      if [ ! -d $(dirname $SCRATCHLIB) ]; then
-        echo $(dirname $SCRATCHLIB)
-        ls $(dirname $SCRATCHLIB)
+      if [ ! -d $SCRATCHLIB ]; then
+        echo $SCRATCHLIB
+        ls $SCRATCHLIB
         echo "HERE"
       fi
       unzip_dir=$SCRATCHLIB/${module}_unzipped_egg
