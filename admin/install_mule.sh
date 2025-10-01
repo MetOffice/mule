@@ -388,6 +388,7 @@ function unpack_and_copy(){
     fi
 }
 
+echo $MODULE_LIST
 for module in $MODULE_LIST ; do
     unpack_and_copy $module
 done
