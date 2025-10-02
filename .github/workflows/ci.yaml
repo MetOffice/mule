@@ -17,6 +17,8 @@ jobs:
     timeout-minutes: 5
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -25,8 +27,6 @@ jobs:
       - name: Install Numpy
         run: |
           pip install numpy
-      - name: Checkout repository
-        uses: actions/checkout@v4
       - name: Build
         run: |
           ./admin/install_mule.sh ./_build/lib ./_build/bin
