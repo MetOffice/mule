@@ -39,5 +39,5 @@ jobs:
           ls -lh mule/tests
           python -c "import mule ; print(mule.__version__)"
           for name in ./*; do
-            python -m unittest discover -v $name.tests
+            python -m unittest discover -v mule.tests
           done
