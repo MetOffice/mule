@@ -24,9 +24,9 @@ jobs:
         with:
           python-version: '3.13'
           cache: 'pip'
-      - name: Install Numpy
+      - name: Install Python Dependencies
         run: |
-          pip install numpy
+          pip install .
       - name: Build
         run: |
           ./admin/install_mule.sh ./_build/lib ./_build/bin
