@@ -26,7 +26,7 @@ jobs:
           cache: 'pip'
       - name: Install Python Dependencies
         run: |
-          pip install .
+          pip install -r pyproject.toml
       - name: Build
         run: |
           ./admin/install_mule.sh ./_build/lib ./_build/bin
