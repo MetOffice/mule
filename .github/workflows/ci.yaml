@@ -22,7 +22,9 @@ jobs:
         with:
           python-version: '3.13'
           cache: 'pip'
-        run: pip install numpy
+      - name: Install Numpy
+        run: |
+          pip install numpy
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Build
