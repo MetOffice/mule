@@ -33,11 +33,6 @@ jobs:
       - name: Test
         run: |
           cd _build/lib
-          pwd
-          ls
-          echo "HERE"
-          ls -lh mule/tests
-          python -c "import mule ; print(mule.__version__)"
           for name in ./*; do
             python -m unittest discover -v ${name##*/}.tests
           done
