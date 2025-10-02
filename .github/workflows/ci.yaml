@@ -12,7 +12,7 @@ on:  # yamllint disable-line rule:truthy
 permissions: read-all
 
 jobs:
-  build:
+  build-test-mule:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     strategy:
