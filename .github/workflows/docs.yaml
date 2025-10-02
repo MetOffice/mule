@@ -1,0 +1,67 @@
+---
+name: Docs
+
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - main
+      - 'releases/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'mule/docs/**'
+      - '.github/workflows/docs.yaml'
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+      - name: Install dependencies
+        run: uv sync && uv pip install ./mule ./um_utils
+      - name: Build mule docs
+        run: uv run make clean html --directory ./mule/docs
+        working-directory: ${{ github.workspace }}
+      - name: Build um_utils docs
+        run: uv run make clean html --directory ./um_utils/docs
+        working-directory: ${{ github.workspace }}
+    #   - id: permissions
+    #     name: Set permissions
+    #     run: |
+    #       chmod -c -R +rX "./doc/_build/html/"
+      - name: Upload artifacts
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages
+          path: ./mule/docs/build/html
+      - name: Minimize uv cache
+        if: always()
+        run: uv cache prune --ci
+
+  # Deploy job
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    # Add a dependency to the build job
+    needs: build
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+    # Deploy to the github-pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # Specify runner + deployment step
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
