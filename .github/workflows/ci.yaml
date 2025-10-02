@@ -38,7 +38,5 @@ jobs:
           echo "HERE"
           ls -lh mule/tests
           for name in ./*; do
-            cd $name/tests
-            python -m unittest discover -v .
-            cd ../..
+            python -m unittest discover -v $name.tests
           done
