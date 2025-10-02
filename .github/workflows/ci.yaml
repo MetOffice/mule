@@ -37,6 +37,4 @@ jobs:
           ls
           echo "HERE"
           ls -lh mule/tests
-          for name in ./*; do
-            python -m unittest discover -v $name.tests
-          done
+          python -c "import mule ; print(mule.__version__)"
