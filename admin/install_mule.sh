@@ -141,11 +141,17 @@ echo "[INFO] Installing against Python $PYTHONVER"
 # Setup a temporary directory where the install will be initially created
 SCRATCHDIR=$(mktemp -d)
 pkg_loc=$($mule_python_exec -c "import site ; print(site.getsitepackages()[0])")
-if [[ $pkg_loc == *"site-packages"* ]]; then
-    SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
+if [[ $pkg_loc == *"dist-packages"* ]]; then
+    debian_like=true
 else
-    SCRATCHLIB=$SCRATCHDIR/local/lib/$PYTHONEXEC/dist-packages
+    debian_like=false
 fi
+if $debian_like; then
+    SCRATCHLIB=$SCRATCHDIR/local/lib/$PYTHONEXEC/dist-packages
+else
+    SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
+fi
+echo "SCRATCHLIB $SCRATCHLIB"
 
 # Make relative paths absolute
 if [ ! ${LIB_DEST:0:1} == "/" ] ; then
@@ -392,6 +398,9 @@ function unpack_and_copy(){
         else
             cp -vr $egg*.*-info $BIN_DEST
         fi
+        echo "Trying to copy"
+        ls $SCRATCHDIR
+        ls $SCRATCHDIR/local
         cp -vr $SCRATCHDIR/bin/* $BIN_DEST/
     fi
 }
