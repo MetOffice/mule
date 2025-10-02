@@ -27,6 +27,7 @@ jobs:
           cd _build/lib
           pwd
           ls
+          echo "HERE"
           ls mule/tests
           for name in ./*; do
             python -m unittest discover -v $name.tests
