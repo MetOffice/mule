@@ -143,12 +143,9 @@ SCRATCHDIR=$(mktemp -d)
 pkg_loc=$($mule_python_exec -c "import site ; print(site.getsitepackages()[0])")
 if [[ $pkg_loc == *"dist-packages"* ]]; then
     debian_like=true
-else
-    debian_like=false
-fi
-if $debian_like; then
     SCRATCHLIB=$SCRATCHDIR/local/lib/$PYTHONEXEC/dist-packages
 else
+    debian_like=false
     SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
 fi
 echo "SCRATCHLIB $SCRATCHLIB"
