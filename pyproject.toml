@@ -5,10 +5,6 @@ description = "API for interacting with UM output files"
 readme = "README.md"
 requires-python = ">=3.12.9"
 dependencies = [
-    "python == 3.13",
-    "numpy == 2.2.6",
-    "setuptools",
-    "six",
     "cpplint == 2.0.2",
     "ruff==0.12.1",
     "shellcheck-py==0.10.0.1",
