@@ -46,7 +46,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "Mule"
-copyright = "2022, UM Systems Team"
+copyright = "2025, Met Office"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

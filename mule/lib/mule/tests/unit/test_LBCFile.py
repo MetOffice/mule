@@ -316,7 +316,7 @@ class Test_validate(tests.MuleTest):
         self.lbc.fields = [self.fld]
         with six.assertRaisesRegex(
             self, ValidateError,
-                "Field start longitude \(bzx\) not RMDI"):
+                r"Field start longitude \(bzx\) not RMDI"):
             self.lbc.validate()
 
     # Test a variable resolution field with non RMDI bzy fails
@@ -332,7 +332,7 @@ class Test_validate(tests.MuleTest):
         self.lbc.fields = [self.fld]
         with six.assertRaisesRegex(
             self, ValidateError,
-                "Field start latitude \(bzy\) not RMDI"):
+                r"Field start latitude \(bzy\) not RMDI"):
             self.lbc.validate()
 
     # Test a variable resolution field with non RMDI bdx fails
@@ -348,7 +348,7 @@ class Test_validate(tests.MuleTest):
         self.lbc.fields = [self.fld]
         with six.assertRaisesRegex(
             self, ValidateError,
-                "Field longitude interval \(bdx\) not RMDI"):
+                r"Field longitude interval \(bdx\) not RMDI"):
             self.lbc.validate()
 
     # Test a variable resolution field with non RMDI bdy fails
@@ -364,7 +364,7 @@ class Test_validate(tests.MuleTest):
         self.lbc.fields = [self.fld]
         with six.assertRaisesRegex(
             self, ValidateError,
-                "Field latitude interval \(bdy\) not RMDI"):
+                r"Field latitude interval \(bdy\) not RMDI"):
             self.lbc.validate()
 
     # Test lower boundary x value just within tolerance passes

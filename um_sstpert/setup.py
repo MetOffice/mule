@@ -55,7 +55,7 @@ setuptools.setup(
     version="2025.10.1",
     description="Unified Model SST-perturbation extension and utility",
     author="UM Systems Team",
-    url="https://code.metoffice.gov.uk/trac/um",
+    url="https://github.com/metoffice/mule",
     cmdclass={"clean": CleanCommand},
     package_dir={"": "lib"},
     packages=["um_sstpert"],
