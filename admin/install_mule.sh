@@ -370,7 +370,8 @@ function unpack_and_copy(){
     if [[ $loc == *"dist-packages"* ]]; then
         SCRATCHLIB=$SCRATCHDIR/local/lib/$PYTHONEXEC/dist-packages
         bin_loc=$SCRATCHDIR/local/bin
-
+        echo "[INFO] New SCRATCHLIB: $SCRATCHLIB"
+        echo "[INFO] New bin_loc: $bin_loc"
     fi
 
     # The egg might be zipped - if it is unzip it in place
