@@ -140,16 +140,7 @@ echo "[INFO] Installing against Python $PYTHONVER"
 
 # Setup a temporary directory where the install will be initially created
 SCRATCHDIR=$(mktemp -d)
-# pkg_loc=$($mule_python_exec -c "import site ; print(site.getsitepackages()[0])")
-# if [[ $pkg_loc == *"dist-packages"* ]]; then
-#     debian_like=true
-#     SCRATCHLIB=$SCRATCHDIR/local/lib/$PYTHONEXEC/dist-packages
-# else
-#     debian_like=false
-#     SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
-# fi
 SCRATCHLIB=$SCRATCHDIR/lib/$PYTHONEXEC/site-packages
-echo "SCRATCHLIB $SCRATCHLIB"
 
 # Make relative paths absolute
 if [ ! ${LIB_DEST:0:1} == "/" ] ; then
@@ -365,15 +356,6 @@ function unpack_and_copy(){
     module=$1
     egg=$SCRATCHLIB/$module
 
-    loc=$(find $SCRATCHDIR -name *.egg*)
-    bin_loc=$SCRATCHDIR/bin
-    if [[ $loc == *"dist-packages"* ]]; then
-        SCRATCHLIB=$SCRATCHDIR/local/lib/$PYTHONEXEC/dist-packages
-        bin_loc=$SCRATCHDIR/local/bin
-        echo "[INFO] New SCRATCHLIB: $SCRATCHLIB"
-        echo "[INFO] New bin_loc: $bin_loc"
-    fi
-
     # The egg might be zipped - if it is unzip it in place
     if [ ! -d $egg ] ; then
       egg="$SCRATCHLIB/$module*.egg"
@@ -402,7 +384,7 @@ function unpack_and_copy(){
         else
             cp -vr $egg*.*-info $BIN_DEST
         fi
-        cp -vr $bin_loc/* $BIN_DEST/
+        cp -vr $SCRATCHDIR/bin/* $BIN_DEST/
     fi
 }
 
