@@ -398,11 +398,11 @@ function unpack_and_copy(){
         else
             cp -vr $egg*.*-info $BIN_DEST
         fi
-        echo "Trying to copy"
-        ls $SCRATCHDIR
-        echo "HERE"
-        ls $SCRATCHDIR/local
-        cp -vr $SCRATCHDIR/bin/* $BIN_DEST/
+        if $debian_like; then
+            cp -vr $SCRATCHDIR/local/bin/* $BIN_DEST/
+        else
+            cp -vr $SCRATCHDIR/bin/* $BIN_DEST/
+        fi
     fi
 }
 
