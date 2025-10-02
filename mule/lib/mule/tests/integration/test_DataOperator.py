@@ -59,15 +59,18 @@ class Test_Subsample(tests.MuleTest):
         ff.integer_constants.num_cols = num_cols // 4
         ff.real_constants.col_spacing = col_spacing*4
         with self.temp_filename() as temp_path:
-            ff.to_file(temp_path)
-            ff_back = FieldsFile.from_file(temp_path)
-            self.assertEqual(ff_back.integer_constants.num_cols, num_cols // 4)
-            self.assertEqual(ff_back.real_constants.col_spacing, col_spacing*4)
-            self.assertEqual(ff_back.fields[0].lbnpt, num_cols // 4)
-            self.assertEqual(ff_back.fields[0].bdx, col_spacing*4)
-            self.assertEqual(ff_back.fields[1].lbnpt, num_cols//4)
-            self.assertEqual(ff_back.fields[1].bdx, col_spacing*4)
-            self.assertEqual(ff_back.fields[1].get_data().shape, (73, 24))
+            try:
+                ff.to_file(temp_path)
+                ff_back = FieldsFile.from_file(temp_path)
+                self.assertEqual(ff_back.integer_constants.num_cols, num_cols // 4)
+                self.assertEqual(ff_back.real_constants.col_spacing, col_spacing*4)
+                self.assertEqual(ff_back.fields[0].lbnpt, num_cols // 4)
+                self.assertEqual(ff_back.fields[0].bdx, col_spacing*4)
+                self.assertEqual(ff_back.fields[1].lbnpt, num_cols//4)
+                self.assertEqual(ff_back.fields[1].bdx, col_spacing*4)
+                self.assertEqual(ff_back.fields[1].get_data().shape, (73, 24))
+            except NotImplementedError:
+                self.skipTest("Skipping tests as WGDOS packing library unavailable")
 
 
 if __name__ == '__main__':

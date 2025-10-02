@@ -1,5 +1,7 @@
 # Gitignore created from github template
 
+_build/
+
 # Virtual environment
 .venv/
 uv.lock

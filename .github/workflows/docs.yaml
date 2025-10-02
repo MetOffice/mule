@@ -17,7 +17,7 @@ permissions: read-all
 
 jobs:
 
-  build:
+  build-docs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
 
@@ -51,7 +51,7 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     # Add a dependency to the build job
-    needs: build
+    needs: build-docs
     permissions:
       pages: write      # to deploy to Pages
       id-token: write   # to verify the deployment originates from an appropriate source

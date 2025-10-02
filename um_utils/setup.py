@@ -51,7 +51,7 @@ setuptools.setup(
     version="2024.11.1",
     description="Unified Model Fields File utilities",
     author="UM Systems Team",
-    url="https://code.metoffice.gov.uk/trac/um",
+    url="https://github.com/metoffice/mule",
     cmdclass={"clean": CleanCommand},
     package_dir={"": "lib"},
     packages=[
