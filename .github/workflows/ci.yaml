@@ -28,7 +28,7 @@ jobs:
           pwd
           ls
           echo "HERE"
-          ls mule/tests
+          ls -lh mule/tests
           for name in ./*; do
             python -m unittest discover -v $name.tests
           done
