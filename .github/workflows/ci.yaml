@@ -17,10 +17,6 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Checkout Shumlib
-        uses: actions/checkout@v4
-        with:
-            repository: "MetOffice/Shumlib"
       - name: Checkout Mule
         uses: actions/checkout@v4
       - name: Setup Python
