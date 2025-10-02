@@ -400,6 +400,7 @@ function unpack_and_copy(){
         fi
         echo "Trying to copy"
         ls $SCRATCHDIR
+        echo "HERE"
         ls $SCRATCHDIR/local
         cp -vr $SCRATCHDIR/bin/* $BIN_DEST/
     fi
