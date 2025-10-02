@@ -42,9 +42,7 @@ jobs:
           ./admin/install_mule.sh ./_build/lib ./_build/bin
       - name: Test python-${{ matrix.python-version }}_numpy-${{ matrix.numpy-version }}
         run: |
-          # cd _build/lib
-          # for name in ./*; do
-          #   python -m unittest discover -v ${name##*/}.tests
-          # done
-          python -m unittest discover -b mule.tests
-          python -m unittest discover -b um_utils.tests
+          cd _build/lib
+          for name in ./*; do
+            python -m unittest discover -v ${name##*/}.tests
+          done
