@@ -52,7 +52,7 @@ class CleanCommand(setuptools.Command):
 
 setuptools.setup(
     name="um_packing",
-    version="2024.11.1",
+    version="2025.10.1",
     description="Unified Model packing library extension",
     author="UM Systems Team",
     url="https://github.com/metoffice/mule",

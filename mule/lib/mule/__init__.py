@@ -57,7 +57,7 @@ import six
 from contextlib import contextmanager
 from mule.stashmaster import STASHmaster
 
-__version__ = "2024.11.1"
+__version__ = "2025.10.1"
 
 # UM fixed length header names and positions
 _UM_FIXED_LENGTH_HEADER = [

@@ -48,7 +48,7 @@ class CleanCommand(setuptools.Command):
 
 setuptools.setup(
     name="mule",
-    version="2024.11.1",
+    version="2025.10.1",
     description="Unified Model Fields File interface",
     author="UM Systems Team",
     url="https://github.com/metoffice/mule",

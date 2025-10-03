@@ -21,4 +21,4 @@
 
 from .um_spiral_search import spiral_search
 
-__version__ = "2024.11.1"
+__version__ = "2025.10.1"

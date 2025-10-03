@@ -52,7 +52,7 @@ class CleanCommand(setuptools.Command):
 
 setuptools.setup(
     name="um_spiral_search",
-    version="2024.11.1",
+    version="2025.10.1",
     description="Unified Model Spiral Search extension",
     author="UM Systems Team",
     url="https://github.com/metoffice/mule",
