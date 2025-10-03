@@ -30,6 +30,7 @@ class CleanCommand(setuptools.Command):
     Custom clean which gets rid of build files that the
     standard clean command does not
     """
+
     user_options = []
 
     def initialize_options(self):
@@ -39,8 +40,7 @@ class CleanCommand(setuptools.Command):
         pass
 
     def run(self):
-        for cleanpath in ["./build", "./dist", "./lib/*.egg-info",
-                          "./lib/*/*.so"]:
+        for cleanpath in ["./build", "./dist", "./lib/*.egg-info", "./lib/*/*.so"]:
             print("Removing: {0}...".format(cleanpath))
             cleanpath = glob(cleanpath)
             if cleanpath:
@@ -51,21 +51,20 @@ class CleanCommand(setuptools.Command):
 
 
 setuptools.setup(
-    name='um_spiral_search',
-    version='2024.11.1',
-    description='Unified Model Spiral Search extension',
-    author='UM Systems Team',
-    url='https://code.metoffice.gov.uk/trac/um',
-    cmdclass={'clean': CleanCommand},
-    package_dir={'': 'lib'},
-    packages=['um_spiral_search',
-              'um_spiral_search.tests'],
+    name="um_spiral_search",
+    version="2025.10.1",
+    description="Unified Model Spiral Search extension",
+    author="UM Systems Team",
+    url="https://github.com/metoffice/mule",
+    cmdclass={"clean": CleanCommand},
+    package_dir={"": "lib"},
+    packages=["um_spiral_search", "um_spiral_search.tests"],
     ext_modules=[
         setuptools.Extension(
-            'um_spiral_search.um_spiral_search',
-            ['lib/um_spiral_search/um_spiral_search.c'],
+            "um_spiral_search.um_spiral_search",
+            ["lib/um_spiral_search/um_spiral_search.c"],
             include_dirs=[np.get_include()],
-            libraries=["shum_spiral_search",
-                       "shum_string_conv",
-                       "shum_constants"])
-        ])
+            libraries=["shum_spiral_search", "shum_string_conv", "shum_constants"],
+        )
+    ],
+)

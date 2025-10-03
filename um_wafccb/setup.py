@@ -30,6 +30,7 @@ class CleanCommand(setuptools.Command):
     Custom clean which gets rid of build files that the
     standard clean command does not
     """
+
     user_options = []
 
     def initialize_options(self):
@@ -39,8 +40,7 @@ class CleanCommand(setuptools.Command):
         pass
 
     def run(self):
-        for cleanpath in ["./build", "./dist", "./lib/*.egg-info",
-                          "./lib/*/*.so"]:
+        for cleanpath in ["./build", "./dist", "./lib/*.egg-info", "./lib/*/*.so"]:
             print("Removing: {0}...".format(cleanpath))
             cleanpath = glob(cleanpath)
             if cleanpath:
@@ -51,18 +51,20 @@ class CleanCommand(setuptools.Command):
 
 
 setuptools.setup(
-    name='um_wafccb',
-    version='2024.11.1',
-    description='Unified Model WAFC CB extension',
-    author='UM Systems Team',
-    url='https://code.metoffice.gov.uk/trac/um',
-    cmdclass={'clean': CleanCommand},
-    package_dir={'': 'lib'},
-    packages=['um_wafccb'],
+    name="um_wafccb",
+    version="2025.10.1",
+    description="Unified Model WAFC CB extension",
+    author="UM Systems Team",
+    url="https://github.com/metoffice/mule",
+    cmdclass={"clean": CleanCommand},
+    package_dir={"": "lib"},
+    packages=["um_wafccb"],
     ext_modules=[
         setuptools.Extension(
-            'um_wafccb.um_wafccb',
-            ['lib/um_wafccb/um_wafccb.c'],
+            "um_wafccb.um_wafccb",
+            ["lib/um_wafccb/um_wafccb.c"],
             include_dirs=[np.get_include()],
-            libraries=["um_wafccb"]),
-            ])
+            libraries=["um_wafccb"],
+        ),
+    ],
+)

@@ -67,9 +67,12 @@ class Test_load_fields(tests.MuleTest):
             self.assertEqual(field.lbrel, rel)
             self.assertEqual(field.lbvc, vc)
 
-            data = field.get_data()
-            self.assertEqual(data.shape[0], field.lbrow)
-            self.assertEqual(data.shape[1], field.lbnpt)
+            try:
+                data = field.get_data()
+                self.assertEqual(data.shape[0], field.lbrow)
+                self.assertEqual(data.shape[1], field.lbnpt)
+            except NotImplementedError:
+                self.skipTest("Skipping tests as WGDOS packing library unavailable")
 
     def test_read_ppfile_var_grid(self, fname=None):
 
@@ -85,9 +88,12 @@ class Test_load_fields(tests.MuleTest):
         self.assertEqual(field.lbrel, 3)
         self.assertEqual(field.lbvc, 65)
 
-        data = field.get_data()
-        self.assertEqual(data.shape[0], field.lbrow)
-        self.assertEqual(data.shape[1], field.lbnpt)
+        try:
+            data = field.get_data()
+            self.assertEqual(data.shape[0], field.lbrow)
+            self.assertEqual(data.shape[1], field.lbnpt)
+        except NotImplementedError:
+            print("Skipping tests as WGDOS packing library unavailable")
 
         expected_extra = [1, 2, 12, 13, 14, 15]
         self.assertEqual(len(field.pp_extra_data), 6)
