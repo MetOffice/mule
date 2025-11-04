@@ -36,6 +36,7 @@ jobs:
           cache: pip
       - name: Install Python Dependencies ${{ matrix.numpy-version }}
         run: |
+          python -m ensurepip --upgrade
           pip install setuptools
           pip install six
           pip install numpy==${{ matrix.numpy-version }}
