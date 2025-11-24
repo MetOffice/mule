@@ -262,25 +262,14 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
 
     """
     if isinstance(pp_file_obj_or_path, six.string_types):
-        print(f"Opening file {pp_file_obj_or_path}")
         pp_file = open(pp_file_obj_or_path, "wb")
     else:
-        print(f"Was handed an open file object.")
         pp_file = pp_file_obj_or_path
 
-    print(f"umfile  : Grid stagger is {GRID_STAGGER[umfile.fixed_length_header.grid_staggering]}")
-    print(f"umfile  : Row dependent consts are {vars(umfile.row_dependent_constants)}")
-    print(f"umfile  : Col dependent consts are {vars(umfile.column_dependent_constants)}")
     lookups = []
     for field_count, field in enumerate(list(field_or_fields)):
         if field.lbrel not in (2, 3):
             continue
-        print(f"Field {field_count} has an lbrel of {field.lbrel}")
-        if field_count < 0 or field_count > 11:
-            #print(f"         : Skipping field {field_count}")
-            #continue
-            field = field_or_fields[0]
-            print(f"         :  masking field {field_count}")
         # Similar to the mule file classes, the unpacking of data can be
         # skipped if the packing and accuracy are unchanged and the fields
         # have the appropriate word size on disk
@@ -302,14 +291,11 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
             if lbpack321 not in _WRITE_OPERATORS:
                 msg = "Cannot write out packing code {0}"
                 raise ValueError(msg.format(lbpack321))
-            print(f"        : Will be using _WRITE_OPERATORS[\"{lbpack321}\"]")
 
             data_bytes, _ = _WRITE_OPERATORS[lbpack321].to_bytes(field)
-            print(f"        : data_bytes is {len(data_bytes)} long...")
 
         # Calculate LBLREC
         field.lblrec = len(data_bytes) // PP_WORD_SIZE
-        print(f"        : lblrec is {field.lblrec}")
 
         # Ensure the value of LBLREC lies on a whole 8-byte word
         if field.lblrec % 2 != 0:
@@ -366,8 +352,6 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
                                                 - cdc.lambda_p[0]],
                                                cdc.lambda_p[:-1])
                         vector[13] = cdc.lambda_p
-                        print(f"        : Grid Type {grid_type} adding {len(vector[12])} entries to vector[12]")
-                        print(f"        : Grid Type {grid_type} adding {len(vector[13])} entries to vector[13]")
                 else:  # Any other grid types
                     vector[1] = cdc.lambda_p
                     if stagger == "new_dynamics":
@@ -380,8 +364,6 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
                         vector[13] = np.append(cdc.lambda_u[1:],
                                                [2.0 * cdc.lambda_p[-1]
                                                - cdc.lambda_u[-1]])
-                        print(f"        : Grid Type {grid_type} adding {len(vector[12])} entries to vector[12]")
-                        print(f"        : Grid Type {grid_type} adding {len(vector[13])} entries to vector[13]")
 
                 # Calculate V vectors
                 if grid_type in (11, 19):  # V points
@@ -398,8 +380,6 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
                         vector[15] = np.append(rdc.phi_p[:-1],
                                                [2.0 * rdc.phi_v[-1]
                                                 - rdc.phi_p[-1]])
-                        print(f"        : Grid Type {grid_type} adding {len(vector[14])} entries to vector[14]")
-                        print(f"        : Grid Type {grid_type} adding {len(vector[15])} entries to vector[15]")
                 else:  # Any other grid types
                     vector[2] = rdc.phi_p[:-1]
                     if stagger == "new_dynamics":
@@ -412,20 +392,16 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
                     elif stagger == "endgame":
                         vector[14] = rdc.phi_v[:-1]
                         vector[15] = rdc.phi_v[1:]
-                        print(f"        : Grid Type {grid_type} adding {len(vector[14])} entries to vector[14]")
-                        print(f"        : Grid Type {grid_type} adding {len(vector[15])} entries to vector[15]")
 
                 # Work out extra data sizes and adjust the headers accordingly
                 extra_len = 6 + 3 * field.lbnpt + 3 * field.lbrow
                 field.lbext = extra_len
-                print(f"        : Increasing field.lblrec ({field.lblrec})by {extra_len}")
                 field.lblrec += extra_len
 
         # (Optionally) zero LBNREC, LBEGIN and LBUSER2, since they have no
         # meaning in a pp file (because pp files have sequential records
         # rather than direct)
         if not keep_addressing:
-        #    print(f"        :  Resetting lbnrec, lbegin and lbuser2 {field.lbnrec}, {field.lbegin}, {field.lbuser2} to Zero")
             field.lbnrec = 0
             field.lbegin = 0
             field.lbuser2 = 0
@@ -443,7 +419,6 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
             (len(ints) + len(reals)) * PP_WORD_SIZE).astype(">i4")
 
         # Write the first record (the field header)
-        print(f"        : Writing lookup_reclen, ints, reals to file reclen = {lookup_reclen},")
         pp_file.write(lookup_reclen)
         pp_file.write(ints)
         pp_file.write(reals)
@@ -452,60 +427,19 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
         # Similarly echo the record length before and after the data
         reclen = len(data_bytes)
 
-        ## Re-seeting vector to blank as it may be part of the problem...
-        ##= vector = {}
         if vector:
-            print(f"        : Adjusting reclen by adding  {extra_len * PP_WORD_SIZE}")
             reclen += extra_len * PP_WORD_SIZE
             keys = [1, 2, 12, 13, 14, 15]
             sizes = ([field.lbnpt, field.lbrow]
                      + [field.lbnpt] * 2 + [field.lbrow] * 2)
             for a, b in zip(keys, sizes):
-                print(f"        : key {a} has size  {b}")
 
 
-        print(f"        : Writing np.array data of len {reclen}")
         pp_file.write(np.array(reclen).astype(">i4"))
-        print(f"        : Writing data_bytes, length {len(data_bytes)}")
         pp_file.write(data_bytes)
         if vector:
-            print(f"        : Writing vector")
             for key, size in zip(keys, sizes):
                 pp_file.write(np.array(1000 * size + key).astype(">i4"))
                 pp_file.write(vector[key].astype(">f4"))
-        print(f"        : Writing np.array data of len {reclen}")
         pp_file.write(np.array(reclen).astype(">i4"))
-
-    ## Have left loop over field - lets look at the lookups...
-    LOOKUP_NAMES = {
-            1 : "Year",  2 :  "Month",  3 :  "DoM",  4 :  "Hour",  5 :  "Min",
-            6 : "Day no/Seconds (lbrel>=3)",  7 :  "Year",  8 :  "Month",  9 :  "DoM", 10 : "Hour",
-           11 : "Min", 12 :  "Day no/Seconds (lbrel>=3)", 13 :  "Time ind", 14 :  "LBFT", 15 :  "data len",
-           16 : "Grid Code", 17 :  "Hemisphere (3)", 18 :  "num rows", 19 :  "points per row", 20 :  "extra data len",
-           21 : "packing", 22 :  "header vn (3)", 23 :  "Field Code", 24 :  "2nd Field code (0)", 25 :  "processing code (0)",
-           26 : "vert coord", 27 :  "vert coord ref (0)", 28 :  "Exp no.", 29 :  "Start record", 30 :  "No of records",
-           31 : "projection no", 32 :  "fieldsfile field type", 33 :  "fieldsfile level code", 34 :  "reserved", 35 :  "reserved",
-           36 : "reserved", 37 :  "Ensemble no", 38 :  "source (vn+1111)", 39 :  "lbuser1", 40 :  "lbuser2",
-           41 : "lbuser3", 42 :  "lbuser4", 43 :  "lbuser5", 44 :  "lbuser6", 45 :  "lbuser7",
-
-           46 : "Upper layer bnd", 47 :  "Upper layer bnd", 48 :  "reserved", 49 :  "reserved", 50 :  "datum val (0)",
-           51 : "WGDOS acc", 52 :  "lev val", 53 :  "lev val", 54 :  "lev val", 55 :  "lev val",
-           56 : "real lat of rot pole", 57 :  "real lon of rot pole", 58 :  "grid def", 59 :  "grid def", 60 :  "grid def",
-           61 : "grid def", 62 :  "grid def", 63 :  "MDI", 64 :  "Scaling fact (1.0)", 65 :  "nope",
-           66 : "nope", 67 :  "nope", 68 :  "nope", 69 :  "nope", 70 :  "nope",
-    }
-    for val, name in LOOKUP_NAMES.items():
-        print(f"{val:2d} : {name:20s} :", end = " ")
-        values_set = set()
-        dumb_line = ""
-        for count in range(len(lookups)):
-            array_len = len(lookups[count])
-            value = lookups[count][val-1] if (val -1) < array_len else None
-            values_set.add(value)
-            dumb_line += f" {value} :"
-        if len(values_set) == 1:
-            print(f" :: All Identical = {list(values_set)[0]} ::")
-        else:
-            print(dumb_line)
-    print(f"-=Closing File=-")
     pp_file.close()
