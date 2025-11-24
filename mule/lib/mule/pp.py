@@ -266,10 +266,11 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
     else:
         pp_file = pp_file_obj_or_path
 
-    lookups = []
-    for field_count, field in enumerate(list(field_or_fields)):
+    for field in list(field_or_fields):
+
         if field.lbrel not in (2, 3):
             continue
+
         # Similar to the mule file classes, the unpacking of data can be
         # skipped if the packing and accuracy are unchanged and the fields
         # have the appropriate word size on disk
@@ -409,9 +410,6 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
         # Convert the numbers from the lookup to 32-bit
         ints = field._lookup_ints.astype(">i4")
         reals = field._lookup_reals.astype(">f4")
-        lookups.append(field._lookup_ints.tolist())
-        for thing in field._lookup_reals:
-            lookups[field_count].append(thing)
 
         # Calculate the record length (pp files are not direct-access, so each
         # record begins and ends with its own length)
@@ -432,8 +430,6 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
             keys = [1, 2, 12, 13, 14, 15]
             sizes = ([field.lbnpt, field.lbrow]
                      + [field.lbnpt] * 2 + [field.lbrow] * 2)
-            for a, b in zip(keys, sizes):
-
 
         pp_file.write(np.array(reclen).astype(">i4"))
         pp_file.write(data_bytes)
