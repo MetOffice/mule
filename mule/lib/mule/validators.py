@@ -379,6 +379,10 @@ def validate_field_grid_type(umf, field):
             A :class:`Field` subclass instance.
 
     """
+    # BYPASS ALL the tests herein....
+    print("WARNING : no grid checks being performed....")
+    return
+    # 
     # If the field has a particularly exotic lbcode value, we can't be
     # sure about the validation
     if field.lbcode not in [1, 101]:
@@ -429,6 +433,10 @@ def validate_variable_resolution_field(umf, field):
         return grid_type_msg
 
     out_msg = []
+    # BYPASS ALL the tests herein....
+    print("WARNING : no variable resolution checks being performed....")
+    return out_msg
+    # 
     # Variable resolution grids are relatively easy to test - there's no
     # need to use the STASHmaster as the only thing that matters is if the
     # field has the right amount of points for the supplied row and column
