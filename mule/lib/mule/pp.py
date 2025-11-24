@@ -305,7 +305,7 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
             print(f"        : Will be using _WRITE_OPERATORS[\"{lbpack321}\"]")
 
             data_bytes, _ = _WRITE_OPERATORS[lbpack321].to_bytes(field)
-            print(f"          : data_bytes is {len(data_bytes)} long...")
+            print(f"        : data_bytes is {len(data_bytes)} long...")
 
         # Calculate LBLREC
         field.lblrec = len(data_bytes) // PP_WORD_SIZE
@@ -318,11 +318,17 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
 
         # If the field appears to be variable resolution, attach the
         # relevant extra data (requires that a UM file object was given)
+        not_timeseries = field.lbcode not in [31320, ]
+        if not_timeseries:
+            print(f"        : NOT a timeseries.")
+        else:
+            print(f"        : TimeSeries data assumed - skipping adding variable resolution data.")
         vector = {}
-        if (field.bzx == field.bmdi
+        if ( not_timeseries and
+                (  field.bzx == field.bmdi
                 or field.bzy == field.bmdi
                 or field.bdx == field.bmdi
-                or field.bdy == field.bmdi):
+                or field.bdy == field.bmdi) ):
 
             # The variable resolution data can either be already attached
             # to the field (most likely if it has already come from an existing
@@ -418,11 +424,11 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
         # (Optionally) zero LBNREC, LBEGIN and LBUSER2, since they have no
         # meaning in a pp file (because pp files have sequential records
         # rather than direct)
-        #if not keep_addressing:
+        if not keep_addressing:
         #    print(f"        :  Resetting lbnrec, lbegin and lbuser2 {field.lbnrec}, {field.lbegin}, {field.lbuser2} to Zero")
-        #    field.lbnrec = 0
-        #    field.lbegin = 0
-        #    field.lbuser2 = 0
+            field.lbnrec = 0
+            field.lbegin = 0
+            field.lbuser2 = 0
 
         # Convert the numbers from the lookup to 32-bit
         ints = field._lookup_ints.astype(">i4")
@@ -437,7 +443,7 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
             (len(ints) + len(reals)) * PP_WORD_SIZE).astype(">i4")
 
         # Write the first record (the field header)
-        print(f"        :  Writing lookup_reclen, ints, reals to file reclen = {lookup_reclen},")
+        print(f"        : Writing lookup_reclen, ints, reals to file reclen = {lookup_reclen},")
         pp_file.write(lookup_reclen)
         pp_file.write(ints)
         pp_file.write(reals)
@@ -447,7 +453,7 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
         reclen = len(data_bytes)
 
         ## Re-seeting vector to blank as it may be part of the problem...
-        vector = {}
+        ##= vector = {}
         if vector:
             print(f"        : Adjusting reclen by adding  {extra_len * PP_WORD_SIZE}")
             reclen += extra_len * PP_WORD_SIZE
