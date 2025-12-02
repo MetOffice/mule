@@ -1,6 +1,7 @@
 # Mule
 
 [![Docs](https://github.com/MetOffice/mule/actions/workflows/docs.yaml/badge.svg)](https://github.com/MetOffice/mule/actions/workflows/docs.yaml)
+[![CI](https://github.com/MetOffice/mule/actions/workflows/ci.yaml/badge.svg)](https://github.com/MetOffice/mule/actions/workflows/ci.yaml)
 
 Mule is an API written in Python which allows you to access and manipulate files
 produced by the UM (Unified Model, of the Met Office (UK)).
