@@ -58,7 +58,7 @@ jobs:
                                   ./_build/lib ./_build/bin
       - name: Test python-${{ matrix.python-version }}_numpy-${{ matrix.numpy-version }}
         run: |
-          cd _build/lib
+          cd $GITHUB_WORKSPACE/mule/_build/lib
           for name in ./*; do
             python -m unittest discover -v ${name##*/}.tests
           done
