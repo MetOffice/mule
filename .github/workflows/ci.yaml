@@ -53,7 +53,7 @@ jobs:
       - name: Build python-${{ matrix.python-version }}_numpy-${{ matrix.numpy-version }}
         run: |
           cd $GITHUB_WORKSPACE/mule
-          ./admin/install_mule.sh --spiral_lib --ppibm_lib --packing_lib \
+          ./admin/install_mule.sh --spiral_lib --packing_lib \
                                   --shumlib_path $GITHUB_WORKSPACE/shumlib/build/vm-x86-gfortran-gcc \
                                   ./_build/lib ./_build/bin
       - name: Test python-${{ matrix.python-version }}_numpy-${{ matrix.numpy-version }}
