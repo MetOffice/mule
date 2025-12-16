@@ -48,15 +48,16 @@ jobs:
           pip install numpy==${{ matrix.numpy-version }}
       - name: Install shumlib
         run: |
+          echo "Compiling shumlib using $(gfortran --version)"
           cd $GITHUB_WORKSPACE/shumlib
           make -f ./make/vm-x86-gfortran-gcc.mk check
-      - name: Build python-${{ matrix.python-version }}_numpy-${{ matrix.numpy-version }}
+      - name: Install Mule with python-${{ matrix.python-version }}_numpy-${{ matrix.numpy-version }}
         run: |
           cd $GITHUB_WORKSPACE/mule
           ./admin/install_mule.sh --spiral_lib --packing_lib \
                                   --shumlib_path $GITHUB_WORKSPACE/shumlib/build/vm-x86-gfortran-gcc \
                                   ./_build/lib ./_build/bin
-      - name: Test python-${{ matrix.python-version }}_numpy-${{ matrix.numpy-version }}
+      - name: Test Mule with python-${{ matrix.python-version }}_numpy-${{ matrix.numpy-version }}
         run: |
           cd $GITHUB_WORKSPACE/mule/_build/lib
           for name in ./*; do
