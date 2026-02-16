@@ -43,15 +43,21 @@ jobs:
       - name: Copy Built Documentation
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: |
-          cp -r ./mule/docs/build/html .github/files/mule
-          cp -r ./um_utils/docs/build/html .github/files/um_utils
+          mkdir _docs
+          cp -r ./mule/docs/build/html _docs/mule
+          cp -r ./um_utils/docs/build/html _docs/um_utils
+
+          echo '<ul style="font-size: 24px; padding: 50px;">
+                <li><a href="mule/index.html">Mule Documentation</a></li>
+                <li><a href="um_utils/index.html">UM Utils Documentation</a></li>
+                </ul>' > _docs/index.html
 
       - name: Upload artifacts
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
         with:
           name: github-pages
-          path: ./mule/docs/build/html
+          path: ./_docs
 
       - name: Minimize uv cache
         if: always()
