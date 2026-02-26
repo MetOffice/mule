@@ -570,12 +570,9 @@ def validate_regular_field(umf, field):
             n_row_exp += 1
     elif field.stash.grid == 23:
         # River routing grid
-        if umf.fixed_length_header.horiz_grid_type != 0:
-            return ["Field is river routing diag, which is invalid "
-                    "for non-Global domains"]
-        else:
+        if umf.fixed_length_header.horiz_grid_type == 0:
             # Note the river routing diagnostics are restriced to a very
-            # specific fixed grid; any deviation from this is incorrect
+            # specific fixed global grid; any deviation from this is incorrect
             lon_start_exp = 0.5
             lat_start_exp = -89.5
             n_row_exp = 180
