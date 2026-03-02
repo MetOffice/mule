@@ -38,10 +38,10 @@ This module will use *either* the SHUMlib packing library wrapper module
 
 """
 import os
-import pkgutil
+import importlib
 
 # First establish whether the SHUMlib packing library is available
-if not pkgutil.get_loader("um_packing") is None:
+if importlib.util.find_spec("um_packing") is not None:
     try:
         import um_packing
         # Since the SHUMlib packing employs OpenMP for speed, make sure the
@@ -106,7 +106,7 @@ if not pkgutil.get_loader("um_packing") is None:
         msg = "SHUMlib Packing library found, but failed to import"
         raise ImportError(err.args + (msg,))
 
-elif not pkgutil.get_loader("mo_pack") is None:
+elif importlib.util.find_spec("mo_pack") is not None:
     # If the UM library wasn't found, try the MO packing library instead
     try:
         import mo_pack

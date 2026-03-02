@@ -24,25 +24,41 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
+
       - name: Install dependencies
         run: uv sync && uv pip install ./mule ./um_utils
+
       - name: Build mule docs
         run: uv run make clean html --directory ./mule/docs
         working-directory: ${{ github.workspace }}
+
       - name: Build um_utils docs
         run: uv run make clean html --directory ./um_utils/docs
         working-directory: ${{ github.workspace }}
-    #   - id: permissions
-    #     name: Set permissions
-    #     run: |
-    #       chmod -c -R +rX "./doc/_build/html/"
+
+      # Deploy Steps
+      - name: Copy Built Documentation
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: |
+          mkdir _docs
+          cp -r ./mule/docs/build/html _docs/mule
+          cp -r ./um_utils/docs/build/html _docs/um_utils
+
+          echo '<ul style="font-size: 24px; padding: 50px;">
+                <li><a href="mule/index.html">Mule Documentation</a></li>
+                <li><a href="um_utils/index.html">UM Utils Documentation</a></li>
+                </ul>' > _docs/index.html
+
       - name: Upload artifacts
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
         with:
           name: github-pages
-          path: ./mule/docs/build/html
+          path: ./_docs
+
       - name: Minimize uv cache
         if: always()
         run: uv cache prune --ci
@@ -50,17 +66,21 @@ jobs:
   # Deploy job
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+
     # Add a dependency to the build job
     needs: build-docs
     permissions:
       pages: write      # to deploy to Pages
       id-token: write   # to verify the deployment originates from an appropriate source
+
     # Deploy to the github-pages environment
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     # Specify runner + deployment step
     runs-on: ubuntu-latest
+
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

@@ -39,7 +39,7 @@ shum_ver=2025.10.1
 # Set library locations and which specific builds to use on each platform
 hostname=$(hostname)
 if [[ $hostname == caz* ]] && [[ $hostname != cazccylc* ]] ; then # AZSPICE
-  shum=$UMDIR/shumlib/shumlib-2024.03.1/azspice-gfortran-12.2.0-gcc-12.2.0
+  shum=$UMDIR/shumlib/shumlib-$shum_ver/azspice-gfortran-12.2.0-gcc-12.2.0
   sst=$UMDIR/$um_ver/linux/sstpert_gnu
   wafc=$UMDIR/$um_ver/linux/wafccb_gnu
 
