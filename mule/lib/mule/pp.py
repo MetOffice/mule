@@ -305,11 +305,17 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
 
         # If the field appears to be variable resolution, attach the
         # relevant extra data (requires that a UM file object was given)
+        not_timeseries = field.lbcode not in [31320, ]
+        if not_timeseries:
+            print(f"        : NOT a timeseries.")
+        else:
+            print(f"        : TimeSeries data assumed - skipping adding variable resolution data.")
         vector = {}
-        if (field.bzx == field.bmdi
+        if ( not_timeseries and
+                (  field.bzx == field.bmdi
                 or field.bzy == field.bmdi
                 or field.bdx == field.bmdi
-                or field.bdy == field.bmdi):
+                or field.bdy == field.bmdi) ):
 
             # The variable resolution data can either be already attached
             # to the field (most likely if it has already come from an existing
