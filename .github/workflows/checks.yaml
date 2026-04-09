@@ -2,6 +2,10 @@
 name: Quality
 
 on:  # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - main
+      - 'releases/**'
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
