@@ -570,6 +570,7 @@ def validate_regular_field(umf, field):
             n_row_exp += 1
     elif field.stash.grid == 23:
         # River routing grid
+        # No validation is done for regional rivers
         if umf.fixed_length_header.horiz_grid_type == 0:
             # Note the river routing diagnostics are restriced to a very
             # specific fixed global grid; any deviation from this is incorrect
