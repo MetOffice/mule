@@ -1,6 +1,6 @@
 ---
 name: CI
-on:  # yamllint disable-line rule:truthy
+on:
   push:
     branches:
       - main
@@ -9,7 +9,8 @@ on:  # yamllint disable-line rule:truthy
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 
-permissions: read-all
+permissions:
+  contents: read  # Required to evaluate the event trigger metadata safely
 
 jobs:
   build-test-mule:
@@ -28,38 +29,46 @@ jobs:
 
     steps:
       - name: Checkout Mule
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: mule
+          persist-credentials: false
+
       - name: Checkout Shumlib
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: "MetOffice/shumlib"
           path: shumlib
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+          persist-credentials: false
+
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
+          enable-cache: false
+
       - name: Install Python Dependencies ${{ matrix.numpy-version }}
         run: |
-          pip install setuptools
-          pip install six
-          pip install numpy==${{ matrix.numpy-version }}
+          uv sync --upgrade-package "numpy==${{ matrix.numpy-version }}"
+
       - name: Install shumlib
         working-directory: ./shumlib
         run: |
           echo "Compiling shumlib using $(gfortran --version)"
           make -f ./make/vm-x86-gfortran-gcc.mk check
+
       - name: Install Mule with python-${{ matrix.python-version }}_numpy-${{ matrix.numpy-version }}
         working-directory: ./mule
         run: |
-          ./admin/install_mule.sh --spiral_lib --packing_lib \
-                                  --shumlib_path $GITHUB_WORKSPACE/shumlib/build/vm-x86-gfortran-gcc \
-                                  ./_build/lib ./_build/bin
+          ./admin/install_mule.sh \
+            --spiral_lib --packing_lib \
+            --shumlib_path $GITHUB_WORKSPACE/shumlib/build/vm-x86-gfortran-gcc \
+            ./_build/lib ./_build/bin
+
       - name: Test Mule with python-${{ matrix.python-version }}_numpy-${{ matrix.numpy-version }}
         working-directory: ./mule/_build/lib
         run: |
           for name in ./*; do
-            python -m unittest discover -v ${name##*/}.tests
+            # uv run python -m unittest discover -v ${name##*/}.tests
+            uv run python -m unittest discover -v -s "${name}/tests" -t .
           done

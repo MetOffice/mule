@@ -1,7 +1,7 @@
 ---
 name: Docs
 
-on:  # yamllint disable-line rule:truthy
+on:
   push:
     branches:
       - main
@@ -30,12 +30,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false  # Avoids exposing secrets to forks
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
           enable-cache: false  # Disable caching to minimize storage usage
 
@@ -99,10 +99,6 @@ jobs:
         with:
           name: github-pages
           path: ./_docs
-
-      - name: Minimize uv cache
-        if: always()
-        run: uv cache prune --ci
 
   # Deploy to GitHub Pages only on main branch pushes to avoid deploying from forks or PRs
   deploy:
