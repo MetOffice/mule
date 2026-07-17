@@ -34,7 +34,7 @@ jobs:
           enable-cache: false
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --extra lint
 
       - name: Python Lint
         run: uv run ruff check .

@@ -40,7 +40,9 @@ jobs:
           enable-cache: false  # Disable caching to minimize storage usage
 
       - name: Install dependencies
-        run: uv sync && uv pip install ./mule ./um_utils
+        run: |
+          uv sync --extra docs
+          uv pip install ./mule ./um_utils
 
       - name: Build mule docs
         run: uv run make clean html --directory "${GITHUB_WORKSPACE}/mule/docs"
