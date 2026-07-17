@@ -572,7 +572,7 @@ def validate_regular_field(umf, field):
         # River routing grid
         # No validation is done for regional rivers
         if umf.fixed_length_header.horiz_grid_type == 0:
-            # Note the river routing diagnostics are restriced to a very
+            # Note the river routing diagnostics are restricted to a very
             # specific fixed global grid; any deviation from this is incorrect
             lon_start_exp = 0.5
             lat_start_exp = -89.5
