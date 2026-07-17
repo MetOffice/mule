@@ -48,6 +48,7 @@ jobs:
           enable-cache: false
 
       - name: Install Python Dependencies ${{ matrix.numpy-version }}
+        working-directory: ./mule
         run: |
           uv sync --upgrade-package "numpy==${{ matrix.numpy-version }}"
 
@@ -60,7 +61,7 @@ jobs:
       - name: Install Mule with python-${{ matrix.python-version }}_numpy-${{ matrix.numpy-version }}
         working-directory: ./mule
         run: |
-          ./admin/install_mule.sh \
+          uv run --project . ./admin/install_mule.sh \
             --spiral_lib --packing_lib \
             --shumlib_path $GITHUB_WORKSPACE/shumlib/build/vm-x86-gfortran-gcc \
             ./_build/lib ./_build/bin
@@ -70,5 +71,5 @@ jobs:
         run: |
           for name in ./*; do
             # uv run python -m unittest discover -v ${name##*/}.tests
-            uv run python -m unittest discover -v -s "${name}/tests" -t .
+            uv run --project ../.. python -m unittest discover -v -s "${name}/tests" -t .
           done
