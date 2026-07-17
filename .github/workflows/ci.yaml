@@ -49,6 +49,8 @@ jobs:
 
       - name: Install Python Dependencies ${{ matrix.numpy-version }}
         working-directory: ./mule
+        env:
+          UV_OVERRIDE_PKG: numpy==${{ matrix.numpy-version }}
         run: |
           uv sync --upgrade-package "numpy==${{ matrix.numpy-version }}"
 
