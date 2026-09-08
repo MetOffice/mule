@@ -317,7 +317,7 @@ class ValueExchangeOperator(mule.DataOperator):
             by the new field's :meth:`get_data` method.
 
         """
-        data = source_field.get_data()
+        data = source_field.get_data().copy()
         data[(data == self.target_value)] = self.new_value
         return data
 
