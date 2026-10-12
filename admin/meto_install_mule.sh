@@ -84,7 +84,10 @@ for omp in openmp no-openmp ; do
 
     # Check the build works by running the unit-tests
     for mod in um_packing mule um_utils um_spiral_search ; do
-        PYTHONPATH=$dest_dir/$omp/lib python -m unittest discover -v $mod.tests
+        (
+            PYTHONPATH+=":$dest_dir/$omp/lib"
+            python -m unittest discover -v $mod.tests
+        )
     done
 
     # By default the entry-point scripts created this way will be tied to
