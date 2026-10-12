@@ -34,7 +34,7 @@ set -eu
 # UM version for sstpert and wafccb libraries (will be looked up in $UMDIR)
 um_ver=vn14.2
 # Shumlib version (will be looked up in $UMDIR)
-shum_ver=2026.07.2
+shum_ver=2025.10.1
 
 # Set library locations and which specific builds to use on each platform
 hostname=$(hostname)
