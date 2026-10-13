@@ -40,7 +40,7 @@ except ImportError as err:
     msg = "Failed to import ieee2ibm32 extension"
     raise ImportError(err.args + (msg,))
 
-__version__ = "2025.10.1"
+__version__ = "2026.09.1"
 
 
 # Custom write operator for "unpacked" fields which passes them through the

@@ -32,7 +32,7 @@ set -eu
 # Setup what version of things should be used
 
 # UM version for sstpert and wafccb libraries (will be looked up in $UMDIR)
-um_ver=vn13.9
+um_ver=vn14.2
 # Shumlib version (will be looked up in $UMDIR)
 shum_ver=2025.10.1
 
@@ -84,7 +84,10 @@ for omp in openmp no-openmp ; do
 
     # Check the build works by running the unit-tests
     for mod in um_packing mule um_utils um_spiral_search ; do
-        PYTHONPATH=$dest_dir/$omp/lib python -m unittest discover -v $mod.tests
+        (
+            PYTHONPATH+=":$dest_dir/$omp/lib"
+            python -m unittest discover -v $mod.tests
+        )
     done
 
     # By default the entry-point scripts created this way will be tied to
