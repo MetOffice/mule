@@ -6,3 +6,4 @@
 | jennyhickson    | Jenny Hickson   | Met Office  | 2026-03-02 |
 | yaswant         | Yaswant Pradhan | Met Office  | 2026-05-22 |
 | arjclark        | Andrew Clark    | Met Office  | 2026-09-08 |
+| r-sharp         | R Sharp         | Met Office  | 2026-10-13 |
