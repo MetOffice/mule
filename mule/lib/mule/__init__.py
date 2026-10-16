@@ -1436,6 +1436,7 @@ class UMFile(object):
             start = getattr(self.fixed_length_header, name+'_start')
             if start <= 0:
                 continue
+            source.seek((start - 1) * self.WORD_SIZE)
             if len(headerclass.CREATE_DIMS) == 1:
                 length = getattr(self.fixed_length_header, name+'_length')
                 header = headerclass.from_file(source, length)
