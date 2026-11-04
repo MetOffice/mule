@@ -22,7 +22,8 @@
 This module provides tools for interacting with "pp" files.
 
 """
-from __future__ import (absolute_import, division, print_function)
+
+from __future__ import absolute_import, division, print_function
 
 import six
 import mule
@@ -75,7 +76,7 @@ _READ_PROVIDERS = {
 
 _WRITE_OPERATORS = {
     "000": mule.ff._WriteFFOperatorCray32Packed(),
-    "001": mule.ff._WriteFFOperatorWGDOSPacked()
+    "001": mule.ff._WriteFFOperatorWGDOSPacked(),
 }
 
 
@@ -173,7 +174,8 @@ def fields_from_pp_file(pp_file_obj_or_path):
         # Strip just the n1-n3 digits from the lbpack value
         # and check for a suitable write operator
         lbpack321 = "{0:03d}".format(
-            field_ref.lbpack - ((field_ref.lbpack // 1000) % 10) * 1000)
+            field_ref.lbpack - ((field_ref.lbpack // 1000) % 10) * 1000
+        )
 
         if lbpack321 not in _READ_PROVIDERS:
             msg = "Field{0}; Cannot interpret unsupported packing code {1}"
@@ -201,7 +203,6 @@ def fields_from_pp_file(pp_file_obj_or_path):
             vectors = {}
             ext_consumed = 0
             while pp_file.tell() - start < field.lbext * PP_WORD_SIZE:
-
                 # First read the code
                 vector_code = np.fromfile(pp_file, ">i4", 1)[0]
 
@@ -210,8 +211,7 @@ def fields_from_pp_file(pp_file_obj_or_path):
                 vector_type = vector_code % 1000
 
                 # Then read the vector into the dictionary
-                vectors[vector_type] = (
-                    np.fromfile(pp_file, ">f4", vector_points))
+                vectors[vector_type] = np.fromfile(pp_file, ">f4", vector_points)
 
                 ext_consumed += vector_points
 
@@ -238,8 +238,9 @@ def fields_from_pp_file(pp_file_obj_or_path):
     return fields
 
 
-def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
-                      umfile=None, keep_addressing=False):
+def fields_to_pp_file(
+    pp_file_obj_or_path, field_or_fields, umfile=None, keep_addressing=False
+):
     """
     Writes a list of field objects to a PP file.
 
@@ -267,27 +268,26 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
         pp_file = pp_file_obj_or_path
 
     for field in list(field_or_fields):
-
         if field.lbrel not in (2, 3):
             continue
 
         # Similar to the mule file classes, the unpacking of data can be
         # skipped if the packing and accuracy are unchanged and the fields
         # have the appropriate word size on disk
-        if (field._can_copy_deferred_data(
-                field.lbpack, field.bacc, PP_WORD_SIZE)):
+        if field._can_copy_deferred_data(field.lbpack, field.bacc, PP_WORD_SIZE):
             # Get the raw bytes containing the data
             data_bytes = field._get_raw_payload_bytes()
             # Remove any padding from WGDOS fields
             if field.lbpack == 1:
                 true_len = struct.unpack(">i", data_bytes[:4])[0]
-                data_bytes = data_bytes[:true_len*4]
+                data_bytes = data_bytes[: true_len * 4]
 
         else:
             # If the field has been modified follow a similar set of steps to
             # the mule file classes
             lbpack321 = "{0:03d}".format(
-                field.lbpack - ((field.lbpack // 1000) % 10) * 1000)
+                field.lbpack - ((field.lbpack // 1000) % 10) * 1000
+            )
 
             if lbpack321 not in _WRITE_OPERATORS:
                 msg = "Cannot write out packing code {0}"
@@ -305,33 +305,40 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
 
         # If the field appears to be variable resolution, attach the
         # relevant extra data (requires that a UM file object was given)
-        not_timeseries = field.lbcode not in [31320, ]
+        # However if the field is a timeseries the extra data will be ill
+        # defined and should not be included. The list of values for timeseries
+        # fields may need to be expanded in future. Currently only 31320 is known.
+        not_timeseries = field.lbcode not in [
+            31320,
+        ]
         vector = {}
-        if ( not_timeseries and
-                (  field.bzx == field.bmdi
-                or field.bzy == field.bmdi
-                or field.bdx == field.bmdi
-                or field.bdy == field.bmdi) ):
-
+        if not_timeseries and (
+            field.bzx == field.bmdi
+            or field.bzy == field.bmdi
+            or field.bdx == field.bmdi
+            or field.bdy == field.bmdi
+        ):
             # The variable resolution data can either be already attached
             # to the field (most likely if it has already come from an existing
             # pp file) or be supplied via a umfile object + STASH entry...
-            if (hasattr(field, "pp_extra_data")
-                    and field.pp_extra_data is not None):
+            if hasattr(field, "pp_extra_data") and field.pp_extra_data is not None:
                 vector = field.pp_extra_data
                 extra_len = 6 + 3 * field.lbnpt + 3 * field.lbrow
             else:
                 if umfile is None:
-                    msg = ("Variable resolution field/s found, but no "
-                           "UM file object provided")
+                    msg = (
+                        "Variable resolution field/s found, but no "
+                        "UM file object provided"
+                    )
                     raise ValueError(msg)
                 if not hasattr(field, "stash"):
-                    msg = ("Variable resolution field/s found, but no "
-                           "STASH information attached to field objects")
+                    msg = (
+                        "Variable resolution field/s found, but no "
+                        "STASH information attached to field objects"
+                    )
                     raise ValueError(msg)
 
-                stagger = GRID_STAGGER[
-                    umfile.fixed_length_header.grid_staggering]
+                stagger = GRID_STAGGER[umfile.fixed_length_header.grid_staggering]
                 grid_type = field.stash.grid
                 rdc = umfile.row_dependent_constants
                 cdc = umfile.column_dependent_constants
@@ -341,51 +348,53 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
                     vector[1] = cdc.lambda_u
                     if stagger == "new_dynamics":
                         vector[12] = cdc.lambda_p
-                        vector[13] = np.append(cdc.lambda_p[1:-1],
-                                               [2.0 * cdc.lambda_u[-1]
-                                                - cdc.lambda_p[-1]])
+                        vector[13] = np.append(
+                            cdc.lambda_p[1:-1],
+                            [2.0 * cdc.lambda_u[-1] - cdc.lambda_p[-1]],
+                        )
                     elif stagger == "endgame":
-                        vector[12] = np.append([2.0 * cdc.lambda_u[0]
-                                                - cdc.lambda_p[0]],
-                                               cdc.lambda_p[:-1])
+                        vector[12] = np.append(
+                            [2.0 * cdc.lambda_u[0] - cdc.lambda_p[0]], cdc.lambda_p[:-1]
+                        )
                         vector[13] = cdc.lambda_p
                 else:  # Any other grid types
                     vector[1] = cdc.lambda_p
                     if stagger == "new_dynamics":
-                        vector[12] = np.append([2.0 * cdc.lambda_p[1]
-                                                - cdc.lambda_v[1]],
-                                               cdc.lambda_u[1:])
+                        vector[12] = np.append(
+                            [2.0 * cdc.lambda_p[1] - cdc.lambda_v[1]], cdc.lambda_u[1:]
+                        )
                         vector[13] = cdc.lambda_u
                     elif stagger == "endgame":
                         vector[12] = cdc.lambda_u
-                        vector[13] = np.append(cdc.lambda_u[1:],
-                                               [2.0 * cdc.lambda_p[-1]
-                                               - cdc.lambda_u[-1]])
+                        vector[13] = np.append(
+                            cdc.lambda_u[1:],
+                            [2.0 * cdc.lambda_p[-1] - cdc.lambda_u[-1]],
+                        )
 
                 # Calculate V vectors
                 if grid_type in (11, 19):  # V points
                     vector[2] = rdc.phi_v
                     if stagger == "new_dynamics":
                         vector[14] = rdc.phi_p
-                        vector[15] = np.append(rdc.phi_p[1:],
-                                               [2.0 * rdc.phi_v[-1]
-                                                - rdc.phi_p[-1]])
+                        vector[15] = np.append(
+                            rdc.phi_p[1:], [2.0 * rdc.phi_v[-1] - rdc.phi_p[-1]]
+                        )
                     elif stagger == "endgame":
-                        vector[14] = np.append([2.0 * rdc.phi_v[0]
-                                                - rdc.phi_p[0]],
-                                               rdc.phi_p[:-1])
-                        vector[15] = np.append(rdc.phi_p[:-1],
-                                               [2.0 * rdc.phi_v[-1]
-                                                - rdc.phi_p[-1]])
+                        vector[14] = np.append(
+                            [2.0 * rdc.phi_v[0] - rdc.phi_p[0]], rdc.phi_p[:-1]
+                        )
+                        vector[15] = np.append(
+                            rdc.phi_p[:-1], [2.0 * rdc.phi_v[-1] - rdc.phi_p[-1]]
+                        )
                 else:  # Any other grid types
                     vector[2] = rdc.phi_p[:-1]
                     if stagger == "new_dynamics":
-                        vector[14] = np.append([2.0 * rdc.phi_p[0]
-                                                - rdc.phi_v[0]],
-                                               rdc.phi_v[1:])
-                        vector[15] = np.append(rdc.phi_v[:-1],
-                                               [2.0 * rdc.phi_p[-1]
-                                                - rdc.phi_v[-1]])
+                        vector[14] = np.append(
+                            [2.0 * rdc.phi_p[0] - rdc.phi_v[0]], rdc.phi_v[1:]
+                        )
+                        vector[15] = np.append(
+                            rdc.phi_v[:-1], [2.0 * rdc.phi_p[-1] - rdc.phi_v[-1]]
+                        )
                     elif stagger == "endgame":
                         vector[14] = rdc.phi_v[:-1]
                         vector[15] = rdc.phi_v[1:]
@@ -409,8 +418,7 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
 
         # Calculate the record length (pp files are not direct-access, so each
         # record begins and ends with its own length)
-        lookup_reclen = np.array(
-            (len(ints) + len(reals)) * PP_WORD_SIZE).astype(">i4")
+        lookup_reclen = np.array((len(ints) + len(reals)) * PP_WORD_SIZE).astype(">i4")
 
         # Write the first record (the field header)
         pp_file.write(lookup_reclen)
@@ -424,8 +432,7 @@ def fields_to_pp_file(pp_file_obj_or_path, field_or_fields,
         if vector:
             reclen += extra_len * PP_WORD_SIZE
             keys = [1, 2, 12, 13, 14, 15]
-            sizes = ([field.lbnpt, field.lbrow]
-                     + [field.lbnpt] * 2 + [field.lbrow] * 2)
+            sizes = [field.lbnpt, field.lbrow] + [field.lbnpt] * 2 + [field.lbrow] * 2
 
         pp_file.write(np.array(reclen).astype(">i4"))
         pp_file.write(data_bytes)
